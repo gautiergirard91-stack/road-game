@@ -80,12 +80,17 @@ Le principe : le jeu reste un site web, mais on l'empaquette en **AAB signé** q
 
 ### 2. Héberger le jeu en HTTPS public
 
-La TWA exige un site en **HTTPS avec un domaine vérifié**. Options gratuites :
+La TWA exige un site en **HTTPS avec un domaine vérifié** (le `assetlinks.json` doit être servi à la **racine** du domaine : `https://<domaine>/.well-known/assetlinks.json`).
 
-- **GitHub Pages** : Settings → Pages → déployer la branche `main` ; l'URL sera `https://<user>.github.io/road-game/`.
-- **Netlify** ou **Vercel** : connecter le dépôt, déploiement automatique en HTTPS.
+**Option A — GitHub Pages + domaine personnalisé (recommandé pour le TWA)** :
 
-Vérifier que `https://<domaine>/manifest.webmanifest` et `https://<domaine>/sw.js` répondent bien.
+1. Merger la PR sur `main`, puis dans le dépôt : **Settings → Pages → Build and deployment → Source : Deploy from a branch → branche `main`, dossier `/ (root)` → Save**.
+2. Acheter un nom de domaine (ex. chez Gandi/OVH/Namecheap, ~10 €/an) et le faire pointer vers GitHub Pages (CNAME `gautiergirard91-stack.github.io` + `CNAME` à la racine du dépôt). Le site sera alors servi sur `https://<ton-domaine>/` à la racine → le `assetlinks.json` pourra y être placé à `/.well-known/assetlinks.json`.
+3. Sans domaine perso, le site reste accessible sur `https://gautiergirard91-stack.github.io/road-game/` (utile pour tester la PWA, mais **pas suffisant pour la vérification TWA** à cause du chemin `/road-game/`).
+
+**Option B — Netlify ou Vercel** (plus simple pour le TWA) : connecter le dépôt GitHub, déploiement auto en HTTPS sur un sous-domaine gratuit, puis ajouter un domaine perso si besoin ; déposer `assetlinks.json` dans `public/.well-known/` (Netlify) ou à la racine (Vercel).
+
+Vérifier que `https://<domaine>/manifest.webmanifest` et `https://<domaine>/sw.js` répondent bien, et que la PWA s'installe (Chrome ⋮ → « Installer »).
 
 ### 3. Vérifier la propriété du domaine (Digital Asset Links)
 
