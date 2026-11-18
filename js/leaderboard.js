@@ -2,6 +2,7 @@ import { FIREBASE_DB_URL, FIREBASE_DB_SECRET } from './config.js';
 
 const LOCAL_KEY = 'roadtap_leaderboard_local_v1';
 const TOP = 20;
+const MODES = ['auto', 'permisA', 'pilote'];
 
 export function isOnline() {
   return Boolean(FIREBASE_DB_URL);
@@ -37,12 +38,21 @@ export function submitLocal(entry) {
   return arr.slice(0, TOP);
 }
 
+function modeOf(e) {
+  return e.mode || 'auto';
+}
+
+function filterMode(arr, mode) {
+  return mode === 'all' ? arr : arr.filter((e) => modeOf(e) === mode);
+}
+
 export async function submitScore(entry) {
+  const mode = modeOf(entry);
   if (!isOnline()) return submitLocal(entry);
   try {
     const base = FIREBASE_DB_URL.replace(/\/$/, '');
     const auth = FIREBASE_DB_SECRET ? `?auth=${FIREBASE_DB_SECRET}` : '';
-    const res = await fetch(`${base}/scores.json${auth}`, {
+    const res = await fetch(`${base}/scores/${mode}.json${auth}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(entry),
@@ -51,20 +61,26 @@ export async function submitScore(entry) {
   } catch {
     return submitLocal(entry);
   }
-  return getTop();
+  return getTop('all');
 }
 
-export async function getTop() {
-  if (!isOnline()) return getTopLocal();
-  try {
-    const base = FIREBASE_DB_URL.replace(/\/$/, '');
-    const params = `orderBy="score"&limitToLast=${TOP}${FIREBASE_DB_SECRET ? `&auth=${FIREBASE_DB_SECRET}` : ''}`;
-    const res = await fetch(`${base}/scores.json?${params}`);
-    if (!res.ok) throw new Error('firebase read failed');
-    const data = await res.json();
-    const arr = data && typeof data === 'object' ? Object.values(data) : [];
-    return sortDesc(arr);
-  } catch {
-    return getTopLocal();
+export async function getTop(mode = 'all') {
+  if (!isOnline()) return sortDesc(filterMode(localList(), mode));
+  const modes = mode === 'all' ? MODES : [mode];
+  const all = [];
+  for (const m of modes) {
+    try {
+      const base = FIREBASE_DB_URL.replace(/\/$/, '');
+      const params = `orderBy="score"&limitToLast=100${FIREBASE_DB_SECRET ? `&auth=${FIREBASE_DB_SECRET}` : ''}`;
+      const res = await fetch(`${base}/scores/${m}.json?${params}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && typeof data === 'object') all.push(...Object.values(data));
+      }
+    } catch {
+      /* réseau indisponible */
+    }
   }
+  if (all.length) return sortDesc(all);
+  return sortDesc(filterMode(localList(), mode));
 }

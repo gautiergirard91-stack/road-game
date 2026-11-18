@@ -43,6 +43,7 @@ export function buildPattern(level, seed, mode = 'auto') {
         break;
       }
     }
+    if (level.crosswalk && i > 2 && rand() < 0.1) type = 'crosswalk';
     const gap = level.gapMin + rand() * (level.gapMax - level.gapMin);
     dist += gap;
     lines.push({ type, dist, axle: axle() });

@@ -49,6 +49,27 @@ function renderDifficultyPicker() {
   }
 }
 
+let lbFilter = 'all';
+
+function renderLbFilter() {
+  const el = $('#lb-filter');
+  if (!el) return;
+  el.innerHTML = '';
+  const opts = [{ id: 'all', name: 'Tous' }, ...DIFFICULTIES];
+  for (const d of opts) {
+    const b = document.createElement('button');
+    b.className = 'btn small diff-btn' + (lbFilter === d.id ? ' active' : '');
+    b.textContent = d.name;
+    b.addEventListener('click', () => {
+      lbFilter = d.id;
+      sfx.click();
+      renderLbFilter();
+      renderLeaderboard();
+    });
+    el.appendChild(b);
+  }
+}
+
 async function renderLeaderboard() {
   $('#lb-source').textContent = leaderboard.isOnline()
     ? 'Classement en ligne (Firebase)'
@@ -57,7 +78,7 @@ async function renderLeaderboard() {
   list.innerHTML = '<div class="card-sub">Chargement…</div>';
   let top = [];
   try {
-    top = await leaderboard.getTop();
+    top = await leaderboard.getTop(lbFilter);
   } catch {
     top = [];
   }
@@ -252,7 +273,7 @@ function onGameEnd(stats, level) {
   const isRecord = store.setBest(level.id, stats.score);
   if (save.pseudo && save.leaderboardOptIn) {
     leaderboard
-      .submitScore({ pseudo: save.pseudo, score: stats.score, level: level.name, date: Date.now() })
+      .submitScore({ pseudo: save.pseudo, score: stats.score, level: level.name, mode: save.difficulty, date: Date.now() })
       .catch(() => {});
   }
   const coins = coinsForResult(stats, level, stats.completed);
@@ -309,6 +330,7 @@ $('#btn-play').addEventListener('click', () => {
 });
 $('#btn-leaderboard').addEventListener('click', () => {
   sfx.click();
+  renderLbFilter();
   renderLeaderboard();
   show('screen-leaderboard');
 });

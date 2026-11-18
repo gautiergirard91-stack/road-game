@@ -10,9 +10,11 @@ Le jeu est une **PWA (Progressive Web App)** : jouable dans n'importe quel navig
 - **Voiture sur la voie de droite**, avec **circulation en sens inverse** (voie de gauche, purement visuelle) et, en mode Pilote, des voitures dans le même sens.
 - **3 niveaux de difficulté** (sélecteur en haut de l'écran des niveaux) :
   - **Auto école** : tap n'importe où quand les roues touchent la ligne.
-  - **Permis A** : deux essieux (AV = roues avant, AR = roues arrière) — tap sur la **moitié haute** de l'écran pour l'essieu avant, la **moitié basse** pour l'arrière. Mauvaise zone = raté.
-  - **Pilote** : comme Permis A, plus des voitures devant : **swipe vers la gauche** (ou ⬅) pour doubler. Sans dépassement, la voiture ralentit (1 s de grâce, puis ralentissement progressif) jusqu'à l'arrêt complet = fin de partie « 🚦 bouchon ». Pendant le ralentissement : combos coupés et points ×0,2.
-- **🏆 Classement** : le joueur choisit un pseudo et peut apparaître dans le classement (opt-in). Classement **local** par défaut, **en ligne via Firebase Realtime Database** si configuré (voir ci-dessous).
+  - **Permis A** : deux essieux (AV = roues avant, AR = roues arrière). **Chaque ligne doit être touchée deux fois, indépendamment** : d'abord par l'essieu avant (tap **moitié haute** de l'écran quand la ligne atteint la ligne AV cyan), puis par l'essieu arrière (tap **moitié basse**, ligne AR). Chaque essieu est jugé séparément (son propre PARFAIT/BIEN/OK, prefixé AV/AR), et chaque essieu manqué coûte un ❤️.
+  - **Pilote** : comme Permis A, plus des voitures devant : **swipe vers la gauche** (ou ⬅) pour doubler — c'est **ta voiture** qui se déplace sur la voie de gauche pendant le dépassement, la voiture doublée reste à droite. Sans dépassement, ta voiture ralentit (1 s de grâce, puis ralentissement progressif) jusqu'à l'arrêt complet = fin de partie « 🚦 bouchon ». Pendant le ralentissement : combos coupés et points ×0,2.
+- **🚶 Passages piétons en ville** (niveaux 4–5) : une bande zébrée compte comme **une ligne à cliquer** ; quand un piéton traverse, la voiture **s'arrête seule** pour le laisser passer (pause sans pénalité de combo/points), puis repart.
+- **Décor de bord de route selon le thème** : arbres, immeubles, cactus, sapins enneigés, skyline nocturne + **lampadaires** (éclairés la nuit).
+- **🏆 Classement** : le joueur choisit un pseudo et peut apparaître dans le classement (opt-in). **Filtre par difficulté** (Tous / Auto école / Permis A / Pilote). Classement **local** par défaut, **en ligne via Firebase Realtime Database** si configuré (voir ci-dessous), un nœud par difficulté.
 - **12 niveaux déblocables** avec difficulté croissante : vitesse, espacement des lignes, et 3 types de balisage (ligne pointillée, bande continue, chevrons, doubles lignes rapprochées).
 - **5 thèmes de route** : Autoroute, Ville, Désert, Neige, Nuit (scénarios animés, parallaxe, néons).
 - **Économie de jeu** : pièces gagnées à chaque partie, dépensables pour débloquer les niveaux suivants.
@@ -125,7 +127,7 @@ Par défaut le classement est **local** (stocké sur l'appareil). Pour un classe
 3. Règles de la base en développement : `{"rules": {".read": true, ".write": true}}` — à **restreindre en production** (ex. limiter les écritures, utiliser Firebase Auth).
 4. Bumper le `CACHE` du service worker et redéployer.
 
-Sans config, tout fonctionne hors ligne en local. Le joueur choisit son pseudo (menu 🏆 → « Mon pseudo ») et coche « apparaître dans le classement » : seuls les joueurs inscrits y figurent.
+Sans config, tout fonctionne hors ligne en local. Le joueur choisit son pseudo (menu 🏆 → « Mon pseudo ») et coche « apparaître dans le classement » : seuls les joueurs inscrits y figurent. Chaque score est enregistré avec la difficulté jouée, et l'écran 🏆 permet de filtrer par difficulté.
 
 ## 💰 Monétisation — 100 % cosmétique, jamais pay-to-win
 

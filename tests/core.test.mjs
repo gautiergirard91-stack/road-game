@@ -65,4 +65,11 @@ assert.equal(maxMissesFor('auto'), 3, 'auto école : 3 vies');
 assert.equal(maxMissesFor('permisA'), 5, 'permis A : 5 vies');
 assert.equal(maxMissesFor('pilote'), 5, 'pilote : 5 vies');
 
+let hasCrosswalk = false;
+for (let s = 1; s <= 200 && !hasCrosswalk; s++) {
+  if (buildPattern(LEVELS[3], s, 'auto').some((l) => l.type === 'crosswalk')) hasCrosswalk = true;
+}
+assert.ok(hasCrosswalk, 'niveaux ville : des passages piétons apparaissent');
+assert.ok(buildPattern(LEVELS[0], 7, 'auto').every((l) => l.type !== 'crosswalk'), 'pas de passage piéton hors ville');
+
 console.log('OK - tous les tests passent (' + LEVELS.length + ' niveaux vérifiés)');

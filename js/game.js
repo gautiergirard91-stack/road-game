@@ -127,11 +127,13 @@ export class Game {
       type: l.type,
       dist: l.dist,
       axle: l.axle,
+      hits: { front: null, rear: null },
       state: 'pending',
       result: null,
       flash: 0,
       glow: 0,
     }));
+    this.axles = this.mode === 'auto' ? ['rear'] : ['front', 'rear'];
     this.distance = 0;
     this.score = 0;
     this.combo = 0;
@@ -147,18 +149,22 @@ export class Game {
     this.pendingContinue = false;
     this.pendingStray = 0;
     this.slow = 1;
+    this.slowCause = null;
     this.effSpeed = this.level.speed;
-    this.maxMisses = maxMissesFor(this.mode);
-    const mm = MODELS[this.skin.model] || MODELS.berline;
-    this.frontAxleY = this.wheelY - mm.bodyH + 18;
     this.carXFrac = CAR_LANE;
+    this.laneTarget = CAR_LANE;
     this.blocker = null;
     this.oncoming = [];
     this.sameDir = [];
     this.tOncoming = 1.2;
     this.tSame = 4;
+    this.ped = null;
+    this.autoStop = false;
+    this.maxMisses = maxMissesFor(this.mode);
+    const mm = MODELS[this.skin.model] || MODELS.berline;
+    this.frontAxleY = this.wheelY - mm.bodyH + 18;
     this.scenery = [];
-    for (let i = 0; i < 14; i++) this.scenery.push(this.makeScenery(true));
+    for (let i = 0; i < 22; i++) this.scenery.push(this.makeScenery(true));
   }
 
   makeScenery(anywhere) {
@@ -170,6 +176,7 @@ export class Game {
       dist: anywhere ? Math.random() * (this.h + 200) : -Math.random() * 120,
       size: 0.6 + Math.random() * 0.9,
       hue: Math.random(),
+      kind: Math.random() < 0.22 ? 'lamp' : this.theme.scenery,
     };
   }
 
@@ -177,17 +184,17 @@ export class Game {
     return this.effects.includes(id);
   }
 
-  lineAxleY(line) {
-    return this.mode !== 'auto' && line.axle === 'front' ? this.frontAxleY : this.wheelY;
+  lineAxleY(axle) {
+    return axle === 'front' ? this.frontAxleY : this.wheelY;
   }
 
-  lineY(line) {
-    return this.lineAxleY(line) + this.distance - line.dist;
+  lineY(line, axle = 'rear') {
+    return this.lineAxleY(axle) + this.distance - line.dist;
   }
 
-  registerMiss(line) {
-    if (line) line.state = 'missed';
-    const ay = line ? this.lineAxleY(line) : this.wheelY;
+  registerMiss(line, axle) {
+    if (line) line.hits[axle] = 'missed';
+    const ay = line ? this.lineAxleY(axle) : this.wheelY;
     this.stats.misses++;
     this.combo = 0;
     this.popups.push({ text: 'RATÉ', y: ay - 70, life: 0.9, color: '#ff5c5c' });
@@ -204,14 +211,22 @@ export class Game {
   update(dt) {
     if (!this.running || this.paused) return;
     this.time += dt;
-    this.slow = Math.min(1, this.slow);
     this.effSpeed = this.level.speed * this.slow;
     this.distance += this.effSpeed * dt;
     const missPx = (this.effSpeed * WINDOWS.passable) / 1000;
     for (const line of this.lines) {
       if (line.state !== 'pending') continue;
-      if (this.lineY(line) - this.lineAxleY(line) > missPx) {
-        this.registerMiss(line);
+      let missedNow = false;
+      for (const axle of this.axles) {
+        if (line.hits[axle]) continue;
+        if (this.lineY(line, axle) - this.lineAxleY(axle) > missPx) {
+          this.registerMiss(line, axle);
+          missedNow = true;
+          break;
+        }
+      }
+      if (missedNow) {
+        if (this.axles.every((a) => line.hits[a])) line.state = 'resolved';
         return;
       }
     }
@@ -219,7 +234,7 @@ export class Game {
       this.pendingStray -= dt;
       if (this.pendingStray <= 0) {
         this.pendingStray = 0;
-        this.registerMiss(null);
+        this.registerMiss(null, 'rear');
         return;
       }
     }
@@ -246,7 +261,7 @@ export class Game {
     }
     this.popups = this.popups.filter((p) => p.life > 0);
     this.shake = Math.max(0, this.shake - dt * 28);
-    this.carXFrac += (CAR_LANE - this.carXFrac) * Math.min(1, dt * 3.5);
+    this.carXFrac += (this.laneTarget - this.carXFrac) * Math.min(1, dt * 4);
     const range = this.h + 240;
     for (const s of this.scenery) {
       if (s.dist + this.distance > this.h + 120) {
@@ -255,15 +270,53 @@ export class Game {
       }
     }
     if (this.hasEffect('trail')) this.spawnTrail();
+    this.updatePedestrian(dt);
     this.updateTraffic(dt);
     if (!this.running) return;
     const pending = this.lines.filter((l) => l.state === 'pending');
     if (pending.length === 0) {
       const last = this.lines[this.lines.length - 1];
-      if (this.lineY(last) > this.lineAxleY(last) + 80) {
+      if (this.lineY(last, 'rear') > this.wheelY + 80) {
         this.stats.score = this.score;
         this.finish(true);
       }
+    }
+  }
+
+  updatePedestrian(dt) {
+    const cw = this.lines.find((l) => l.type === 'crosswalk' && l.state === 'pending');
+    if (cw && !this.ped) {
+      const y = this.lineY(cw, 'rear');
+      if (y > this.wheelY - 750 && y < this.wheelY - 250) {
+        const fromLeft = Math.random() < 0.5;
+        this.ped = {
+          line: cw,
+          x: fromLeft ? this.roadX - 30 : this.roadX + this.roadW + 30,
+          dir: fromLeft ? 1 : -1,
+          y: y + 16,
+          speed: 70 + Math.random() * 50,
+          color: TRAFFIC_COLORS[(Math.random() * TRAFFIC_COLORS.length) | 0],
+          phase: Math.random() * 6,
+        };
+      }
+    }
+    if (!this.ped) {
+      this.autoStop = false;
+      return;
+    }
+    if (this.ped.line.state !== 'pending') {
+      this.ped = null;
+      this.autoStop = false;
+      return;
+    }
+    this.ped.y = this.lineY(this.ped.line, 'rear') + 16;
+    this.ped.x += this.ped.dir * this.ped.speed * dt;
+    this.ped.phase += dt * 9;
+    this.autoStop = this.ped.x > this.roadX + 6 && this.ped.x < this.roadX + this.roadW - 6;
+    const past = this.ped.dir > 0 ? this.ped.x > this.roadX + this.roadW + 34 : this.ped.x < this.roadX - 34;
+    if (past) {
+      this.ped = null;
+      this.autoStop = false;
     }
   }
 
@@ -285,48 +338,60 @@ export class Game {
     if (this.mode !== 'pilote') {
       this.sameDir = [];
       this.blocker = null;
-      return;
-    }
-    this.tSame -= dt;
-    if (this.tSame <= 0) {
-      this.tSame = 5 + Math.random() * 5;
-      if (!this.sameDir.some((c) => !c.overtaken)) {
-        this.sameDir.push({
-          p: this.distance + 650 + Math.random() * 450,
-          v: this.level.speed * (0.5 + Math.random() * 0.2),
-          color: TRAFFIC_COLORS[(Math.random() * TRAFFIC_COLORS.length) | 0],
-          w: 56 + Math.random() * 16,
-          overtaken: false,
-          grace: 0,
-          lane: 'right',
-        });
+    } else {
+      this.tSame -= dt;
+      if (this.tSame <= 0) {
+        this.tSame = 5 + Math.random() * 5;
+        if (!this.sameDir.some((c) => !c.overtaken)) {
+          this.sameDir.push({
+            p: this.distance + 650 + Math.random() * 450,
+            v: this.level.speed * (0.5 + Math.random() * 0.2),
+            color: TRAFFIC_COLORS[(Math.random() * TRAFFIC_COLORS.length) | 0],
+            w: 56 + Math.random() * 16,
+            overtaken: false,
+            grace: 0,
+          });
+        }
       }
-    }
-    for (const c of this.sameDir) {
-      if (!c.overtaken) c.p += c.v * dt;
-    }
-    let blocker = null;
-    for (const c of this.sameDir) {
-      if (c.overtaken) continue;
-      const sy = this.wheelY + this.distance - c.p;
-      if (sy > this.wheelY + 120) continue;
-      if (sy >= this.wheelY - BLOCK_RANGE) blocker = c;
-    }
-    this.blocker = blocker;
-    if (blocker) {
-      blocker.grace += dt;
-      if (blocker.grace > GRACE_SECONDS) {
+      for (const c of this.sameDir) {
+        if (!c.overtaken) c.p += c.v * dt;
+      }
+      let blocker = null;
+      for (const c of this.sameDir) {
+        if (c.overtaken) continue;
+        const sy = this.wheelY + this.distance - c.p;
+        if (sy > this.wheelY + 120) continue;
+        if (sy >= this.wheelY - BLOCK_RANGE) blocker = c;
+      }
+      this.blocker = blocker;
+      if (blocker && blocker.overtaken) {
+        const sy = this.wheelY + this.distance - blocker.p;
+        if (sy > this.wheelY + 180) this.laneTarget = CAR_LANE;
+      }
+      const trafficPenalty = blocker && blocker.grace > GRACE_SECONDS;
+      if (trafficPenalty) {
+        blocker.grace += dt;
         this.slow = Math.max(0, this.slow - dt * 0.45);
+        this.slowCause = 'traffic';
         if (this.slow <= 0) {
           this.stats.score = this.score;
           this.finish('traffic');
           return;
         }
+      } else if (this.autoStop) {
+        this.slow = Math.max(0, this.slow - dt * 2.5);
+        this.slowCause = 'pedestrian';
+      } else {
+        if (this.slow < 1) this.slow = Math.min(1, this.slow + dt * 1.5);
+        this.slowCause = null;
       }
-    } else if (this.slow < 1) {
-      this.slow = Math.min(1, this.slow + dt * 1.5);
+      if (blocker && !trafficPenalty) blocker.grace += dt;
+      this.sameDir = this.sameDir.filter((c) => this.wheelY + this.distance - c.p < this.h + 300);
     }
-    this.sameDir = this.sameDir.filter((c) => this.wheelY + this.distance - c.p < this.h + 300);
+    if (this.mode !== 'pilote' && this.slow < 1) {
+      this.slow = Math.min(1, this.slow + dt * 1.5);
+      this.slowCause = null;
+    }
   }
 
   swipeLeft() {
@@ -334,7 +399,7 @@ export class Game {
     this.pendingStray = 0;
     if (this.mode === 'pilote' && this.blocker && !this.blocker.overtaken) {
       this.blocker.overtaken = true;
-      this.blocker.lane = 'left';
+      this.laneTarget = ONCOMING_LANE;
       this.stats.overtakes++;
       const bonus = 50 + this.combo * 5;
       this.score += bonus;
@@ -342,7 +407,6 @@ export class Game {
       this.combo++;
       this.bestCombo = Math.max(this.bestCombo, this.combo);
       this.popups.push({ text: `DÉPASSEMENT +${bonus}`, y: this.wheelY - 120, life: 0.9, color: '#54f0ff' });
-      this.carXFrac = ONCOMING_LANE;
       this.shake = Math.max(this.shake, 4);
       this.audio.perfect?.();
       this.onJudge({ result: 'perfect', pts: bonus, combo: this.combo, score: this.score });
@@ -393,13 +457,14 @@ export class Game {
 
   tap(zone = 'rear') {
     if (!this.running || this.paused) return;
+    const axle = this.mode === 'auto' ? 'rear' : zone;
     const speed = this.effSpeed;
     const missPx = (speed * WINDOWS.passable) / 1000;
     let best = null;
     let bestAd = Infinity;
     for (const line of this.lines) {
-      if (line.state !== 'pending') continue;
-      const ad = Math.abs(this.distance - line.dist);
+      if (line.state !== 'pending' || line.hits[axle]) continue;
+      const ad = Math.abs(this.lineY(line, axle) - this.lineAxleY(axle));
       if (ad < bestAd) {
         bestAd = ad;
         best = line;
@@ -410,21 +475,18 @@ export class Game {
       this.pendingStray = 0.25;
       return;
     }
-    if (this.mode !== 'auto' && best.axle !== zone) {
-      this.registerMiss(best);
-      return;
-    }
-    const ay = this.lineAxleY(best);
-    const dy = this.lineY(best) - ay;
+    const ay = this.lineAxleY(axle);
+    const dy = this.lineY(best, axle) - ay;
     const dtMs = (dy / speed) * 1000;
     const result = judge(dtMs);
-    best.state = 'hit';
+    best.hits[axle] = result;
+    best.state = this.axles.every((a) => best.hits[a]) ? 'resolved' : 'pending';
     best.result = result;
     best.flash = 0.3;
     if (this.hasEffect('glow')) best.glow = 0.4;
     let pts = pointsFor(result, this.combo);
     let label = RESULT_STYLE[result].label;
-    if (this.slow < 1) {
+    if (this.slowCause === 'traffic' && this.slow < 1) {
       pts = Math.max(1, Math.round(pts * 0.2));
       label = `RALENTI ${label}`;
     } else {
@@ -438,7 +500,7 @@ export class Game {
     else if (result === 'good') this.stats.goods++;
     else this.stats.passables++;
     this.popups.push({
-      text: `${label} +${pts}`,
+      text: `${axle === 'front' ? 'AV ' : 'AR '}${label} +${pts}`,
       y: ay - 70,
       life: 0.8,
       color: RESULT_STYLE[result].color,
@@ -470,6 +532,7 @@ export class Game {
     this.drawLines();
     this.drawAxleGuides();
     this.drawTraffic();
+    this.drawPedestrian();
     this.drawCar();
     this.drawParticles();
     this.drawPopups();
@@ -513,7 +576,24 @@ export class Game {
     const k = s.size;
     ctx.save();
     ctx.translate(x, y);
-    if (theme.scenery === 'trees') {
+    if (s.kind === 'lamp') {
+      ctx.fillStyle = '#2b2f3a';
+      ctx.fillRect(-2.5 * k, -46 * k, 5 * k, 46 * k);
+      ctx.fillRect(-2.5 * k, -48 * k, 15 * k, 4 * k);
+      if (theme.night) {
+        const g = ctx.createRadialGradient(12 * k, -45 * k, 2, 12 * k, -45 * k, 20 * k);
+        g.addColorStop(0, 'rgba(255,230,150,0.85)');
+        g.addColorStop(1, 'rgba(255,230,150,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(12 * k, -45 * k, 20 * k, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.fillStyle = theme.night ? '#ffe696' : '#cfd4dd';
+      ctx.beginPath();
+      ctx.arc(12 * k, -45 * k, 4.5 * k, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (s.kind === 'trees') {
       ctx.fillStyle = '#6b4a2f';
       ctx.fillRect(-4 * k, -10 * k, 8 * k, 22 * k);
       ctx.fillStyle = s.hue > 0.5 ? '#2e7d43' : '#3f9e4d';
@@ -522,7 +602,7 @@ export class Game {
       ctx.arc(-9 * k, -10 * k, 11 * k, 0, Math.PI * 2);
       ctx.arc(9 * k, -10 * k, 11 * k, 0, Math.PI * 2);
       ctx.fill();
-    } else if (theme.scenery === 'buildings' || theme.scenery === 'citynight') {
+    } else if (s.kind === 'buildings' || s.kind === 'citynight') {
       const bw = 46 * k;
       const bh = (70 + s.hue * 60) * k;
       ctx.fillStyle = theme.night ? '#0c0f22' : s.hue > 0.5 ? '#9aa1ad' : '#b0a48f';
@@ -536,7 +616,7 @@ export class Game {
           ctx.fillRect(-bw / 2 + 5 + c * ((bw - 10) / cols), -bh + 6 + r * 18, (bw - 14) / cols, 10);
         }
       }
-    } else if (theme.scenery === 'cacti') {
+    } else if (s.kind === 'cacti') {
       ctx.fillStyle = '#3e7d4e';
       rr(ctx, -6 * k, -34 * k, 12 * k, 34 * k, 6 * k);
       ctx.fill();
@@ -548,7 +628,7 @@ export class Game {
       ctx.beginPath();
       ctx.arc(0, 0, 14 * k, 0, Math.PI * 2);
       ctx.fill();
-    } else if (theme.scenery === 'pines') {
+    } else if (s.kind === 'pines') {
       ctx.fillStyle = '#2c5e3f';
       for (let i = 0; i < 3; i++) {
         const ty = -i * 16 * k;
@@ -592,10 +672,10 @@ export class Game {
   drawLines() {
     const { ctx, roadX, roadW, theme } = this;
     for (const line of this.lines) {
-      const y = this.lineY(line);
+      const y = this.lineY(line, 'rear');
       if (y < -90 || y > this.h + 90) continue;
-      if (line.state === 'hit') {
-        const st = RESULT_STYLE[line.result];
+      if (line.state === 'resolved') {
+        const st = RESULT_STYLE[line.result] || RESULT_STYLE.passable;
         ctx.globalAlpha = Math.max(0, line.flash / 0.3) * 0.9;
         ctx.strokeStyle = st.color;
         ctx.fillStyle = st.color;
@@ -625,6 +705,13 @@ export class Game {
   drawLineShape(type, y, roadX, roadW, filled, edgePass = false) {
     const { ctx } = this;
     const inset = edgePass ? 0 : 4;
+    if (type === 'crosswalk') {
+      const h = edgePass ? 40 : 32;
+      for (let x = roadX + 8; x + 24 <= roadX + roadW - 8; x += 42) {
+        ctx.fillRect(x, y - h / 2, 24, h);
+      }
+      return;
+    }
     if (type === 'band') {
       const h = edgePass ? 30 : 24;
       ctx.fillRect(roadX + 6 + inset, y - h / 2, roadW - 12 - inset * 2, h);
@@ -690,6 +777,12 @@ export class Game {
       ctx.textAlign = 'center';
       ctx.fillText('⬅ SWIPE POUR DOUBLER !', roadX + roadW / 2, this.h * 0.3);
     }
+    if (this.autoStop && this.ped) {
+      ctx.fillStyle = 'rgba(126,224,129,0.9)';
+      ctx.font = 'bold 16px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('🚶 Laisse passer le piéton…', roadX + roadW / 2, this.h * 0.3);
+    }
   }
 
   drawTraffic() {
@@ -702,9 +795,32 @@ export class Game {
     for (const c of this.sameDir) {
       const sy = wheelY + distance - c.p;
       if (sy < -160 || sy > h + 160) continue;
-      const lane = c.lane === 'left' ? ONCOMING_LANE : CAR_LANE;
-      drawTrafficCar(ctx, roadX + roadW * lane, sy, c.w, c.color, false);
+      drawTrafficCar(ctx, roadX + roadW * CAR_LANE, sy, c.w, c.color, false);
     }
+  }
+
+  drawPedestrian() {
+    const p = this.ped;
+    if (!p) return;
+    const { ctx } = this;
+    const legSwing = Math.sin(p.phase) * 4;
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.beginPath();
+    ctx.ellipse(0, 13, 9, 3.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = p.color;
+    rr(ctx, -5, -6, 10, 15, 4);
+    ctx.fill();
+    ctx.fillStyle = '#2b2f3a';
+    ctx.fillRect(-4.5, 8 + legSwing, 4, 7);
+    ctx.fillRect(0.5, 8 - legSwing, 4, 7);
+    ctx.fillStyle = '#f2c89b';
+    ctx.beginPath();
+    ctx.arc(0, -11, 5.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
   }
 
   drawCar() {

@@ -1,16 +1,13 @@
-# 🔔 BLOC DE RAPPEL — à exécuter après CHAQUE mise à jour du jeu
+# 🔔 BLOC DE RAPPEL — checklist de test après CHAQUE mise à jour
 
-> Ce fichier est le rappel permanent : dès qu'un commit est poussé sur
-> `vibe/road-tap-pwa-264a24` (visible dans la PR #1), refais ce test rapide.
+> Dès qu'un commit est poussé sur `vibe/road-tap-pwa-264a24` (PR #1), refais ce test.
 
 ## 1. Arrêter l'ancien serveur
 
 - Terminal encore ouvert → `Ctrl+C`
-- Sinon, tuer le process sur le port 8080 :
-  - **Windows (PowerShell)** : `Get-NetTCPConnection -LocalPort 8080 | Select-Object -ExpandProperty OwningProcess | ForEach-Object { Stop-Process -Id $_ -Force }`
-  - **Mac/Linux** : `lsof -ti:8080 | xargs kill` (ou `pkill -f "http.server 8080"`)
+- Sinon : Windows PowerShell → `Get-NetTCPConnection -LocalPort 8080 | Select-Object -ExpandProperty OwningProcess | ForEach-Object { Stop-Process -Id $_ -Force }` ; Mac/Linux → `lsof -ti:8080 | xargs kill`
 
-## 2. Récupérer la dernière version et relancer
+## 2. Dernière version + serveur
 
 ```bash
 cd road-game
@@ -18,33 +15,45 @@ git pull origin vibe/road-tap-pwa-264a24
 python3 -m http.server 8080
 ```
 
-## 3. Ouvrir et vider le cache
+## 3. Ouvrir + vider le cache
 
-- Navigateur : `http://localhost:8080` puis **Ctrl+Shift+R** (reload forcé, indispensable à cause du service worker)
-- Téléphone (même Wi-Fi) : `http://<IP-du-PC>:8080` puis menu ⋮ → recharger la page / vider le cache du navigateur
+`http://localhost:8080` puis **Ctrl+Shift+R**. Téléphone (même Wi-Fi) : `http://<IP-du-PC>:8080`.
 
-## 4. Checklist de test (2 min)
+## 4. Checklist complète (~5 min)
 
-- [ ] Le jeu se lance, le menu s'affiche
-- [ ] Niveau 1 : tap sur les lignes → PARFAIT/BIEN/OK + combo
-- [ ] Cœurs ❤️ dans le HUD : chaque ligne manquée en enlève un
-- [ ] Au 3ᵉ raté → overlay « Continuer » (pièces 🪙 / pub 🎬 / abandonner)
-- [ ] Après continue : ❤️ remis à fond, la partie reprend
-- [ ] Boutique : acheter/équiper une voiture → les 3 modèles (citadine/berline/sport) ont une silhouette différente
-- [ ] Effets visuels activés → traînée/confettis visibles en jeu
-- [ ] Pièces et achats persistent après rechargement de la page
+### Base
+- [ ] Menu s'affiche, boutons Jouer / Boutique / Classement / Aide / Son
+- [ ] Niveau 1 : tap sur les lignes → PARFAIT/BIEN/OK + combo + popup de points
+- [ ] **Clic dans le vide = −1 ❤️** (compteur en haut)
+- [ ] Vies : **3 ❤️ en Auto école, 5 ❤️ en Permis A / Pilote**
+- [ ] Au dernier raté → overlay Continuer (pièces 🪙 / pub 🎬 simulée / abandonner) ; après continue, les ❤️ sont remis à fond
+- [ ] Pièces gagnées à la fin + achats persistants après rechargement
 - [ ] Hors ligne : couper le réseau après 1er chargement → le jeu se relance
-- [ ] Thèmes des niveaux débloqués (Ville, Désert, Nuit, Neige) : pas de bug d'affichage
-- [ ] Voiture bien sur la **voie de droite** + voitures en sens inverse (voie de gauche, visuelles)
-- [ ] Sélecteur de difficulté en haut de l'écran des niveaux : Auto école / Permis A / Pilote
-- [ ] Permis A : lignes AV (guide cyan) se jouent en tapant le **haut** de l'écran, AR le **bas** ; mauvaise zone = raté
-- [ ] **Clic dans le vide = −1 ❤️** (comme une ligne manquée)
-- [ ] Vies : **3 ❤️ en Auto école**, **5 ❤️ en Permis A et Pilote**
-- [ ] Voiture de base plus grosse et plus jolie (dégradé, vitres, rétroviseurs, roues) ; voitures du trafic un peu plus grandes aussi
-- [ ] Pilote : voiture devant → swipe ⬅ (ou touche ⬅) = dépassement + bonus ; sans swipe → ralentissement (1 s de grâce), combos coupés, points réduits, puis 🚦 bouchon = fin
-- [ ] Classement 🏆 : définir un pseudo + cocher l'opt-in → le score de la partie y apparaît ; sans pseudo, on ne soumet rien
-- [ ] Voitures chères = plus de détails (rétroviseurs/jantes à 600+, bande à 1200+)
+
+### Voiture & route
+- [ ] Voiture sur la **voie de droite**, plus grosse et détaillée (dégradé, vitres, rétroviseurs, roues)
+- [ ] **Voitures en sens inverse** sur la voie de gauche (visuelles)
+- [ ] **Décor des côtés selon le thème** : arbres (autoroute), immeubles (ville), cactus (désert), sapins (neige), skyline + étoiles/lune (nuit), **lampadaires** partout (éclairés la nuit)
+
+### Difficultés (sélecteur en haut de l'écran des niveaux)
+- [ ] **Auto école** : tap n'importe où fonctionne
+- [ ] **Permis A** : guides AV (cyan, haut) / AR (bas) ; **chaque ligne se joue 2 fois** : tap haut quand la ligne atteint AV, tap bas quand elle atteint AR — les deux sont indépendants (un seul touché = raté pour cet essieu, prefixé AV/AR dans le popup)
+- [ ] **Pilote** : voiture devant → **swipe ⬅ (ou touche ⬅)** = **ta voiture glisse à gauche**, la doublée reste à droite, bonus DÉPASSEMENT ; sinon 1 s de grâce puis ralentissement (combos off, points ×0,2, « RALENTI ») puis 🚦 bouchon = fin de partie
+
+### Ville (niveaux 4–5)
+- [ ] **Passage piéton zébré** qui défile = **ligne à cliquer** comme les autres
+- [ ] Piéton qui traverse → la voiture **s'arrête seule** (« 🚶 Laisse passer le piéton… »), aucune pénalité de combo/points, puis repart
+
+### Boutique
+- [ ] 8 voitures, 3 modèles (citadine/berline/sport) avec silhouettes différentes
+- [ ] Paliers de détails : jantes à bâtons + reflet + pare-chocs + aileron à 600 🪙+, bande à 1200 🪙+
+- [ ] 4 effets visuels (traînée, glow, secousse, confettis) activables
+
+### Classement 🏆
+- [ ] Pseudo (✏️) + case « apparaître dans le classement » : sans pseudo rien n'est soumis
+- [ ] Après une partie (opt-in + pseudo) : le score apparaît dans la liste, soi-même surligné en cyan
+- [ ] **Filtre par difficulté** (Tous / Auto école / Permis A / Pilote) : le score va dans la bonne section
 
 ## 5. Remonter un bug
 
-Noter : comportement attendu / observé, appareil + navigateur, niveau concerné → je corrige sur la branche et la PR #1 se met à jour.
+Noter : attendu / observé, appareil + navigateur, niveau + difficulté → correction sur la branche, la PR #1 se met à jour.
