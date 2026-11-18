@@ -82,11 +82,14 @@ Le principe : le jeu reste un site web, mais on l'empaquette en **AAB signé** q
 
 La TWA exige un site en **HTTPS avec un domaine vérifié** (le `assetlinks.json` doit être servi à la **racine** du domaine : `https://<domaine>/.well-known/assetlinks.json`).
 
-**Option A — GitHub Pages + domaine personnalisé (recommandé pour le TWA)** :
+**Option A — GitHub Pages + domaine perso `roadtap.uk` (déjà en place côté dépôt)** :
 
 1. Merger la PR sur `main`, puis dans le dépôt : **Settings → Pages → Build and deployment → Source : Deploy from a branch → branche `main`, dossier `/ (root)` → Save**.
-2. Acheter un nom de domaine (ex. chez Gandi/OVH/Namecheap, ~10 €/an) et le faire pointer vers GitHub Pages (CNAME `gautiergirard91-stack.github.io` + `CNAME` à la racine du dépôt). Le site sera alors servi sur `https://<ton-domaine>/` à la racine → le `assetlinks.json` pourra y être placé à `/.well-known/assetlinks.json`.
-3. Sans domaine perso, le site reste accessible sur `https://gautiergirard91-stack.github.io/road-game/` (utile pour tester la PWA, mais **pas suffisant pour la vérification TWA** à cause du chemin `/road-game/`).
+2. DNS chez **Cloudflare** (panneau DNS de `roadtap.uk`) : un seul enregistrement suffit grâce au CNAME flattening de Cloudflare à la racine :
+   - **Type CNAME**, **Nom `@`**, **Contenu `gautiergirard91-stack.github.io`**, **Proxy status : DNS only (nuage gris)** — PAS « Proxied » (orange), GitHub Pages a besoin du DNS direct — TTL Auto.
+3. Côté GitHub : **Settings → Pages → Custom domain** → `roadtap.uk` → **Save** → cocher **Enforce HTTPS** (certificat émis en ~15 min–1 h).
+4. Le dépôt contient déjà : `CNAME` (roadtap.uk), `.nojekyll` (pour servir `.well-known/` tel quel) et `.well-known/assetlinks.json` → servi automatiquement à **`https://roadtap.uk/.well-known/assetlinks.json`** (obligatoire pour la vérification TWA). Remplir `package_name` (défaut `uk.roadtap.game`) et l'empreinte SHA-256 de la clé de signature (Play Console → Intégrité de l'app).
+5. Vérifier : `https://roadtap.uk/` charge le jeu, cadenas HTTPS vert, `https://roadtap.uk/manifest.webmanifest` et `/sw.js` répondent 200. L'ancienne URL `gautiergirard91-stack.github.io/road-game/` redirige vers `roadtap.uk`.
 
 **Option B — Netlify ou Vercel** (plus simple pour le TWA) : connecter le dépôt GitHub, déploiement auto en HTTPS sur un sous-domaine gratuit, puis ajouter un domaine perso si besoin ; déposer `assetlinks.json` dans `public/.well-known/` (Netlify) ou à la racine (Vercel).
 
