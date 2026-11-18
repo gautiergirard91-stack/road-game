@@ -41,6 +41,7 @@ Aucun build, aucune dépendance :
 
 ```bash
 cd road-game
+python3 tools/make_icons.py   # génère icons/ (une seule fois, Python stdlib uniquement)
 python3 -m http.server 8080
 # puis ouvrir http://localhost:8080
 ```
