@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { judge, pointsFor, buildPattern, coinsForResult, accuracy, avgReaction, continueCost, mulberry32 } from '../js/core.js';
+import { judge, pointsFor, buildPattern, coinsForResult, accuracy, avgReaction, continueCost, maxMissesFor, mulberry32 } from '../js/core.js';
 import { LEVELS, WINDOWS, MAX_MISSES, CONTINUE_BASE_COST, SKINS } from '../js/data.js';
 
 assert.equal(judge(0), 'perfect');
@@ -60,5 +60,9 @@ assert.ok(pa.every((l) => l.axle === 'front' || l.axle === 'rear'), 'permisA : c
 assert.ok(pa.some((l) => l.axle === 'front') && pa.some((l) => l.axle === 'rear'), 'permisA : les deux essieux sont représentés');
 const au = buildPattern(LEVELS[3], 7, 'auto');
 assert.ok(au.every((l) => l.axle === 'rear'), 'auto école : tout est sur l\'essieu arrière');
+
+assert.equal(maxMissesFor('auto'), 3, 'auto école : 3 vies');
+assert.equal(maxMissesFor('permisA'), 5, 'permis A : 5 vies');
+assert.equal(maxMissesFor('pilote'), 5, 'pilote : 5 vies');
 
 console.log('OK - tous les tests passent (' + LEVELS.length + ' niveaux vérifiés)');

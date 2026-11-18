@@ -1,8 +1,8 @@
-import { LEVELS, THEMES, SKINS, EFFECTS, MAX_MISSES, DIFFICULTIES } from './data.js';
+import { LEVELS, THEMES, SKINS, EFFECTS, DIFFICULTIES } from './data.js';
 import { Game } from './game.js';
 import * as store from './store.js';
 import { sfx, setEnabled, unlockAudio } from './audio.js';
-import { coinsForResult, accuracy, avgReaction, continueCost } from './core.js';
+import { coinsForResult, accuracy, avgReaction, continueCost, maxMissesFor } from './core.js';
 import { watchRewarded } from './ads.js';
 import * as leaderboard from './leaderboard.js';
 
@@ -76,7 +76,8 @@ async function renderLeaderboard() {
 }
 
 function updateLives(m) {
-  hudLives.textContent = '❤️'.repeat(Math.max(0, MAX_MISSES - m)) + '🖤'.repeat(Math.min(m, MAX_MISSES));
+  const max = maxMissesFor(save.difficulty);
+  hudLives.textContent = '❤️'.repeat(Math.max(0, max - m)) + '🖤'.repeat(Math.min(m, max));
 }
 
 function showContinue() {
@@ -272,7 +273,7 @@ function onGameEnd(stats, level) {
     <div><b>${stats.perfects}</b><span>Parfaits</span></div>
     <div><b>${stats.goods}</b><span>Bien</span></div>
     <div><b>${stats.passables}</b><span>OK</span></div>
-    <div><b>${stats.misses}/${MAX_MISSES}</b><span>Manquées</span></div>
+    <div><b>${stats.misses}/${maxMissesFor(save.difficulty)}</b><span>Manquées</span></div>
     <div><b>${stats.overtakes || 0}</b><span>Dépassements</span></div>
     <div><b>${stats.bestCombo}</b><span>Meilleur combo</span></div>
     <div><b>${avg !== null ? avg + ' ms' : '—'}</b><span>Réaction moy.</span></div>

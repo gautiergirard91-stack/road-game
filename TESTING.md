@@ -39,6 +39,8 @@ python3 -m http.server 8080
 - [ ] Sélecteur de difficulté en haut de l'écran des niveaux : Auto école / Permis A / Pilote
 - [ ] Permis A : lignes AV (guide cyan) se jouent en tapant le **haut** de l'écran, AR le **bas** ; mauvaise zone = raté
 - [ ] **Clic dans le vide = −1 ❤️** (comme une ligne manquée)
+- [ ] Vies : **3 ❤️ en Auto école**, **5 ❤️ en Permis A et Pilote**
+- [ ] Voiture de base plus grosse et plus jolie (dégradé, vitres, rétroviseurs, roues) ; voitures du trafic un peu plus grandes aussi
 - [ ] Pilote : voiture devant → swipe ⬅ (ou touche ⬅) = dépassement + bonus ; sans swipe → ralentissement (1 s de grâce), combos coupés, points réduits, puis 🚦 bouchon = fin
 - [ ] Classement 🏆 : définir un pseudo + cocher l'opt-in → le score de la partie y apparaît ; sans pseudo, on ne soumet rien
 - [ ] Voitures chères = plus de détails (rétroviseurs/jantes à 600+, bande à 1200+)

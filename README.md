@@ -6,7 +6,7 @@ Le jeu est une **PWA (Progressive Web App)** : jouable dans n'importe quel navig
 
 ## 🎮 Fonctionnalités
 
-- **Gameplay timing** : jugement en millisecondes (PARFAIT ±45 ms, BIEN ±100 ms, OK ±160 ms), combo multiplicateur, **3 vies** (compteur ❤️ dans le HUD) : une ligne manquée **ou un clic dans le vide** = −1 ❤️ ; au 3ᵉ raté, possibilité de **continuer contre des pièces** (100 🪙, doublé à chaque fois) **ou en regardant une pub** (simulée dans `js/ads.js`, à remplacer par AdMob en production). Écran de fin avec statistiques (précision %, réaction moyenne, meilleur combo, ratés, dépassements).
+- **Gameplay timing** : jugement en millisecondes (PARFAIT ±45 ms, BIEN ±100 ms, OK ±160 ms), combo multiplicateur, vies dans le HUD (❤️) : une ligne manquée **ou un clic dans le vide** = −1 ❤️ — **3 vies en Auto école, 5 en Permis A / Pilote** ; au dernier raté, possibilité de **continuer contre des pièces** (100 🪙, doublé à chaque fois) **ou en regardant une pub** (simulée dans `js/ads.js`, à remplacer par AdMob en production). Écran de fin avec statistiques (précision %, réaction moyenne, meilleur combo, ratés, dépassements).
 - **Voiture sur la voie de droite**, avec **circulation en sens inverse** (voie de gauche, purement visuelle) et, en mode Pilote, des voitures dans le même sens.
 - **3 niveaux de difficulté** (sélecteur en haut de l'écran des niveaux) :
   - **Auto école** : tap n'importe où quand les roues touchent la ligne.
@@ -16,7 +16,7 @@ Le jeu est une **PWA (Progressive Web App)** : jouable dans n'importe quel navig
 - **12 niveaux déblocables** avec difficulté croissante : vitesse, espacement des lignes, et 3 types de balisage (ligne pointillée, bande continue, chevrons, doubles lignes rapprochées).
 - **5 thèmes de route** : Autoroute, Ville, Désert, Neige, Nuit (scénarios animés, parallaxe, néons).
 - **Économie de jeu** : pièces gagnées à chaque partie, dépensables pour débloquer les niveaux suivants.
-- **Boutique de personnalisation** : 8 voitures réparties en **3 modèles dessinés différemment** (citadine, berline, sport avec aileron) + couleurs/or/arc-en-ciel. **Plus la voiture coûte cher, plus elle est détaillée** (teinte dégradée de base ; rétroviseurs, jantes à bâtons, pare-chocs à 600 🪙+ ; bande de course à 1200 🪙+), et 4 effets visuels (traînée de particules, lignes lumineuses, secousse, confettis).
+- **Boutique de personnalisation** : 8 voitures réparties en **3 modèles dessinés différemment** (citadine, berline, sport avec aileron), toutes assez grandes et détaillées (carrosserie en dégradé, vitres encadrées, rétroviseurs, calandre, phares/feux, roues avec moyeu) + couleurs/or/arc-en-ciel. **Plus la voiture coûte cher, plus elle est détaillée** (jantes à bâtons, reflet de vitre, pare-chocs, aileron à 600 🪙+ ; bande de course à 1200 🪙+), et 4 effets visuels (traînée de particules, lignes lumineuses, secousse, confettis).
 - **Sauvegarde locale** (`localStorage`) : pièces, achats, records.
 - **PWA complète** : manifest, service worker (hors ligne), icônes 192/512/maskable, plein écran portrait, sons générés en WebAudio (aucun asset externe).
 - **Contrôles** : tactile (tap) ou clavier (Espace / Flèche bas), pause (P ou ⏸).

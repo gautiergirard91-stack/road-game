@@ -1,5 +1,5 @@
-import { THEMES, SKINS, WINDOWS, MAX_MISSES } from './data.js';
-import { buildPattern, judge, pointsFor } from './core.js';
+import { THEMES, SKINS, WINDOWS } from './data.js';
+import { buildPattern, judge, pointsFor, maxMissesFor } from './core.js';
 
 const RESULT_STYLE = {
   perfect: { label: 'PARFAIT', color: '#ffd54a' },
@@ -8,9 +8,9 @@ const RESULT_STYLE = {
 };
 
 const MODELS = {
-  citadine: { w: 50, bodyH: 56, cabW: 0.66, cabH: 30, spoiler: false },
-  berline: { w: 62, bodyH: 74, cabW: 0.72, cabH: 36, spoiler: false },
-  sport: { w: 66, bodyH: 54, cabW: 0.58, cabH: 24, spoiler: true },
+  citadine: { w: 56, bodyH: 62, cabW: 0.66, cabH: 34, spoiler: false },
+  berline: { w: 70, bodyH: 82, cabW: 0.72, cabH: 40, spoiler: false },
+  sport: { w: 75, bodyH: 60, cabW: 0.58, cabH: 27, spoiler: true },
 };
 
 const TRAFFIC_COLORS = ['#c94f4f', '#4f7ec9', '#c9b84f', '#7a4fc9', '#4fc9a8', '#b8b8b8', '#e07b39'];
@@ -118,7 +118,7 @@ export class Game {
     this.roadW = Math.max(240, Math.min(w * 0.74, 460));
     this.roadX = (w - this.roadW) / 2;
     this.wheelY = Math.round(h * 0.78);
-    this.frontAxleY = this.wheelY - 52;
+    this.frontAxleY = this.wheelY - 64;
   }
 
   start() {
@@ -148,6 +148,9 @@ export class Game {
     this.pendingStray = 0;
     this.slow = 1;
     this.effSpeed = this.level.speed;
+    this.maxMisses = maxMissesFor(this.mode);
+    const mm = MODELS[this.skin.model] || MODELS.berline;
+    this.frontAxleY = this.wheelY - mm.bodyH + 18;
     this.carXFrac = CAR_LANE;
     this.blocker = null;
     this.oncoming = [];
@@ -191,7 +194,7 @@ export class Game {
     this.shake = 8;
     this.audio.miss?.();
     this.onMiss(this.stats.misses);
-    if (this.stats.misses >= MAX_MISSES && !this.pendingContinue) {
+    if (this.stats.misses >= this.maxMisses && !this.pendingContinue) {
       this.pendingContinue = true;
       this.paused = true;
       this.onThreshold();
@@ -273,7 +276,7 @@ export class Game {
           p: this.distance + this.h + 240 + Math.random() * 400,
           v: -(220 + Math.random() * 140),
           color: TRAFFIC_COLORS[(Math.random() * TRAFFIC_COLORS.length) | 0],
-          w: 46 + Math.random() * 14,
+          w: 54 + Math.random() * 16,
         });
       }
     }
@@ -292,7 +295,7 @@ export class Game {
           p: this.distance + 650 + Math.random() * 450,
           v: this.level.speed * (0.5 + Math.random() * 0.2),
           color: TRAFFIC_COLORS[(Math.random() * TRAFFIC_COLORS.length) | 0],
-          w: 48 + Math.random() * 14,
+          w: 56 + Math.random() * 16,
           overtaken: false,
           grace: 0,
           lane: 'right',
@@ -714,114 +717,128 @@ export class Game {
     const baseY = wheelY + bob;
     let bodyColor = skin.color;
     if (skin.rainbow) bodyColor = `hsl(${Math.round((this.time * 240) % 360)},85%,55%)`;
-    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    const isHex = skin.color.startsWith('#');
+    const dark = skin.shine || !isHex ? 'rgba(0,0,0,0.42)' : shade(skin.color, -48);
+    const light = skin.shine || !isHex ? 'rgba(255,255,255,0.5)' : shade(skin.color, 48);
+    ctx.fillStyle = 'rgba(0,0,0,0.32)';
     ctx.beginPath();
-    ctx.ellipse(cx, baseY + 12, bw * 0.62, 10, 0, 0, Math.PI * 2);
+    ctx.ellipse(cx, baseY + 13, bw * 0.64, 11, 0, 0, Math.PI * 2);
     ctx.fill();
     if (theme.night) {
-      const g = ctx.createRadialGradient(cx, baseY - m.bodyH, 10, cx, baseY - m.bodyH, 190);
-      g.addColorStop(0, 'rgba(255,244,190,0.28)');
+      const g = ctx.createRadialGradient(cx, baseY - m.bodyH, 10, cx, baseY - m.bodyH, 210);
+      g.addColorStop(0, 'rgba(255,244,190,0.3)');
       g.addColorStop(1, 'rgba(255,244,190,0)');
       ctx.fillStyle = g;
       ctx.beginPath();
       ctx.moveTo(cx - bw * 0.32, baseY - m.bodyH + 6);
       ctx.lineTo(cx + bw * 0.32, baseY - m.bodyH + 6);
-      ctx.lineTo(cx + bw * 0.9, baseY - m.bodyH - 190);
-      ctx.lineTo(cx - bw * 0.9, baseY - m.bodyH - 190);
+      ctx.lineTo(cx + bw * 0.95, baseY - m.bodyH - 210);
+      ctx.lineTo(cx - bw * 0.95, baseY - m.bodyH - 210);
       ctx.closePath();
       ctx.fill();
     }
-    if (skin.shine) {
-      const g = ctx.createLinearGradient(cx - bw / 2, 0, cx + bw / 2, 0);
-      g.addColorStop(0, '#f5c542');
-      g.addColorStop(0.5, '#fff3c4');
-      g.addColorStop(1, '#e0a92e');
-      ctx.fillStyle = g;
-    } else {
-      ctx.fillStyle = bodyColor;
-    }
-    rr(ctx, cx - bw / 2, baseY - m.bodyH, bw, m.bodyH + 6, 12);
+    const cabX = cx - bw * m.cabW / 2;
+    const cabY = baseY - m.bodyH - m.cabH - 2;
+    const cg = ctx.createLinearGradient(0, cabY, 0, cabY + m.cabH + 10);
+    cg.addColorStop(0, light);
+    cg.addColorStop(1, dark);
+    ctx.fillStyle = cg;
+    rr(ctx, cabX, cabY, bw * m.cabW, m.cabH + 10, 11);
     ctx.fill();
-    const og = ctx.createLinearGradient(0, baseY - m.bodyH - m.cabH, 0, baseY + 8);
-    og.addColorStop(0, 'rgba(255,255,255,0.3)');
-    og.addColorStop(0.5, 'rgba(255,255,255,0)');
-    og.addColorStop(1, 'rgba(0,0,0,0.28)');
-    ctx.fillStyle = og;
-    rr(ctx, cx - bw / 2, baseY - m.bodyH, bw, m.bodyH + 6, 12);
+    const bg = ctx.createLinearGradient(0, baseY - m.bodyH - m.cabH, 0, baseY + 8);
+    if (skin.shine) {
+      const hg = ctx.createLinearGradient(cx - bw / 2, 0, cx + bw / 2, 0);
+      hg.addColorStop(0, '#f5c542');
+      hg.addColorStop(0.5, '#fff3c4');
+      hg.addColorStop(1, '#e0a92e');
+      ctx.fillStyle = hg;
+    } else {
+      bg.addColorStop(0, light);
+      bg.addColorStop(0.55, bodyColor);
+      bg.addColorStop(1, dark);
+      ctx.fillStyle = bg;
+    }
+    rr(ctx, cx - bw / 2, baseY - m.bodyH, bw, m.bodyH + 7, 13);
     ctx.fill();
     if (tier >= 3) {
-      ctx.fillStyle = 'rgba(255,255,255,0.55)';
-      ctx.fillRect(cx - 4, baseY - m.bodyH + 2, 8, m.bodyH + 2);
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      ctx.fillRect(cx - 4, baseY - m.bodyH + 3, 8, m.bodyH + 1);
     }
-    ctx.fillStyle = 'rgba(0,0,0,0.22)';
-    rr(ctx, cx - bw * m.cabW / 2, baseY - m.bodyH - m.cabH, bw * m.cabW, m.cabH + 8, 10);
-    ctx.fill();
-    ctx.fillStyle = bodyColor;
-    rr(ctx, cx - bw * m.cabW / 2, baseY - m.bodyH - m.cabH - 2, bw * m.cabW, m.cabH + 6, 10);
-    ctx.fill();
     ctx.fillStyle = '#bfe6ff';
-    rr(ctx, cx - bw * m.cabW / 2 + 6, baseY - m.bodyH - m.cabH + 4, bw * m.cabW - 12, Math.max(10, m.cabH - 6), 6);
+    const winH = Math.max(12, m.cabH - 4);
+    rr(ctx, cabX + 6, cabY + 5, bw * m.cabW - 12, winH, 5);
     ctx.fill();
+    ctx.strokeStyle = 'rgba(10,15,30,0.6)';
+    ctx.lineWidth = 2;
+    rr(ctx, cabX + 6, cabY + 5, bw * m.cabW - 12, winH, 5);
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(10,15,30,0.5)';
+    ctx.fillRect(cx - 1.5, cabY + 5, 3, winH);
     if (tier >= 2) {
-      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.fillStyle = 'rgba(255,255,255,0.55)';
       ctx.beginPath();
-      ctx.moveTo(cx - bw * m.cabW / 2 + 8, baseY - m.bodyH - m.cabH + 4);
-      ctx.lineTo(cx - bw * m.cabW / 2 + 22, baseY - m.bodyH - m.cabH + 4);
-      ctx.lineTo(cx - bw * m.cabW / 2 + 10, baseY - m.bodyH - m.cabH + m.cabH - 2);
-      ctx.lineTo(cx - bw * m.cabW / 2 + 6, baseY - m.bodyH - m.cabH + m.cabH - 2);
+      ctx.moveTo(cabX + 9, cabY + 5);
+      ctx.lineTo(cabX + 24, cabY + 5);
+      ctx.lineTo(cabX + 12, cabY + 5 + winH);
+      ctx.lineTo(cabX + 7, cabY + 5 + winH);
       ctx.closePath();
       ctx.fill();
-      ctx.fillStyle = shade(skin.color.startsWith('#') ? skin.color : '#888888', -40);
-      ctx.fillRect(cx - bw / 2 - 5, baseY - m.bodyH - m.cabH + 6, 5, 10);
-      ctx.fillRect(cx + bw / 2, baseY - m.bodyH - m.cabH + 6, 5, 10);
     }
+    ctx.fillStyle = dark;
+    rr(ctx, cx - bw / 2 - 6, cabY + 9, 6, 9, 2);
+    ctx.fill();
+    rr(ctx, cx + bw / 2, cabY + 9, 6, 9, 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,0.42)';
+    ctx.fillRect(cx - bw * 0.3, baseY - m.bodyH + 4, bw * 0.6, 5);
     if (tier >= 2) {
-      ctx.fillStyle = 'rgba(0,0,0,0.35)';
-      ctx.fillRect(cx - bw / 2 + 4, baseY + 2, bw - 8, 5);
+      ctx.fillStyle = 'rgba(0,0,0,0.38)';
+      rr(ctx, cx - bw / 2 + 3, baseY + 2, bw - 6, 6, 3);
+      ctx.fill();
     }
     if (m.spoiler && tier >= 2) {
-      ctx.fillStyle = 'rgba(0,0,0,0.4)';
-      ctx.fillRect(cx - bw * 0.4, baseY + 2, 5, 8);
-      ctx.fillRect(cx + bw * 0.4 - 5, baseY + 2, 5, 8);
+      ctx.fillStyle = 'rgba(0,0,0,0.45)';
+      ctx.fillRect(cx - bw * 0.4, baseY + 3, 5, 9);
+      ctx.fillRect(cx + bw * 0.4 - 5, baseY + 3, 5, 9);
       ctx.fillStyle = bodyColor;
-      rr(ctx, cx - bw * 0.48, baseY + 8, bw * 0.96, 6, 3);
+      rr(ctx, cx - bw * 0.48, baseY + 9, bw * 0.96, 6, 3);
       ctx.fill();
     }
     ctx.fillStyle = theme.night ? '#ffe9a8' : '#fff8dc';
     ctx.beginPath();
-    ctx.ellipse(cx - bw * 0.3, baseY - m.bodyH + 3, 7, 4, 0, 0, Math.PI * 2);
-    ctx.ellipse(cx + bw * 0.3, baseY - m.bodyH + 3, 7, 4, 0, 0, Math.PI * 2);
+    ctx.ellipse(cx - bw * 0.3, baseY - m.bodyH + 3, 8, 4.5, 0, 0, Math.PI * 2);
+    ctx.ellipse(cx + bw * 0.3, baseY - m.bodyH + 3, 8, 4.5, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = '#ff5c5c';
     ctx.beginPath();
-    ctx.ellipse(cx - bw * 0.32, baseY + 3, 6, 3, 0, 0, Math.PI * 2);
-    ctx.ellipse(cx + bw * 0.32, baseY + 3, 6, 3, 0, 0, Math.PI * 2);
+    ctx.ellipse(cx - bw * 0.32, baseY + 4, 7, 3.5, 0, 0, Math.PI * 2);
+    ctx.ellipse(cx + bw * 0.32, baseY + 4, 7, 3.5, 0, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = '#14161f';
     for (const sx of [-1, 1]) {
+      const wx = cx + sx * bw * 0.42;
+      ctx.fillStyle = '#14161f';
       ctx.beginPath();
-      ctx.arc(cx + sx * bw * 0.4, baseY, 11, 0, Math.PI * 2);
+      ctx.arc(wx, baseY, 12, 0, Math.PI * 2);
       ctx.fill();
       if (tier >= 2) {
         ctx.fillStyle = '#c9d2e0';
         ctx.beginPath();
-        ctx.arc(cx + sx * bw * 0.4, baseY, 6, 0, Math.PI * 2);
+        ctx.arc(wx, baseY, 6.5, 0, Math.PI * 2);
         ctx.fill();
         ctx.strokeStyle = '#5d6472';
         ctx.lineWidth = 1.5;
         ctx.beginPath();
-        ctx.moveTo(cx + sx * bw * 0.4 - 5, baseY);
-        ctx.lineTo(cx + sx * bw * 0.4 + 5, baseY);
-        ctx.moveTo(cx + sx * bw * 0.4, baseY - 5);
-        ctx.lineTo(cx + sx * bw * 0.4, baseY + 5);
+        ctx.moveTo(wx - 5, baseY);
+        ctx.lineTo(wx + 5, baseY);
+        ctx.moveTo(wx, baseY - 5);
+        ctx.lineTo(wx, baseY + 5);
         ctx.stroke();
       } else {
         ctx.fillStyle = '#8a93a6';
         ctx.beginPath();
-        ctx.arc(cx + sx * bw * 0.4, baseY, 5, 0, Math.PI * 2);
+        ctx.arc(wx, baseY, 5.5, 0, Math.PI * 2);
         ctx.fill();
       }
-      ctx.fillStyle = '#14161f';
     }
   }
 

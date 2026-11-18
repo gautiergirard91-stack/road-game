@@ -68,6 +68,10 @@ export function continueCost(continues) {
   return CONTINUE_BASE_COST * Math.pow(2, continues);
 }
 
+export function maxMissesFor(mode) {
+  return mode === 'auto' ? 3 : 5;
+}
+
 export function avgReaction(stats) {
   if (!stats.reactions.length) return null;
   return Math.round(stats.reactions.reduce((a, b) => a + b, 0) / stats.reactions.length);
