@@ -383,6 +383,104 @@ body {
   text-align: center;
 }
 
+.picker-label {
+  width: 100%;
+  max-width: 560px;
+  color: #aeb8d8;
+  font-size: 13px;
+  margin-top: 2px;
+}
+
+#difficulty-picker {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  max-width: 560px;
+}
+
+.diff-btn {
+  flex: 1;
+  min-width: 0;
+  background: #232c4d;
+  color: #dfe6ff;
+  box-shadow: 0 3px 0 #141a33;
+}
+
+.diff-btn.active {
+  background: linear-gradient(180deg, #ffd54a, #ffb020);
+  color: #0d1226;
+  box-shadow: 0 3px 0 #b97a10;
+}
+
+.lb-source {
+  color: #9aa6cc;
+  font-size: 12px;
+  width: 100%;
+  max-width: 560px;
+}
+
+.lb-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  max-width: 560px;
+  flex-wrap: wrap;
+}
+
+.lb-optin {
+  font-size: 13px;
+  color: #dfe6ff;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.lb-row {
+  gap: 10px;
+}
+
+.lb-rank {
+  font-weight: 800;
+  width: 30px;
+  text-align: right;
+  color: #ffd54a;
+  flex-shrink: 0;
+}
+
+.lb-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.lb-name.me {
+  color: #54f0ff;
+}
+
+.lb-score {
+  font-weight: 800;
+}
+
+.lb-level {
+  color: #9aa6cc;
+  font-size: 12px;
+}
+
+#pseudo-input {
+  font: inherit;
+  font-size: 17px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid #3a4670;
+  background: #10173a;
+  color: #fff;
+  width: 100%;
+  text-align: center;
+}
+
 #btn-pause {
   font: inherit;
   font-size: 18px;

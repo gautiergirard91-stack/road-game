@@ -3,6 +3,12 @@ export const WINDOWS = { perfect: 45, good: 100, passable: 160 };
 export const MAX_MISSES = 3;
 export const CONTINUE_BASE_COST = 100;
 
+export const DIFFICULTIES = [
+  { id: 'auto', name: 'Auto école', desc: "Tap n'importe où quand les roues touchent la ligne" },
+  { id: 'permisA', name: 'Permis A', desc: "Haut de l'écran = roues avant (AV), bas de l'écran = roues arrière (AR)" },
+  { id: 'pilote', name: 'Pilote', desc: 'Permis A + voitures devant : swipe vers la gauche pour doubler, sinon bouchon !' },
+];
+
 export const THEMES = {
   autoroute: {
     id: 'autoroute', name: 'Autoroute', scenery: 'trees', night: false,

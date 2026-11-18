@@ -9,6 +9,9 @@ const defaults = () => ({
   selectedEffects: [],
   best: {},
   sound: true,
+  difficulty: 'auto',
+  pseudo: '',
+  leaderboardOptIn: false,
 });
 
 let save;
@@ -96,5 +99,20 @@ export function setBest(levelId, score) {
 
 export function setSound(on) {
   save.sound = on;
+  persist();
+}
+
+export function setDifficulty(id) {
+  save.difficulty = id;
+  persist();
+}
+
+export function setPseudo(p) {
+  save.pseudo = p;
+  persist();
+}
+
+export function setLeaderboardOptIn(on) {
+  save.leaderboardOptIn = on;
   persist();
 }

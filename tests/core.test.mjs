@@ -55,4 +55,10 @@ const models = new Set(SKINS.map((s) => s.model));
 assert.ok(models.has('berline') && models.has('sport') && models.has('citadine'), 'les 3 modèles de voiture sont présents');
 assert.ok(SKINS.every((s) => s.model && s.color && typeof s.cost === 'number'), 'chaque skin a un modèle valide');
 
+const pa = buildPattern(LEVELS[3], 7, 'permisA');
+assert.ok(pa.every((l) => l.axle === 'front' || l.axle === 'rear'), 'permisA : chaque ligne a un essieu AV/AR');
+assert.ok(pa.some((l) => l.axle === 'front') && pa.some((l) => l.axle === 'rear'), 'permisA : les deux essieux sont représentés');
+const au = buildPattern(LEVELS[3], 7, 'auto');
+assert.ok(au.every((l) => l.axle === 'rear'), 'auto école : tout est sur l\'essieu arrière');
+
 console.log('OK - tous les tests passent (' + LEVELS.length + ' niveaux vérifiés)');

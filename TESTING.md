@@ -35,6 +35,13 @@ python3 -m http.server 8080
 - [ ] Pièces et achats persistent après rechargement de la page
 - [ ] Hors ligne : couper le réseau après 1er chargement → le jeu se relance
 - [ ] Thèmes des niveaux débloqués (Ville, Désert, Nuit, Neige) : pas de bug d'affichage
+- [ ] Voiture bien sur la **voie de droite** + voitures en sens inverse (voie de gauche, visuelles)
+- [ ] Sélecteur de difficulté en haut de l'écran des niveaux : Auto école / Permis A / Pilote
+- [ ] Permis A : lignes AV (guide cyan) se jouent en tapant le **haut** de l'écran, AR le **bas** ; mauvaise zone = raté
+- [ ] **Clic dans le vide = −1 ❤️** (comme une ligne manquée)
+- [ ] Pilote : voiture devant → swipe ⬅ (ou touche ⬅) = dépassement + bonus ; sans swipe → ralentissement (1 s de grâce), combos coupés, points réduits, puis 🚦 bouchon = fin
+- [ ] Classement 🏆 : définir un pseudo + cocher l'opt-in → le score de la partie y apparaît ; sans pseudo, on ne soumet rien
+- [ ] Voitures chères = plus de détails (rétroviseurs/jantes à 600+, bande à 1200+)
 
 ## 5. Remonter un bug
 

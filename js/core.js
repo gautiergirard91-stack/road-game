@@ -25,12 +25,13 @@ export function pointsFor(result, combo) {
   return Math.round(BASE_POINTS[result] * (1 + Math.min(combo, 40) * 0.05));
 }
 
-export function buildPattern(level, seed) {
+export function buildPattern(level, seed, mode = 'auto') {
   const rand = mulberry32(seed);
   const types = Object.keys(level.w).filter((k) => level.w[k] > 0);
+  const axle = () => (mode === 'auto' ? 'rear' : rand() < 0.5 ? 'front' : 'rear');
   const lines = [];
   let dist = Math.max(level.gapMax, 620);
-  lines.push({ type: 'dash', dist });
+  lines.push({ type: 'dash', dist, axle: axle() });
   for (let i = 1; i < level.lines; i++) {
     const r = rand();
     let acc = 0;
@@ -44,10 +45,10 @@ export function buildPattern(level, seed) {
     }
     const gap = level.gapMin + rand() * (level.gapMax - level.gapMin);
     dist += gap;
-    lines.push({ type, dist });
+    lines.push({ type, dist, axle: axle() });
     if (rand() < (level.pDouble || 0)) {
       dist += 130;
-      lines.push({ type: 'dash', dist });
+      lines.push({ type: 'dash', dist, axle: axle() });
     }
   }
   return lines;

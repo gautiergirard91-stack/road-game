@@ -35,6 +35,7 @@
     <div class="coins-display">🪙 0</div>
     <button class="btn big" id="btn-play">▶ Jouer</button>
     <button class="btn" id="btn-shop">🛒 Boutique</button>
+    <button class="btn" id="btn-leaderboard">🏆 Classement</button>
     <button class="btn secondary" id="btn-help">❓ Comment jouer</button>
     <button class="btn secondary" id="btn-sound">🔊 Son : ON</button>
   </section>
@@ -45,7 +46,23 @@
       <h2>Niveaux</h2>
       <div class="coins-display">🪙 0</div>
     </header>
+    <div class="picker-label">Difficulté</div>
+    <div id="difficulty-picker"></div>
     <div id="levels-list" class="cards"></div>
+  </section>
+
+  <section id="screen-leaderboard" class="screen">
+    <header class="topbar">
+      <button class="btn back" id="btn-leaderboard-back">←</button>
+      <h2>🏆 Classement</h2>
+      <div class="coins-display">🪙 0</div>
+    </header>
+    <p id="lb-source" class="lb-source"></p>
+    <div class="lb-actions">
+      <button class="btn small" id="btn-pseudo">✏️ Mon pseudo</button>
+      <label class="lb-optin"><input type="checkbox" id="optin-lb"> apparaître dans le classement</label>
+    </div>
+    <div id="leaderboard-list" class="cards"></div>
   </section>
 
   <section id="screen-shop" class="screen">
@@ -90,7 +107,8 @@
         <p>👆 <b>Touche l'écran</b> (ou appuie sur <b>Espace</b>) au moment précis où les <b>roues</b> sont au même niveau qu'une ligne.</p>
         <p>🎯 Plus ton timing est précis, plus tu marques de points : <b>PARFAIT</b> (±45 ms), <b>BIEN</b> (±100 ms), <b>OK</b> (±160 ms).</p>
         <p>🔥 Enchaîne les réussites pour augmenter ton <b>combo</b> et multiplier tes points.</p>
-        <p>💥 Une ligne manquée = 1 raté (compteur ❤️ en haut). Au bout de <b>3 ratés</b>, tu peux <b>continuer</b> contre des pièces 🪙 ou en regardant une pub 🎬 — sinon, partie terminée !</p>
+        <p>💥 Une ligne manquée <b>ou un clic dans le vide</b> = 1 raté (compteur ❤️ en haut). Au bout de <b>3 ratés</b>, tu peux <b>continuer</b> contre des pièces 🪙 ou en regardant une pub 🎬 — sinon, partie terminée !</p>
+        <p>🎚️ <b>Difficulté</b> (en haut de la liste des niveaux) : <b>Auto école</b> = tap n'importe où ; <b>Permis A</b> = haut de l'écran pour les roues <b>avant</b> (AV), bas pour les roues <b>arrière</b> (AR) ; <b>Pilote</b> = en plus, des voitures devant toi : <b>swipe vers la gauche</b> (⬅) pour doubler, sinon tu ralentis jusqu'au bouchon ! Pendant le ralentissement, les combos sont coupés et les points sont réduits.</p>
         <p>🪙 Tes pièces te servent à débloquer de <b>nouveaux niveaux</b> (nouvelles routes, balisages et vitesses), des <b>voitures</b> et des <b>effets visuels</b> dans la boutique.</p>
       </div>
       <button class="btn big" id="btn-help-close">C'est parti !</button>
@@ -112,6 +130,15 @@
       <h2>🎬 Publicité</h2>
       <div id="ad-countdown">5</div>
       <p class="ad-note">Pub simulée — à remplacer par AdMob en production</p>
+    </div>
+  </div>
+
+  <div id="pseudo-modal" class="screen overlay hidden">
+    <div class="panel">
+      <h2>✏️ Ton pseudo</h2>
+      <input id="pseudo-input" maxlength="16" placeholder="Ex. Speedy" autocomplete="off">
+      <button class="btn big" id="btn-pseudo-save">Enregistrer</button>
+      <button class="btn secondary" id="btn-pseudo-cancel">Annuler</button>
     </div>
   </div>
 

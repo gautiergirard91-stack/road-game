@@ -6,11 +6,17 @@ Le jeu est une **PWA (Progressive Web App)** : jouable dans n'importe quel navig
 
 ## 🎮 Fonctionnalités
 
-- **Gameplay timing** : jugement en millisecondes (PARFAIT ±45 ms, BIEN ±100 ms, OK ±160 ms), combo multiplicateur, **3 vies** (compteur ❤️ dans le HUD) : au 3ᵉ raté, possibilité de **continuer contre des pièces** (100 🪙, doublé à chaque fois) **ou en regardant une pub** (simulée dans `js/ads.js`, à remplacer par AdMob en production). Écran de fin avec statistiques (précision %, réaction moyenne, meilleur combo, lignes manquées).
+- **Gameplay timing** : jugement en millisecondes (PARFAIT ±45 ms, BIEN ±100 ms, OK ±160 ms), combo multiplicateur, **3 vies** (compteur ❤️ dans le HUD) : une ligne manquée **ou un clic dans le vide** = −1 ❤️ ; au 3ᵉ raté, possibilité de **continuer contre des pièces** (100 🪙, doublé à chaque fois) **ou en regardant une pub** (simulée dans `js/ads.js`, à remplacer par AdMob en production). Écran de fin avec statistiques (précision %, réaction moyenne, meilleur combo, ratés, dépassements).
+- **Voiture sur la voie de droite**, avec **circulation en sens inverse** (voie de gauche, purement visuelle) et, en mode Pilote, des voitures dans le même sens.
+- **3 niveaux de difficulté** (sélecteur en haut de l'écran des niveaux) :
+  - **Auto école** : tap n'importe où quand les roues touchent la ligne.
+  - **Permis A** : deux essieux (AV = roues avant, AR = roues arrière) — tap sur la **moitié haute** de l'écran pour l'essieu avant, la **moitié basse** pour l'arrière. Mauvaise zone = raté.
+  - **Pilote** : comme Permis A, plus des voitures devant : **swipe vers la gauche** (ou ⬅) pour doubler. Sans dépassement, la voiture ralentit (1 s de grâce, puis ralentissement progressif) jusqu'à l'arrêt complet = fin de partie « 🚦 bouchon ». Pendant le ralentissement : combos coupés et points ×0,2.
+- **🏆 Classement** : le joueur choisit un pseudo et peut apparaître dans le classement (opt-in). Classement **local** par défaut, **en ligne via Firebase Realtime Database** si configuré (voir ci-dessous).
 - **12 niveaux déblocables** avec difficulté croissante : vitesse, espacement des lignes, et 3 types de balisage (ligne pointillée, bande continue, chevrons, doubles lignes rapprochées).
 - **5 thèmes de route** : Autoroute, Ville, Désert, Neige, Nuit (scénarios animés, parallaxe, néons).
 - **Économie de jeu** : pièces gagnées à chaque partie, dépensables pour débloquer les niveaux suivants.
-- **Boutique de personnalisation** : 8 voitures réparties en **3 modèles dessinés différemment** (citadine, berline, sport avec aileron) + couleurs/or/arc-en-ciel, et 4 effets visuels (traînée de particules, lignes lumineuses, secousse, confettis).
+- **Boutique de personnalisation** : 8 voitures réparties en **3 modèles dessinés différemment** (citadine, berline, sport avec aileron) + couleurs/or/arc-en-ciel. **Plus la voiture coûte cher, plus elle est détaillée** (teinte dégradée de base ; rétroviseurs, jantes à bâtons, pare-chocs à 600 🪙+ ; bande de course à 1200 🪙+), et 4 effets visuels (traînée de particules, lignes lumineuses, secousse, confettis).
 - **Sauvegarde locale** (`localStorage`) : pièces, achats, records.
 - **PWA complète** : manifest, service worker (hors ligne), icônes 192/512/maskable, plein écran portrait, sons générés en WebAudio (aucun asset externe).
 - **Contrôles** : tactile (tap) ou clavier (Espace / Flèche bas), pause (P ou ⏸).
@@ -109,6 +115,27 @@ La pub « continuer la partie » est actuellement **simulée** (compte à rebour
 
 - Modifier le code, bumper la constante `CACHE` dans `sw.js` (ex. `roadtap-v2`), commit, push.
 - Le site se met à jour automatiquement ; si le manifest/domaine change, regénérer le bundle avec `bubblewrap update` puis `bubblewrap build`, et uploader le nouvel AAB dans la Play Console.
+
+## 🏆 Classement en ligne (optionnel)
+
+Par défaut le classement est **local** (stocké sur l'appareil). Pour un classement **mondial** :
+
+1. Créer un projet gratuit sur [Firebase](https://console.firebase.google.com) → Realtime Database (mode test) → copier l'URL de la base (`https://<projet>-default-rtdb.firebaseio.com`).
+2. Dans `js/config.js`, renseigner `FIREBASE_DB_URL` (et éventuellement `FIREBASE_DB_SECRET`).
+3. Règles de la base en développement : `{"rules": {".read": true, ".write": true}}` — à **restreindre en production** (ex. limiter les écritures, utiliser Firebase Auth).
+4. Bumper le `CACHE` du service worker et redéployer.
+
+Sans config, tout fonctionne hors ligne en local. Le joueur choisit son pseudo (menu 🏆 → « Mon pseudo ») et coche « apparaître dans le classement » : seuls les joueurs inscrits y figurent.
+
+## 💰 Monétisation — 100 % cosmétique, jamais pay-to-win
+
+Règles suivies (et exigées par Google Play) : **aucun achat n'influence le gameplay** (pas de niveaux, vies, points ou avantages acheatables).
+
+- **Boutique cosmétique** (déjà en place) : voitures de plus en plus détaillées, effets visuels — payés en pièces gagnées en jouant.
+- **Pub rewarded optionnelle** : uniquement proposée au 3ᵉ raté pour continuer (jamais forcée, jamais de power-up). En production : AdMob (voir §6).
+- **Packs cosmétiques premium** (idée) : thèmes de route supplémentaires, skins exclusifs — achat in-app Play Billing.
+- **« Sans publicité » optionnel** (idée) : IAP qui supprime uniquement la pub de continue facultative.
+- **Bannière** (idée) : uniquement dans les menus, jamais pendant une partie.
 
 ## 🧪 Tests
 

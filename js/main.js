@@ -1,9 +1,10 @@
-import { LEVELS, THEMES, SKINS, EFFECTS, MAX_MISSES } from './data.js';
+import { LEVELS, THEMES, SKINS, EFFECTS, MAX_MISSES, DIFFICULTIES } from './data.js';
 import { Game } from './game.js';
 import * as store from './store.js';
 import { sfx, setEnabled, unlockAudio } from './audio.js';
 import { coinsForResult, accuracy, avgReaction, continueCost } from './core.js';
 import { watchRewarded } from './ads.js';
+import * as leaderboard from './leaderboard.js';
 
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => [...document.querySelectorAll(sel)];
@@ -25,6 +26,54 @@ const hudLives = $('#hud-lives');
 let continuesThisRun = 0;
 
 const MODEL_LABEL = { berline: 'Berline', sport: 'Sport', citadine: 'Citadine' };
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function renderDifficultyPicker() {
+  const el = $('#difficulty-picker');
+  if (!el) return;
+  el.innerHTML = '';
+  for (const d of DIFFICULTIES) {
+    const b = document.createElement('button');
+    b.className = 'btn small diff-btn' + (save.difficulty === d.id ? ' active' : '');
+    b.textContent = d.name;
+    b.title = d.desc;
+    b.addEventListener('click', () => {
+      store.setDifficulty(d.id);
+      sfx.click();
+      renderDifficultyPicker();
+    });
+    el.appendChild(b);
+  }
+}
+
+async function renderLeaderboard() {
+  $('#lb-source').textContent = leaderboard.isOnline()
+    ? 'Classement en ligne (Firebase)'
+    : 'Classement local — configure Firebase dans js/config.js pour un classement en ligne (voir README)';
+  const list = $('#leaderboard-list');
+  list.innerHTML = '<div class="card-sub">Chargement…</div>';
+  let top = [];
+  try {
+    top = await leaderboard.getTop();
+  } catch {
+    top = [];
+  }
+  list.innerHTML = '';
+  if (!top.length) {
+    list.innerHTML = '<div class="card-sub">Aucun score pour l\'instant — joue une partie !</div>';
+    return;
+  }
+  top.forEach((e, i) => {
+    const row = document.createElement('div');
+    row.className = 'card lb-row';
+    const me = save.pseudo && e.pseudo === save.pseudo;
+    row.innerHTML = `<span class="lb-rank">${i + 1}</span><span class="lb-name${me ? ' me' : ''}">${escapeHtml(e.pseudo || 'Anonyme')}</span><span class="lb-level">${escapeHtml(e.level || '')}</span><span class="lb-score">${e.score}</span>`;
+    list.appendChild(row);
+  });
+}
 
 function updateLives(m) {
   hudLives.textContent = '❤️'.repeat(Math.max(0, MAX_MISSES - m)) + '🖤'.repeat(Math.min(m, MAX_MISSES));
@@ -180,6 +229,7 @@ function startLevel(level) {
   game = new Game($('#game'), {
     level,
     skinId: save.skin,
+    mode: save.difficulty,
     effects: save.selectedEffects,
     audio: { tap: sfx.tap, perfect: sfx.perfect, good: sfx.good, passable: sfx.passable, fail: sfx.fail, win: sfx.win, miss: sfx.miss },
     onJudge: (e) => {
@@ -199,12 +249,22 @@ function startLevel(level) {
 function onGameEnd(stats, level) {
   hideContinue();
   const isRecord = store.setBest(level.id, stats.score);
+  if (save.pseudo && save.leaderboardOptIn) {
+    leaderboard
+      .submitScore({ pseudo: save.pseudo, score: stats.score, level: level.name, date: Date.now() })
+      .catch(() => {});
+  }
   const coins = coinsForResult(stats, level, stats.completed);
   if (coins > 0) {
     store.addCoins(coins);
     sfx.coin();
   }
-  $('#over-title').textContent = stats.completed ? '🏁 Niveau terminé !' : '💥 Ligne manquée !';
+  const reason = stats.reason;
+  $('#over-title').textContent = stats.completed
+    ? '🏁 Niveau terminé !'
+    : reason === 'traffic'
+      ? '🚦 Bloqué dans les bouchons !'
+      : '💥 3 ratés !';
   $('#over-record').classList.toggle('hidden', !isRecord);
   $('#over-score').textContent = stats.score;
   const avg = avgReaction(stats);
@@ -213,6 +273,7 @@ function onGameEnd(stats, level) {
     <div><b>${stats.goods}</b><span>Bien</span></div>
     <div><b>${stats.passables}</b><span>OK</span></div>
     <div><b>${stats.misses}/${MAX_MISSES}</b><span>Manquées</span></div>
+    <div><b>${stats.overtakes || 0}</b><span>Dépassements</span></div>
     <div><b>${stats.bestCombo}</b><span>Meilleur combo</span></div>
     <div><b>${avg !== null ? avg + ' ms' : '—'}</b><span>Réaction moy.</span></div>
     <div><b>${accuracy(stats)} %</b><span>Précision</span></div>`;
@@ -241,8 +302,43 @@ function loop(t) {
 
 $('#btn-play').addEventListener('click', () => {
   sfx.click();
+  renderDifficultyPicker();
   renderLevels();
   show('screen-levels');
+});
+$('#btn-leaderboard').addEventListener('click', () => {
+  sfx.click();
+  renderLeaderboard();
+  show('screen-leaderboard');
+});
+$('#btn-leaderboard-back').addEventListener('click', () => {
+  sfx.click();
+  show('screen-menu');
+});
+$('#btn-pseudo').addEventListener('click', () => {
+  sfx.click();
+  $('#pseudo-input').value = save.pseudo;
+  $('#pseudo-modal').classList.remove('hidden');
+  $('#pseudo-modal').classList.add('active');
+  setTimeout(() => $('#pseudo-input').focus(), 50);
+});
+$('#btn-pseudo-cancel').addEventListener('click', () => {
+  sfx.click();
+  $('#pseudo-modal').classList.add('hidden');
+  $('#pseudo-modal').classList.remove('active');
+});
+$('#btn-pseudo-save').addEventListener('click', () => {
+  const p = $('#pseudo-input').value.trim().slice(0, 16);
+  store.setPseudo(p);
+  $('#pseudo-modal').classList.add('hidden');
+  $('#pseudo-modal').classList.remove('active');
+  sfx.coin();
+  toast(p ? `Pseudo enregistré : ${p}` : 'Pseudo supprimé — tu n\'apparaîtras plus dans le classement');
+});
+$('#optin-lb').addEventListener('change', (e) => {
+  store.setLeaderboardOptIn(e.target.checked);
+  sfx.click();
+  toast(e.target.checked ? 'Tu apparaîtras dans le classement' : 'Tu n\'apparaîtras plus dans le classement');
 });
 $('#btn-shop').addEventListener('click', () => {
   sfx.click();
@@ -321,18 +417,38 @@ $('#btn-continue-quit').addEventListener('click', () => {
   if (game) game.finish(false);
 });
 
+let pointerStart = null;
+
 window.addEventListener('pointerdown', (e) => {
   unlockAudio();
+  pointerStart = { x: e.clientX, y: e.clientY };
   if (currentScreen !== 'screen-game' || !game || !game.running || game.paused) return;
   if (e.target.closest('button')) return;
-  game.tap();
+  const zone = e.clientY < window.innerHeight / 2 ? 'front' : 'rear';
+  game.tap(zone);
+});
+
+window.addEventListener('pointerup', (e) => {
+  if (pointerStart && currentScreen === 'screen-game' && game && game.running && !game.paused) {
+    if (e.clientX - pointerStart.x < -40) game.swipeLeft();
+  }
+  pointerStart = null;
 });
 
 window.addEventListener('keydown', (e) => {
   if (e.repeat) return;
+  const canPlay = currentScreen === 'screen-game' && game && game.running && !game.paused;
   if (e.code === 'Space' || e.code === 'ArrowDown' || e.code === 'Enter') {
     e.preventDefault();
-    if (currentScreen === 'screen-game' && game && game.running && !game.paused) game.tap();
+    if (canPlay) game.tap('rear');
+  }
+  if (e.code === 'ArrowUp') {
+    e.preventDefault();
+    if (canPlay) game.tap('front');
+  }
+  if (e.code === 'ArrowLeft') {
+    e.preventDefault();
+    if (canPlay) game.swipeLeft();
   }
   if (e.code === 'KeyP' && currentScreen === 'screen-game') togglePause();
   if (e.code === 'Escape' && currentScreen === 'screen-game') togglePause();
@@ -352,6 +468,8 @@ document.addEventListener('touchmove', (e) => {
 
 refreshCoins();
 updateSoundBtn();
+renderDifficultyPicker();
+$('#optin-lb').checked = !!save.leaderboardOptIn;
 show('screen-menu');
 rafId = requestAnimationFrame(loop);
 
