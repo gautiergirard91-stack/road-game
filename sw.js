@@ -1,4 +1,4 @@
-const CACHE = 'roadtap-v2';
+const CACHE = 'roadtap-v3';
 
 const ASSETS = [
   './',
@@ -39,18 +39,30 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
-  e.respondWith(
-    caches.match(e.request, { ignoreSearch: true }).then((hit) => {
-      if (hit) return hit;
-      return fetch(e.request)
+  if (e.request.mode === 'navigate') {
+    e.respondWith(
+      fetch(e.request)
         .then((res) => {
-          if (res && res.ok && new URL(e.request.url).origin === self.location.origin) {
+          if (res && res.ok) {
             const copy = res.clone();
             caches.open(CACHE).then((c) => c.put(e.request, copy));
           }
           return res;
         })
-        .catch(() => caches.match('./index.html'));
+        .catch(() => caches.match('./index.html'))
+    );
+    return;
+  }
+  e.respondWith(
+    caches.match(e.request, { ignoreSearch: true }).then((hit) => {
+      if (hit) return hit;
+      return fetch(e.request).then((res) => {
+        if (res && res.ok && new URL(e.request.url).origin === self.location.origin) {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(e.request, copy));
+        }
+        return res;
+      });
     })
   );
 });
