@@ -11,11 +11,11 @@ export function mulberry32(seed) {
   };
 }
 
-export function judge(dtMs) {
+export function judge(dtMs, windows = WINDOWS) {
   const a = Math.abs(dtMs);
-  if (a <= WINDOWS.perfect) return 'perfect';
-  if (a <= WINDOWS.good) return 'good';
-  if (a <= WINDOWS.passable) return 'passable';
+  if (a <= windows.perfect) return 'perfect';
+  if (a <= windows.good) return 'good';
+  if (a <= windows.passable) return 'passable';
   return null;
 }
 

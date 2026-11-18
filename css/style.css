@@ -471,6 +471,11 @@ body {
   font-size: 12px;
 }
 
+.ach-done {
+  border-color: #ffd54a;
+  background: #232047;
+}
+
 #pseudo-input {
   font: inherit;
   font-size: 17px;

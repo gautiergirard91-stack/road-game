@@ -86,10 +86,12 @@ export class Game {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
     this.level = opts.level;
-    this.theme = THEMES[opts.level.theme];
+    this.theme = THEMES[opts.themeOverride] || THEMES[opts.level.theme];
     this.skin = SKINS.find((s) => s.id === opts.skinId) || SKINS[0];
     this.mode = opts.mode || 'auto';
     this.effects = opts.effects || [];
+    this.windows = opts.windows || WINDOWS;
+    this.access = opts.access || {};
     this.audio = opts.audio || {};
     this.onJudge = opts.onJudge || (() => {});
     this.onEnd = opts.onEnd || (() => {});
@@ -160,6 +162,7 @@ export class Game {
     this.tSame = 4;
     this.ped = null;
     this.autoStop = false;
+    this.drops = [];
     this.maxMisses = maxMissesFor(this.mode);
     const mm = MODELS[this.skin.model] || MODELS.berline;
     this.frontAxleY = this.wheelY - mm.bodyH + 18;
@@ -200,6 +203,7 @@ export class Game {
     this.popups.push({ text: 'RATÉ', y: ay - 70, life: 0.9, color: '#ff5c5c' });
     this.shake = 8;
     this.audio.miss?.();
+    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
     this.onMiss(this.stats.misses);
     if (this.stats.misses >= this.maxMisses && !this.pendingContinue) {
       this.pendingContinue = true;
@@ -211,9 +215,12 @@ export class Game {
   update(dt) {
     if (!this.running || this.paused) return;
     this.time += dt;
-    this.effSpeed = this.level.speed * this.slow;
+    const baseSpeed = this.level.endless
+      ? Math.min(this.level.speed + this.distance * 0.02, this.level.speed * 2.4)
+      : this.level.speed;
+    this.effSpeed = baseSpeed * this.slow;
     this.distance += this.effSpeed * dt;
-    const missPx = (this.effSpeed * WINDOWS.passable) / 1000;
+    const missPx = (this.effSpeed * this.windows.passable) / 1000;
     for (const line of this.lines) {
       if (line.state !== 'pending') continue;
       let missedNow = false;
@@ -270,15 +277,77 @@ export class Game {
       }
     }
     if (this.hasEffect('trail')) this.spawnTrail();
+    this.updateWeather(dt);
     this.updatePedestrian(dt);
     this.updateTraffic(dt);
     if (!this.running) return;
     const pending = this.lines.filter((l) => l.state === 'pending');
+    if (this.level.endless && pending.length < 8) this.extendPattern();
     if (pending.length === 0) {
       const last = this.lines[this.lines.length - 1];
       if (this.lineY(last, 'rear') > this.wheelY + 80) {
         this.stats.score = this.score;
         this.finish(true);
+      }
+    }
+  }
+
+  extendPattern() {
+    const last = this.lines[this.lines.length - 1];
+    const chunk = buildPattern(
+      {
+        ...this.level,
+        lines: 20,
+        gapMin: Math.max(230, this.level.gapMin - this.distance * 0.004),
+        gapMax: Math.max(320, this.level.gapMax - this.distance * 0.004),
+      },
+      (Math.random() * 1e9) >>> 0,
+      this.mode
+    );
+    const offset = last.dist + 400;
+    for (const l of chunk) {
+      this.lines.push({ type: l.type, dist: l.dist + offset, axle: l.axle, hits: { front: null, rear: null }, state: 'pending', result: null, flash: 0, glow: 0 });
+    }
+  }
+
+  updateWeather(dt) {
+    const rain = this.hasEffect('rain');
+    const snow = this.hasEffect('snowfall');
+    if (!rain && !snow) {
+      this.drops = [];
+      return;
+    }
+    const target = rain ? 90 : 60;
+    while (this.drops.length < target) {
+      this.drops.push({ x: Math.random() * this.w, y: Math.random() * this.h, s: rain ? 500 + Math.random() * 400 : 60 + Math.random() * 80, r: rain ? 0 : 2 + Math.random() * 3 });
+    }
+    for (const d of this.drops) {
+      d.y += d.s * dt;
+      d.x += (rain ? -60 : 20) * dt;
+      if (d.y > this.h) {
+        d.y = -10;
+        d.x = Math.random() * this.w;
+      }
+    }
+  }
+
+  drawWeather() {
+    const { ctx } = this;
+    if (this.hasEffect('rain')) {
+      ctx.strokeStyle = 'rgba(180,210,255,0.5)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      for (const d of this.drops) {
+        ctx.moveTo(d.x, d.y);
+        ctx.lineTo(d.x - 6, d.y + 14);
+      }
+      ctx.stroke();
+    } else if (this.hasEffect('snowfall')) {
+      ctx.fillStyle = 'rgba(255,255,255,0.8)';
+      for (const d of this.drops) {
+        ctx.beginPath();
+        ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+        ctx.fill();
       }
     }
   }
@@ -459,7 +528,7 @@ export class Game {
     if (!this.running || this.paused) return;
     const axle = this.mode === 'auto' ? 'rear' : zone;
     const speed = this.effSpeed;
-    const missPx = (speed * WINDOWS.passable) / 1000;
+    const missPx = (speed * this.windows.passable) / 1000;
     let best = null;
     let bestAd = Infinity;
     for (const line of this.lines) {
@@ -478,7 +547,7 @@ export class Game {
     const ay = this.lineAxleY(axle);
     const dy = this.lineY(best, axle) - ay;
     const dtMs = (dy / speed) * 1000;
-    const result = judge(dtMs);
+    const result = judge(dtMs, this.windows);
     best.hits[axle] = result;
     best.state = this.axles.every((a) => best.hits[a]) ? 'resolved' : 'pending';
     best.result = result;
@@ -508,6 +577,7 @@ export class Game {
     if (this.hasEffect('shake')) this.shake = 5;
     if (this.hasEffect('confetti') && result === 'perfect') this.spawnConfetti();
     this.audio[result]?.();
+    if (result === 'perfect' && typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(15);
     this.onJudge({ result, pts, combo: this.combo, score: this.score });
   }
 
@@ -534,6 +604,7 @@ export class Game {
     this.drawTraffic();
     this.drawPedestrian();
     this.drawCar();
+    this.drawWeather();
     this.drawParticles();
     this.drawPopups();
     ctx.restore();
@@ -698,6 +769,34 @@ export class Game {
         ctx.strokeStyle = theme.line;
         ctx.fillStyle = theme.line;
         this.drawLineShape(line.type, y, roadX, roadW, false);
+        if (this.access.colorblind) {
+          const mx = roadX + roadW / 2;
+          ctx.fillStyle = theme.lineEdge;
+          ctx.strokeStyle = theme.lineEdge;
+          ctx.lineWidth = 3;
+          if (line.type === 'band') {
+            ctx.fillRect(mx - 7, y - 7, 14, 14);
+          } else if (line.type === 'chevron') {
+            ctx.beginPath();
+            ctx.moveTo(mx, y - 9);
+            ctx.lineTo(mx + 9, y);
+            ctx.lineTo(mx, y + 9);
+            ctx.lineTo(mx - 9, y);
+            ctx.closePath();
+            ctx.fill();
+          } else if (line.type === 'crosswalk') {
+            ctx.beginPath();
+            ctx.arc(mx, y, 8, 0, Math.PI * 2);
+            ctx.stroke();
+          } else {
+            ctx.beginPath();
+            ctx.moveTo(mx, y - 9);
+            ctx.lineTo(mx + 9, y + 7);
+            ctx.lineTo(mx - 9, y + 7);
+            ctx.closePath();
+            ctx.fill();
+          }
+        }
       }
     }
   }

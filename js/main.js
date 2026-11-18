@@ -1,10 +1,12 @@
-import { LEVELS, THEMES, SKINS, EFFECTS, DIFFICULTIES } from './data.js';
+import { LEVELS, THEMES, SKINS, EFFECTS, DIFFICULTIES, WINDOWS, ACHIEVEMENTS, THEME_SHOP, ENDLESS_LEVEL } from './data.js';
 import { Game } from './game.js';
 import * as store from './store.js';
-import { sfx, setEnabled, unlockAudio } from './audio.js';
+import { sfx, setEnabled, setMusicEnabled, unlockAudio } from './audio.js';
 import { coinsForResult, accuracy, avgReaction, continueCost, maxMissesFor } from './core.js';
 import { watchRewarded } from './ads.js';
 import * as leaderboard from './leaderboard.js';
+import * as cloudsave from './cloudsave.js';
+import { logEvent } from './analytics.js';
 
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => [...document.querySelectorAll(sel)];
@@ -110,6 +112,75 @@ function hideContinue() {
   $('#continue-overlay').classList.remove('active');
 }
 
+const effWindows = () => (save.wideWindows ? { perfect: 70, good: 150, passable: 240 } : WINDOWS);
+
+function pushCloud() {
+  if (leaderboard.isOnline() && save.pseudo) cloudsave.save(save.pseudo, store.snapshot());
+}
+
+const TUTORIAL_STEPS = [
+  "👆 Tape l'écran (ou Espace) quand une ligne blanche atteint les roues de ta voiture.",
+  '🎯 Plus c\'est précis, plus tu marques : PARFAIT ±45 ms, BIEN ±100 ms, OK ±160 ms. Les combos multiplient tes points !',
+  '💥 Ligne manquée ou clic dans le vide = −1 ❤️ (3 en Auto école, 5 en Permis A / Pilote). Au dernier raté, tu peux continuer avec des pièces 🪙 ou une pub 🎬.',
+  '🎚️ Difficulté en haut de la liste des niveaux : Auto école (tap partout), Permis A (haut = roues AV, bas = roues AR, chaque ligne se joue 2×), Pilote (swipe ⬅ pour doubler). En ville, laisse passer les piétons 🚶 ! Bonne route !',
+];
+let tutorialStep = 0;
+
+function showTutorialStep() {
+  $('#tutorial-text').textContent = TUTORIAL_STEPS[tutorialStep];
+  $('#tutorial-next').textContent = tutorialStep === TUTORIAL_STEPS.length - 1 ? "C'est parti !" : 'Suivant →';
+  $('#tutorial-dots').textContent = `${tutorialStep + 1}/${TUTORIAL_STEPS.length}`;
+}
+
+function openTutorial() {
+  tutorialStep = 0;
+  showTutorialStep();
+  $('#tutorial-modal').classList.remove('hidden');
+  $('#tutorial-modal').classList.add('active');
+}
+
+function closeTutorial() {
+  $('#tutorial-modal').classList.add('hidden');
+  $('#tutorial-modal').classList.remove('active');
+  store.setTutorialDone();
+}
+
+function renderAchievements() {
+  const list = $('#achievements-list');
+  list.innerHTML = '';
+  for (const a of ACHIEVEMENTS) {
+    const unlocked = save.achievements.includes(a.id);
+    const row = document.createElement('div');
+    row.className = 'card lb-row' + (unlocked ? ' ach-done' : '');
+    row.innerHTML = `<span class="lb-rank">${unlocked ? '🏅' : '🔒'}</span><div class="card-body"><div class="card-title">${a.name}</div><div class="card-sub">${a.desc} — +${a.reward} 🪙</div></div>`;
+    list.appendChild(row);
+  }
+}
+
+function checkAchievements(stats, level) {
+  const ctx = { stats, level, totals: store.get().totals, mode: save.difficulty };
+  const newly = [];
+  for (const a of ACHIEVEMENTS) {
+    if (!save.achievements.includes(a.id)) {
+      let ok = false;
+      try {
+        ok = a.test(ctx);
+      } catch {
+        ok = false;
+      }
+      if (ok) {
+        store.unlockAchievement(a.id);
+        newly.push(a);
+      }
+    }
+  }
+  if (newly.length) {
+    const reward = newly.reduce((s, a) => s + a.reward, 0);
+    store.addCoins(reward);
+    toast(`🏅 Succès débloqué${newly.length > 1 ? 's' : ''} : ${newly.map((a) => a.name).join(', ')} (+${reward} 🪙)`);
+  }
+}
+
 function show(id) {
   currentScreen = id;
   $$('.screen').forEach((s) => s.classList.toggle('active', s.id === id));
@@ -134,10 +205,14 @@ function updateSoundBtn() {
   $('#btn-sound').textContent = save.sound ? '🔊 Son : ON' : '🔇 Son : OFF';
 }
 
+function updateMusicBtn() {
+  $('#btn-music').textContent = save.music ? '🎵 Musique : ON' : '🎵 Musique : OFF';
+}
+
 function renderLevels() {
   const list = $('#levels-list');
   list.innerHTML = '';
-  for (const l of LEVELS) {
+  for (const l of [ENDLESS_LEVEL, ...LEVELS]) {
     const locked = !save.unlockedLevels.includes(l.id);
     const best = save.best[l.id];
     const card = document.createElement('div');
@@ -145,8 +220,8 @@ function renderLevels() {
     card.innerHTML = `
       <div class="card-theme theme-${l.theme}"></div>
       <div class="card-body">
-        <div class="card-title">${l.id}. ${l.name}</div>
-        <div class="card-sub">${THEMES[l.theme].name} · vitesse ${l.speed} · ${l.lines} lignes</div>
+        <div class="card-title">${l.endless ? '∞' : l.id}. ${l.name}</div>
+        <div class="card-sub">${THEMES[l.theme].name} · ${l.endless ? 'vitesse croissante' : `vitesse ${l.speed} · ${l.lines} lignes`}</div>
         <div class="card-best">${best ? `🏆 Record : ${best}` : ''}</div>
       </div>
       <button class="btn small">${locked ? `🔒 ${l.cost} 🪙` : '▶ Jouer'}</button>`;
@@ -156,7 +231,9 @@ function renderLevels() {
         if (store.spend(l.cost)) {
           store.unlockLevel(l.id);
           sfx.coin();
+          logEvent('purchase', { item: `level:${l.id}`, cost: l.cost });
           toast(`Niveau ${l.id} débloqué !`);
+          pushCloud();
           refreshCoins();
           renderLevels();
           startLevel(l);
@@ -194,7 +271,9 @@ function renderShop() {
       } else if (store.buySkin(s.id, s.cost)) {
         store.selectSkin(s.id);
         sfx.coin();
+        logEvent('purchase', { item: `skin:${s.id}`, cost: s.cost });
         toast(`${s.name} achetée et équipée !`);
+        pushCloud();
       } else {
         toast(`Il te manque ${s.cost - save.coins} pièces 🪙`);
         return;
@@ -203,6 +282,42 @@ function renderShop() {
       renderShop();
     });
     skinsEl.appendChild(card);
+  }
+  const thEl = $('#shop-themes');
+  if (thEl) {
+    thEl.innerHTML = '';
+    for (const t of THEME_SHOP) {
+      const owned = save.themes.includes(t.id);
+      const active = save.themeOverride === t.id;
+      const card = document.createElement('div');
+      card.className = 'card shop-card';
+      card.innerHTML = `
+        <div class="swatch fx">🎨</div>
+        <div class="card-body">
+          <div class="card-title">${t.name}</div>
+          <div class="card-sub">${t.desc}</div>
+        </div>
+        <button class="btn small">${active ? '✓ Activé' : owned ? 'Activer' : `${t.cost} 🪙`}</button>`;
+      card.querySelector('button').addEventListener('click', () => {
+        if (!owned) {
+          if (store.buyTheme(t.id, t.cost)) {
+            sfx.coin();
+            logEvent('purchase', { item: `theme:${t.id}`, cost: t.cost });
+            toast(`${t.name} acheté !`);
+            pushCloud();
+          } else {
+            toast(`Il te manque ${t.cost - save.coins} pièces 🪙`);
+            return;
+          }
+        } else {
+          store.setThemeOverride(t.id);
+          sfx.click();
+        }
+        refreshCoins();
+        renderShop();
+      });
+      thEl.appendChild(card);
+    }
   }
   const fxEl = $('#shop-effects');
   fxEl.innerHTML = '';
@@ -227,7 +342,9 @@ function renderShop() {
         sfx.click();
       } else if (store.buyEffect(e.id, e.cost)) {
         sfx.coin();
+        logEvent('purchase', { item: `effect:${e.id}`, cost: e.cost });
         toast(`${e.name} acheté et activé !`);
+        pushCloud();
       } else {
         toast(`Il te manque ${e.cost - save.coins} pièces 🪙`);
         return;
@@ -248,10 +365,14 @@ function startLevel(level) {
   hudCombo.textContent = '';
   continuesThisRun = 0;
   updateLives(0);
+  logEvent('level_start', { level: level.id, mode: save.difficulty });
   game = new Game($('#game'), {
     level,
     skinId: save.skin,
     mode: save.difficulty,
+    themeOverride: save.themeOverride || undefined,
+    windows: effWindows(),
+    access: { colorblind: save.colorblind },
     effects: save.selectedEffects,
     audio: { tap: sfx.tap, perfect: sfx.perfect, good: sfx.good, passable: sfx.passable, fail: sfx.fail, win: sfx.win, miss: sfx.miss },
     onJudge: (e) => {
@@ -271,11 +392,15 @@ function startLevel(level) {
 function onGameEnd(stats, level) {
   hideContinue();
   const isRecord = store.setBest(level.id, stats.score);
+  store.addTotals({ runs: 1, perfects: stats.perfects, overtakes: stats.overtakes || 0 });
+  checkAchievements(stats, level);
+  logEvent('game_over', { score: stats.score, level: level.id, mode: save.difficulty, completed: !!stats.completed, reason: stats.reason });
   if (save.pseudo && save.leaderboardOptIn) {
     leaderboard
       .submitScore({ pseudo: save.pseudo, score: stats.score, level: level.name, mode: save.difficulty, date: Date.now() })
       .catch(() => {});
   }
+  pushCloud();
   const coins = coinsForResult(stats, level, stats.completed);
   if (coins > 0) {
     store.addCoins(coins);
@@ -324,9 +449,55 @@ function loop(t) {
 
 $('#btn-play').addEventListener('click', () => {
   sfx.click();
+  if (!save.tutorialDone) openTutorial();
   renderDifficultyPicker();
   renderLevels();
   show('screen-levels');
+});
+$('#btn-tutorial').addEventListener('click', () => {
+  sfx.click();
+  openTutorial();
+});
+$('#tutorial-next').addEventListener('click', () => {
+  sfx.click();
+  tutorialStep++;
+  if (tutorialStep >= TUTORIAL_STEPS.length) closeTutorial();
+  else showTutorialStep();
+});
+$('#btn-achievements').addEventListener('click', () => {
+  sfx.click();
+  renderAchievements();
+  show('screen-achievements');
+});
+$('#btn-achievements-back').addEventListener('click', () => {
+  sfx.click();
+  show('screen-menu');
+});
+$('#btn-access').addEventListener('click', () => {
+  sfx.click();
+  $('#opt-widewindows').checked = !!save.wideWindows;
+  $('#opt-colorblind').checked = !!save.colorblind;
+  $('#access-modal').classList.remove('hidden');
+  $('#access-modal').classList.add('active');
+});
+$('#btn-access-close').addEventListener('click', () => {
+  sfx.click();
+  $('#access-modal').classList.add('hidden');
+  $('#access-modal').classList.remove('active');
+});
+$('#opt-widewindows').addEventListener('change', (e) => {
+  store.setWideWindows(e.target.checked);
+  toast(e.target.checked ? 'Fenêtres de timing élargies (accessibilité)' : 'Fenêtres de timing standard');
+});
+$('#opt-colorblind').addEventListener('change', (e) => {
+  store.setColorblind(e.target.checked);
+  toast(e.target.checked ? 'Symboles ajoutés sur les lignes (mode daltonien)' : 'Mode standard');
+});
+$('#btn-music').addEventListener('click', () => {
+  store.setMusic(!save.music);
+  setMusicEnabled(save.music && save.sound);
+  updateMusicBtn();
+  sfx.click();
 });
 $('#btn-leaderboard').addEventListener('click', () => {
   sfx.click();
@@ -381,6 +552,7 @@ $('#btn-help-close').addEventListener('click', () => {
 $('#btn-sound').addEventListener('click', () => {
   store.setSound(!save.sound);
   setEnabled(save.sound);
+  setMusicEnabled(save.music && save.sound);
   updateSoundBtn();
   sfx.click();
 });
@@ -418,6 +590,7 @@ $('#btn-continue-coins').addEventListener('click', () => {
   if (store.spend(cost)) {
     continuesThisRun++;
     sfx.coin();
+    logEvent('continue_purchased', { cost });
     hideContinue();
     game?.resumeWithContinue();
   } else {
@@ -429,6 +602,7 @@ $('#btn-continue-ad').addEventListener('click', () => {
   watchRewarded((ok) => {
     if (ok && game && game.running) {
       continuesThisRun++;
+      logEvent('ad_watched', { reward: 'continue' });
       game.resumeWithContinue();
     } else if (game) {
       game.finish(false);
@@ -491,9 +665,22 @@ document.addEventListener('touchmove', (e) => {
 
 refreshCoins();
 updateSoundBtn();
+updateMusicBtn();
+setMusicEnabled(save.music && save.sound);
 renderDifficultyPicker();
 $('#optin-lb').checked = !!save.leaderboardOptIn;
 show('screen-menu');
+
+if (leaderboard.isOnline() && save.pseudo) {
+  cloudsave.load(save.pseudo).then((remote) => {
+    if (remote && store.mergeRemote(remote)) {
+      refreshCoins();
+      renderLevels();
+      renderShop();
+      toast('☁️ Progression synchronisée avec le cloud');
+    }
+  });
+}
 rafId = requestAnimationFrame(loop);
 
 if ('serviceWorker' in navigator) {

@@ -14,7 +14,9 @@ Le jeu est une **PWA (Progressive Web App)** : jouable dans n'importe quel navig
   - **Pilote** : comme Permis A, plus des voitures devant : **swipe vers la gauche** (ou ⬅) pour doubler — c'est **ta voiture** qui se déplace sur la voie de gauche pendant le dépassement, la voiture doublée reste à droite. Sans dépassement, ta voiture ralentit (1 s de grâce, puis ralentissement progressif) jusqu'à l'arrêt complet = fin de partie « 🚦 bouchon ». Pendant le ralentissement : combos coupés et points ×0,2.
 - **🚶 Passages piétons en ville** (niveaux 4–5) : une bande zébrée compte comme **une ligne à cliquer** ; quand un piéton traverse, la voiture **s'arrête seule** pour le laisser passer (pause sans pénalité de combo/points), puis repart.
 - **Décor de bord de route selon le thème** : arbres, immeubles, cactus, sapins enneigés, skyline nocturne + **lampadaires** (éclairés la nuit).
-- **🏆 Classement** : le joueur choisit un pseudo et peut apparaître dans le classement (opt-in). **Filtre par difficulté** (Tous / Auto école / Permis A / Pilote). Classement **local** par défaut, **en ligne via Firebase Realtime Database** si configuré (voir ci-dessous), un nœud par difficulté.
+- **🏆 Classement** : le joueur choisit un pseudo et peut apparaître dans le classement (opt-in). **Filtre par difficulté** (Tous / Auto école / Permis A / Pilote). Classement **local** par défaut, **en ligne via Firebase Realtime Database** si configuré (`docs/FIREBASE.md`), un nœud par difficulté. **Sauvegarde cloud** du profil et **analytics** via le même projet Firebase.
+- **∞ Mode Survie** : génération procédurale infinie, vitesse croissante, écarts qui se resserrent.
+- **👶 Tutoriel guidé** au premier lancement (réouvrable depuis le menu) ; **🏅 10 succès** avec récompenses en pièces ; **♿ accessibilité** (fenêtres élargies, symboles daltonien) ; **🎵 musique de fond** + vibrations ; **effets météo** achetables (pluie, neige) ; **thèmes de route déblocables** (Néon, Coucher de soleil) qui remplacent le décor de tous les niveaux ; **CI GitHub Actions** (tests auto à chaque push/PR).
 - **12 niveaux déblocables** avec difficulté croissante : vitesse, espacement des lignes, et 3 types de balisage (ligne pointillée, bande continue, chevrons, doubles lignes rapprochées).
 - **5 thèmes de route** : Autoroute, Ville, Désert, Neige, Nuit (scénarios animés, parallaxe, néons).
 - **Économie de jeu** : pièces gagnées à chaque partie, dépensables pour débloquer les niveaux suivants.
@@ -26,21 +28,26 @@ Le jeu est une **PWA (Progressive Web App)** : jouable dans n'importe quel navig
 ## 📁 Structure
 
 ```
-index.html               Page unique (écrans : menu, niveaux, boutique, fin, pause, aide)
+index.html               Page unique (écrans : menu, niveaux, boutique, succès, classement, fin, pause, aide, tutoriel, accessibilité)
 css/style.css            Style de l'interface
-js/data.js               Données : thèmes, 12 niveaux, skins, effets, fenêtres de timing
+js/data.js               Données : thèmes, 12 niveaux + Survie ∞, skins, effets, succès, difficultés
 js/core.js               Logique pure (testable sous Node) : jugement, score, génération des niveaux
-js/game.js               Moteur Canvas : route, voiture, lignes, particules, thèmes animés
-js/store.js              Sauvegarde localStorage (pièces, achats, records)
-js/audio.js              Effets sonores synthétisés en WebAudio
-js/main.js               Navigation entre écrans, boucle de jeu, entrées tactiles/clavier
+js/game.js               Moteur Canvas : route, voiture, trafic, piétons, lignes, météo, thèmes animés
+js/store.js              Sauvegarde localStorage + fusion cloud (pièces, achats, records, succès)
+js/audio.js              SFX WebAudio + boucle musicale
+js/leaderboard.js        Classement local / Firebase (filtré par difficulté)
+js/cloudsave.js          Sauvegarde cloud du profil (Firebase)
+js/analytics.js          Événements analytics (Firebase, best-effort)
+js/config.js             Config Firebase (vide = 100 % hors ligne) — voir docs/FIREBASE.md
+js/ads.js                Pub rewarded simulée (remplacer par AdMob en prod)
 manifest.webmanifest     Manifeste PWA
-sw.js                    Service worker (cache, hors ligne) — penser à bumper CACHE à chaque mise à jour
-icons/                   Icônes générées (tools/make_icons.py, Python stdlib uniquement)
-assetlinks.json          Template Digital Asset Links pour la TWA (voir ci-dessous)
+sw.js                    Service worker (cache, hors ligne) — bumper CACHE à chaque mise à jour
+icons/                   Icônes (tools/make_icons.py, Python stdlib uniquement)
+assetlinks.json          Template Digital Asset Links pour la TWA
+docs/                    GAME_DESIGN (DA + level design), QA, MARKETING, LEGAL, MONETIZATION, FIREBASE
 PRIVACY.md               Politique de confidentialité (à héberger et référencer dans la Play Console)
+tests/core.test.mjs      Tests Node : node tests/core.test.mjs  (lancés aussi en CI : .github/workflows/ci.yml)
 tools/make_icons.py      Régénère les icônes : python3 tools/make_icons.py
-tests/core.test.mjs      Tests Node de la logique de jeu : node tests/core.test.mjs
 ```
 
 ## ▶️ Lancer en local

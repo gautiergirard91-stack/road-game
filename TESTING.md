@@ -54,6 +54,14 @@ python3 -m http.server 8080
 - [ ] Après une partie (opt-in + pseudo) : le score apparaît dans la liste, soi-même surligné en cyan
 - [ ] **Filtre par difficulté** (Tous / Auto école / Permis A / Pilote) : le score va dans la bonne section
 
+### Nouveautés (tutoriel, succès, survie, météo, thèmes, accessibilité)
+- [ ] **Tutoriel** au 1er lancement (4 étapes) + bouton 👶 Tutoriel dans le menu
+- [ ] **🏅 Succès** : finir le niveau 1 → succès débloqué + pièces créditées (toast)
+- [ ] **∞ Survie** en haut de la liste des niveaux : vitesse qui monte, le jeu continue indéfiniment
+- [ ] Boutique : **effets météo** (🌧 pluie / ❄ neige) et **thèmes** (Néon, Coucher de soleil) achetables et appliquables
+- [ ] Menu : 🎵 musique ON/OFF, ♿ accessibilité (fenêtres élargies → PARFAIT plus facile ; symboles sur les lignes en mode daltonien)
+- [ ] CI : onglet « Actions » de la PR → le job `CI / test` est vert
+
 ## 5. Remonter un bug
 
 Noter : attendu / observé, appareil + navigateur, niveau + difficulté → correction sur la branche, la PR #1 se met à jour.

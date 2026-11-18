@@ -40,6 +40,34 @@ function tone(freq, dur, type = 'sine', vol = 0.18, when = 0, slide = 0) {
   }
 }
 
+let musicTimer = null;
+let musicStep = 0;
+let musicOn = false;
+
+const BASS = [110, 110, 131, 98];
+const ARP = [440, 523, 659, 784];
+
+export function setMusicEnabled(on) {
+  musicOn = on;
+  if (on) startMusic();
+  else stopMusic();
+}
+
+function startMusic() {
+  if (musicTimer) return;
+  musicTimer = setInterval(() => {
+    if (!musicOn || !enabled) return;
+    tone(BASS[musicStep % 4], 0.22, 'triangle', 0.055);
+    tone(ARP[(musicStep * 2) % 4] * (musicStep % 8 < 4 ? 1 : 0.5), 0.12, 'sine', 0.035);
+    musicStep++;
+  }, 240);
+}
+
+function stopMusic() {
+  if (musicTimer) clearInterval(musicTimer);
+  musicTimer = null;
+}
+
 export const sfx = {
   tap: () => tone(520, 0.08, 'triangle', 0.1),
   perfect: () => {

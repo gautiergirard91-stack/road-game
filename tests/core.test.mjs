@@ -73,4 +73,10 @@ for (let s = 1; s <= 200 && !hasCrosswalk; s++) {
 assert.ok(hasCrosswalk, 'niveaux ville : des passages piétons apparaissent');
 assert.ok(buildPattern(LEVELS[0], 7, 'auto').every((l) => l.type !== 'crosswalk'), 'pas de passage piéton hors ville');
 
+const wide = { perfect: 70, good: 150, passable: 240 };
+assert.equal(judge(60, wide), 'perfect', 'fenêtres élargies : 60 ms = PARFAIT');
+assert.equal(judge(60), 'good', 'fenêtres standard : 60 ms = BIEN');
+assert.equal(judge(200, wide), 'passable');
+assert.equal(judge(200), null);
+
 console.log('OK - tous les tests passent (' + LEVELS.length + ' niveaux vérifiés)');
