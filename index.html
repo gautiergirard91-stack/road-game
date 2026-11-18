@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0d1226">
+  <meta name="description" content="Road Tap Racer : touche l'écran quand les roues de la voiture atteignent les lignes blanches. Un jeu de rythme façon Piano Tiles.">
+  <title>Road Tap Racer</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="RoadTap">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <canvas id="game"></canvas>
+
+  <div id="hud" class="hidden">
+    <div id="hud-score">0</div>
+    <div id="hud-combo"></div>
+    <div id="hud-right">
+      <span id="hud-lives">❤️❤️❤️</span>
+      <span id="hud-level"></span>
+      <button id="btn-pause" aria-label="Pause">⏸</button>
+    </div>
+  </div>
+
+  <section id="screen-menu" class="screen active">
+    <h1 class="logo">ROAD<br>TAP</h1>
+    <p class="tagline">Touche l'écran au moment exact où les roues atteignent la ligne blanche !</p>
+    <div class="coins-display">🪙 0</div>
+    <button class="btn big" id="btn-play">▶ Jouer</button>
+    <button class="btn" id="btn-shop">🛒 Boutique</button>
+    <button class="btn" id="btn-leaderboard">🏆 Classement</button>
+    <button class="btn secondary" id="btn-help">❓ Comment jouer</button>
+    <button class="btn secondary" id="btn-sound">🔊 Son : ON</button>
+    <button class="btn secondary" id="btn-music">🎵 Musique : ON</button>
+    <button class="btn secondary" id="btn-achievements">🏅 Succès</button>
+    <button class="btn secondary" id="btn-access">♿ Accessibilité</button>
+    <button class="btn secondary" id="btn-tutorial">👶 Tutoriel</button>
+  </section>
+
+  <section id="screen-achievements" class="screen">
+    <header class="topbar">
+      <button class="btn back" id="btn-achievements-back">←</button>
+      <h2>🏅 Succès</h2>
+      <div class="coins-display">🪙 0</div>
+    </header>
+    <div id="achievements-list" class="cards"></div>
+  </section>
+
+  <section id="screen-levels" class="screen">
+    <header class="topbar">
+      <button class="btn back" id="btn-levels-back">←</button>
+      <h2>Niveaux</h2>
+      <div class="coins-display">🪙 0</div>
+    </header>
+    <div class="picker-label">Difficulté</div>
+    <div id="difficulty-picker"></div>
+    <div id="levels-list" class="cards"></div>
+  </section>
+
+  <section id="screen-leaderboard" class="screen">
+    <header class="topbar">
+      <button class="btn back" id="btn-leaderboard-back">←</button>
+      <h2>🏆 Classement</h2>
+      <div class="coins-display">🪙 0</div>
+    </header>
+    <p id="lb-source" class="lb-source"></p>
+    <div class="lb-actions">
+      <button class="btn small" id="btn-pseudo">✏️ Mon pseudo</button>
+      <label class="lb-optin"><input type="checkbox" id="optin-lb"> apparaître dans le classement</label>
+    </div>
+    <div class="picker-label">Filtrer par difficulté</div>
+    <div id="lb-filter"></div>
+    <div id="leaderboard-list" class="cards"></div>
+  </section>
+
+  <section id="screen-shop" class="screen">
+    <header class="topbar">
+      <button class="btn back" id="btn-shop-back">←</button>
+      <h2>Boutique</h2>
+      <div class="coins-display">🪙 0</div>
+    </header>
+    <h3 class="shop-section-title">🚗 Voitures</h3>
+    <div id="shop-skins" class="cards"></div>
+    <h3 class="shop-section-title">✨ Effets visuels & météo</h3>
+    <div id="shop-effects" class="cards"></div>
+    <h3 class="shop-section-title">🎨 Thèmes de route</h3>
+    <div id="shop-themes" class="cards"></div>
+  </section>
+
+  <section id="screen-over" class="screen">
+    <div class="panel">
+      <h2 id="over-title">Partie terminée</h2>
+      <div id="over-record" class="record hidden">🏆 Nouveau record !</div>
+      <div id="over-score">0</div>
+      <div class="score-label">points</div>
+      <div id="over-stats" class="stats-grid"></div>
+      <div id="over-coins" class="coins-earned"></div>
+      <button class="btn big" id="btn-retry">↻ Rejouer</button>
+      <button class="btn" id="btn-over-levels">Niveaux</button>
+      <button class="btn secondary" id="btn-over-menu">Menu</button>
+    </div>
+  </section>
+
+  <div id="pause-overlay" class="screen overlay">
+    <div class="panel">
+      <h2>⏸ Pause</h2>
+      <button class="btn big" id="btn-resume">Reprendre</button>
+      <button class="btn secondary" id="btn-quit">Quitter la partie</button>
+    </div>
+  </div>
+
+  <div id="help-modal" class="screen overlay hidden">
+    <div class="panel">
+      <h2>❓ Comment jouer</h2>
+      <div class="help-text">
+        <p>🚗 Une voiture roule sur la route. Des <b>lignes blanches</b> arrivent vers toi.</p>
+        <p>👆 <b>Touche l'écran</b> (ou appuie sur <b>Espace</b>) au moment précis où les <b>roues</b> sont au même niveau qu'une ligne.</p>
+        <p>🎯 Plus ton timing est précis, plus tu marques de points : <b>PARFAIT</b> (±45 ms), <b>BIEN</b> (±100 ms), <b>OK</b> (±160 ms).</p>
+        <p>🔥 Enchaîne les réussites pour augmenter ton <b>combo</b> et multiplier tes points.</p>
+        <p>💥 Une ligne manquée <b>ou un clic dans le vide</b> = 1 raté (compteur ❤️ en haut). <b>3 ratés</b> en Auto école, <b>5 ratés</b> en Permis A / Pilote. Au dernier raté, tu peux <b>continuer</b> contre des pièces 🪙 ou en regardant une pub 🎬 — sinon, partie terminée !</p>
+        <p>🎚️ <b>Difficulté</b> (en haut de la liste des niveaux) : <b>Auto école</b> = tap n'importe où ; <b>Permis A</b> = chaque ligne doit être touchée <b>deux fois, indépendamment</b> : d'abord par les roues <b>avant</b> (tap moitié <b>haute</b> de l'écran, ligne AV), puis par les roues <b>arrière</b> (tap moitié <b>basse</b>, ligne AR) ; <b>Pilote</b> = en plus, des voitures devant toi : <b>swipe vers la gauche</b> (⬅) pour doubler — c'est <b>ta voiture</b> qui passe à gauche — sinon tu ralentis jusqu'au bouchon ! Pendant le ralentissement, les combos sont coupés et les points sont réduits.</p>
+        <p>🚶 <b>En ville</b>, des <b>passages piétons</b> (bandes blanches) apparaissent : c'est une <b>ligne comme les autres à cliquer</b> quand les roues y sont. Quand un piéton traverse, ta voiture <b>s'arrête toute seule</b> pour le laisser passer, puis repart : une petite pause sans pénalité !</p>
+        <p>🪙 Tes pièces te servent à débloquer de <b>nouveaux niveaux</b> (nouvelles routes, balisages et vitesses), des <b>voitures</b> et des <b>effets visuels</b> dans la boutique.</p>
+      </div>
+      <button class="btn big" id="btn-help-close">C'est parti !</button>
+    </div>
+  </div>
+
+  <div id="continue-overlay" class="screen overlay">
+    <div class="panel">
+      <h2>💥 3 lignes manquées !</h2>
+      <p class="overlay-sub">Tu peux continuer la partie :</p>
+      <button class="btn big" id="btn-continue-coins">Continuer — 100 🪙</button>
+      <button class="btn" id="btn-continue-ad">🎬 Regarder une pub (gratuit)</button>
+      <button class="btn secondary" id="btn-continue-quit">Abandonner</button>
+    </div>
+  </div>
+
+  <div id="ad-modal" class="screen overlay hidden">
+    <div class="panel">
+      <h2>🎬 Publicité</h2>
+      <div id="ad-countdown">5</div>
+      <p class="ad-note">Pub simulée — à remplacer par AdMob en production</p>
+    </div>
+  </div>
+
+  <div id="tutorial-modal" class="screen overlay hidden">
+    <div class="panel">
+      <h2>👶 Tutoriel</h2>
+      <div id="tutorial-dots" class="lb-source"></div>
+      <p id="tutorial-text" class="help-text"></p>
+      <button class="btn big" id="tutorial-next">Suivant →</button>
+    </div>
+  </div>
+
+  <div id="access-modal" class="screen overlay hidden">
+    <div class="panel">
+      <h2>♿ Accessibilité</h2>
+      <label class="lb-optin"><input type="checkbox" id="opt-widewindows"> Fenêtres de timing élargies (±70/150/240 ms)</label>
+      <label class="lb-optin"><input type="checkbox" id="opt-colorblind"> Symboles sur les lignes (mode daltonien)</label>
+      <button class="btn big" id="btn-access-close">OK</button>
+    </div>
+  </div>
+
+  <div id="pseudo-modal" class="screen overlay hidden">
+    <div class="panel">
+      <h2>✏️ Ton pseudo</h2>
+      <input id="pseudo-input" maxlength="16" placeholder="Ex. Speedy" autocomplete="off">
+      <button class="btn big" id="btn-pseudo-save">Enregistrer</button>
+      <button class="btn secondary" id="btn-pseudo-cancel">Annuler</button>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
