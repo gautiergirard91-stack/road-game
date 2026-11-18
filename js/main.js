@@ -1,8 +1,9 @@
-import { LEVELS, THEMES, SKINS, EFFECTS } from './data.js';
+import { LEVELS, THEMES, SKINS, EFFECTS, MAX_MISSES } from './data.js';
 import { Game } from './game.js';
 import * as store from './store.js';
 import { sfx, setEnabled, unlockAudio } from './audio.js';
-import { coinsForResult, accuracy, avgReaction } from './core.js';
+import { coinsForResult, accuracy, avgReaction, continueCost } from './core.js';
+import { watchRewarded } from './ads.js';
 
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => [...document.querySelectorAll(sel)];
@@ -19,6 +20,24 @@ let currentLevel = null;
 const hudScore = $('#hud-score');
 const hudCombo = $('#hud-combo');
 const hudLevel = $('#hud-level');
+const hudLives = $('#hud-lives');
+
+let continuesThisRun = 0;
+
+const MODEL_LABEL = { berline: 'Berline', sport: 'Sport', citadine: 'Citadine' };
+
+function updateLives(m) {
+  hudLives.textContent = '❤️'.repeat(Math.max(0, MAX_MISSES - m)) + '🖤'.repeat(Math.min(m, MAX_MISSES));
+}
+
+function showContinue() {
+  $('#btn-continue-coins').textContent = `Continuer — ${continueCost(continuesThisRun)} 🪙`;
+  $('#continue-overlay').classList.add('active');
+}
+
+function hideContinue() {
+  $('#continue-overlay').classList.remove('active');
+}
 
 function show(id) {
   currentScreen = id;
@@ -93,7 +112,7 @@ function renderShop() {
       <div class="swatch" style="background:${s.rainbow ? 'linear-gradient(90deg,#ff5c8a,#ffd54a,#7ee081,#54f0ff,#c792ff)' : s.color}"></div>
       <div class="card-body">
         <div class="card-title">${s.name}</div>
-        <div class="card-sub">${s.width > 1 ? 'Grosse voiture' : s.width < 1 ? 'Voiture compacte' : 'Standard'}</div>
+        <div class="card-sub">${MODEL_LABEL[s.model] || 'Berline'}</div>
       </div>
       <button class="btn small">${selected ? '✓ Équipée' : owned ? 'Équiper' : `${s.cost} 🪙`}</button>`;
     card.querySelector('button').addEventListener('click', () => {
@@ -156,15 +175,19 @@ function startLevel(level) {
   hudLevel.textContent = `${level.id}. ${level.name}`;
   hudScore.textContent = '0';
   hudCombo.textContent = '';
+  continuesThisRun = 0;
+  updateLives(0);
   game = new Game($('#game'), {
     level,
     skinId: save.skin,
     effects: save.selectedEffects,
-    audio: { tap: sfx.tap, perfect: sfx.perfect, good: sfx.good, passable: sfx.passable, fail: sfx.fail, win: sfx.win },
+    audio: { tap: sfx.tap, perfect: sfx.perfect, good: sfx.good, passable: sfx.passable, fail: sfx.fail, win: sfx.win, miss: sfx.miss },
     onJudge: (e) => {
       hudScore.textContent = String(e.score);
       hudCombo.textContent = e.combo >= 2 ? `COMBO x${e.combo}` : '';
     },
+    onMiss: (m) => updateLives(m),
+    onThreshold: showContinue,
     onEnd: onGameEnd,
   });
   game.start();
@@ -174,6 +197,7 @@ function startLevel(level) {
 }
 
 function onGameEnd(stats, level) {
+  hideContinue();
   const isRecord = store.setBest(level.id, stats.score);
   const coins = coinsForResult(stats, level, stats.completed);
   if (coins > 0) {
@@ -188,6 +212,7 @@ function onGameEnd(stats, level) {
     <div><b>${stats.perfects}</b><span>Parfaits</span></div>
     <div><b>${stats.goods}</b><span>Bien</span></div>
     <div><b>${stats.passables}</b><span>OK</span></div>
+    <div><b>${stats.misses}/${MAX_MISSES}</b><span>Manquées</span></div>
     <div><b>${stats.bestCombo}</b><span>Meilleur combo</span></div>
     <div><b>${avg !== null ? avg + ' ms' : '—'}</b><span>Réaction moy.</span></div>
     <div><b>${accuracy(stats)} %</b><span>Précision</span></div>`;
@@ -268,6 +293,32 @@ $('#btn-over-levels').addEventListener('click', () => {
 $('#btn-over-menu').addEventListener('click', () => {
   sfx.click();
   show('screen-menu');
+});
+$('#btn-continue-coins').addEventListener('click', () => {
+  const cost = continueCost(continuesThisRun);
+  if (store.spend(cost)) {
+    continuesThisRun++;
+    sfx.coin();
+    hideContinue();
+    game?.resumeWithContinue();
+  } else {
+    toast(`Il te manque ${cost - store.get().coins} pièces 🪙`);
+  }
+});
+$('#btn-continue-ad').addEventListener('click', () => {
+  hideContinue();
+  watchRewarded((ok) => {
+    if (ok && game && game.running) {
+      continuesThisRun++;
+      game.resumeWithContinue();
+    } else if (game) {
+      game.finish(false);
+    }
+  });
+});
+$('#btn-continue-quit').addEventListener('click', () => {
+  hideContinue();
+  if (game) game.finish(false);
 });
 
 window.addEventListener('pointerdown', (e) => {

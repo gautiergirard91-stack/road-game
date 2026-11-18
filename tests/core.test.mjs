@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
-import { judge, pointsFor, buildPattern, coinsForResult, accuracy, avgReaction, mulberry32 } from '../js/core.js';
-import { LEVELS, WINDOWS } from '../js/data.js';
+import { judge, pointsFor, buildPattern, coinsForResult, accuracy, avgReaction, continueCost, mulberry32 } from '../js/core.js';
+import { LEVELS, WINDOWS, MAX_MISSES, CONTINUE_BASE_COST, SKINS } from '../js/data.js';
 
 assert.equal(judge(0), 'perfect');
 assert.equal(judge(-WINDOWS.perfect), 'perfect');
@@ -45,5 +45,14 @@ assert.equal(avgReaction({ ...stats, reactions: [] }), null);
 
 const r = mulberry32(42);
 assert.ok(r() >= 0 && r() < 1);
+
+assert.equal(MAX_MISSES, 3, '3 vies avant game over');
+assert.equal(continueCost(0), CONTINUE_BASE_COST);
+assert.equal(continueCost(1), CONTINUE_BASE_COST * 2, 'coût doublé à chaque continue');
+assert.equal(continueCost(2), CONTINUE_BASE_COST * 4);
+
+const models = new Set(SKINS.map((s) => s.model));
+assert.ok(models.has('berline') && models.has('sport') && models.has('citadine'), 'les 3 modèles de voiture sont présents');
+assert.ok(SKINS.every((s) => s.model && s.color && typeof s.cost === 'number'), 'chaque skin a un modèle valide');
 
 console.log('OK - tous les tests passent (' + LEVELS.length + ' niveaux vérifiés)');

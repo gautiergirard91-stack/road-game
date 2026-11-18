@@ -1,4 +1,4 @@
-import { WINDOWS } from './data.js';
+import { WINDOWS, CONTINUE_BASE_COST } from './data.js';
 
 export function mulberry32(seed) {
   let a = seed >>> 0;
@@ -61,6 +61,10 @@ export function accuracy(stats) {
   const total = stats.perfects + stats.goods + stats.passables + stats.misses;
   if (!total) return 100;
   return Math.round(((stats.perfects + stats.goods + stats.passables) / total) * 100);
+}
+
+export function continueCost(continues) {
+  return CONTINUE_BASE_COST * Math.pow(2, continues);
 }
 
 export function avgReaction(stats) {

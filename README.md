@@ -6,11 +6,11 @@ Le jeu est une **PWA (Progressive Web App)** : jouable dans n'importe quel navig
 
 ## 🎮 Fonctionnalités
 
-- **Gameplay timing** : jugement en millisecondes (PARFAIT ±45 ms, BIEN ±100 ms, OK ±160 ms), combo multiplicateur, écran de fin avec statistiques (précision %, réaction moyenne, meilleur combo).
+- **Gameplay timing** : jugement en millisecondes (PARFAIT ±45 ms, BIEN ±100 ms, OK ±160 ms), combo multiplicateur, **3 vies** (compteur ❤️ dans le HUD) : au 3ᵉ raté, possibilité de **continuer contre des pièces** (100 🪙, doublé à chaque fois) **ou en regardant une pub** (simulée dans `js/ads.js`, à remplacer par AdMob en production). Écran de fin avec statistiques (précision %, réaction moyenne, meilleur combo, lignes manquées).
 - **12 niveaux déblocables** avec difficulté croissante : vitesse, espacement des lignes, et 3 types de balisage (ligne pointillée, bande continue, chevrons, doubles lignes rapprochées).
 - **5 thèmes de route** : Autoroute, Ville, Désert, Neige, Nuit (scénarios animés, parallaxe, néons).
 - **Économie de jeu** : pièces gagnées à chaque partie, dépensables pour débloquer les niveaux suivants.
-- **Boutique de personnalisation** : 8 voitures (couleurs, gabarits compact/sport/SUV, or, arc-en-ciel) et 4 effets visuels (traînée de particules, lignes lumineuses, secousse, confettis).
+- **Boutique de personnalisation** : 8 voitures réparties en **3 modèles dessinés différemment** (citadine, berline, sport avec aileron) + couleurs/or/arc-en-ciel, et 4 effets visuels (traînée de particules, lignes lumineuses, secousse, confettis).
 - **Sauvegarde locale** (`localStorage`) : pièces, achats, records.
 - **PWA complète** : manifest, service worker (hors ligne), icônes 192/512/maskable, plein écran portrait, sons générés en WebAudio (aucun asset externe).
 - **Contrôles** : tactile (tap) ou clavier (Espace / Flèche bas), pause (P ou ⏸).
@@ -101,7 +101,11 @@ Pour tester avant publication : `bubblewrap install` installe l'APK sur un tél�
 - **Publicité / achats in-app** : le jeu n'en contient pas → déclarer « Non ».
 - Soumettre pour validation (quelques heures à quelques jours), puis publier.
 
-### 6. Mises à jour
+### 6. Monétisation (pubs récompensées)
+
+La pub « continuer la partie » est actuellement **simulée** (compte à rebours de 5 s dans `js/ads.js`). Pour la production Play Store : créer une app sur [AdMob](https://admob.google.com), activer une unité **Rewarded**, et la brancher dans la TWA (les rewarded ads web fonctionnent dans une TWA via le SDK AdMob web + médiation). Remplacer alors l'appel à `watchRewarded()` dans `js/main.js` par le vrai chargement de la pub.
+
+### 7. Mises à jour
 
 - Modifier le code, bumper la constante `CACHE` dans `sw.js` (ex. `roadtap-v2`), commit, push.
 - Le site se met à jour automatiquement ; si le manifest/domaine change, regénérer le bundle avec `bubblewrap update` puis `bubblewrap build`, et uploader le nouvel AAB dans la Play Console.

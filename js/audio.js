@@ -49,6 +49,7 @@ export const sfx = {
   good: () => tone(660, 0.1, 'sine', 0.15),
   passable: () => tone(440, 0.1, 'triangle', 0.11),
   fail: () => tone(160, 0.5, 'sawtooth', 0.2, 0, -100),
+  miss: () => tone(220, 0.28, 'sawtooth', 0.16, 0, -90),
   coin: () => {
     tone(990, 0.07, 'square', 0.07);
     tone(1480, 0.14, 'square', 0.07, 0.07);

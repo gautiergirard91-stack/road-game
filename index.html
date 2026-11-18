@@ -23,6 +23,7 @@
     <div id="hud-score">0</div>
     <div id="hud-combo"></div>
     <div id="hud-right">
+      <span id="hud-lives">❤️❤️❤️</span>
       <span id="hud-level"></span>
       <button id="btn-pause" aria-label="Pause">⏸</button>
     </div>
@@ -89,10 +90,28 @@
         <p>👆 <b>Touche l'écran</b> (ou appuie sur <b>Espace</b>) au moment précis où les <b>roues</b> sont au même niveau qu'une ligne.</p>
         <p>🎯 Plus ton timing est précis, plus tu marques de points : <b>PARFAIT</b> (±45 ms), <b>BIEN</b> (±100 ms), <b>OK</b> (±160 ms).</p>
         <p>🔥 Enchaîne les réussites pour augmenter ton <b>combo</b> et multiplier tes points.</p>
-        <p>💥 Si une ligne passe sans que tu aies touché : partie terminée, façon Piano Tiles !</p>
+        <p>💥 Une ligne manquée = 1 raté (compteur ❤️ en haut). Au bout de <b>3 ratés</b>, tu peux <b>continuer</b> contre des pièces 🪙 ou en regardant une pub 🎬 — sinon, partie terminée !</p>
         <p>🪙 Tes pièces te servent à débloquer de <b>nouveaux niveaux</b> (nouvelles routes, balisages et vitesses), des <b>voitures</b> et des <b>effets visuels</b> dans la boutique.</p>
       </div>
       <button class="btn big" id="btn-help-close">C'est parti !</button>
+    </div>
+  </div>
+
+  <div id="continue-overlay" class="screen overlay">
+    <div class="panel">
+      <h2>💥 3 lignes manquées !</h2>
+      <p class="overlay-sub">Tu peux continuer la partie :</p>
+      <button class="btn big" id="btn-continue-coins">Continuer — 100 🪙</button>
+      <button class="btn" id="btn-continue-ad">🎬 Regarder une pub (gratuit)</button>
+      <button class="btn secondary" id="btn-continue-quit">Abandonner</button>
+    </div>
+  </div>
+
+  <div id="ad-modal" class="screen overlay hidden">
+    <div class="panel">
+      <h2>🎬 Publicité</h2>
+      <div id="ad-countdown">5</div>
+      <p class="ad-note">Pub simulée — à remplacer par AdMob en production</p>
     </div>
   </div>
 

@@ -1,5 +1,8 @@
 export const WINDOWS = { perfect: 45, good: 100, passable: 160 };
 
+export const MAX_MISSES = 3;
+export const CONTINUE_BASE_COST = 100;
+
 export const THEMES = {
   autoroute: {
     id: 'autoroute', name: 'Autoroute', scenery: 'trees', night: false,
@@ -44,14 +47,14 @@ export const LEVELS = [
 ];
 
 export const SKINS = [
-  { id: 'default', name: 'Grise', color: '#9aa3b2', cost: 0, width: 1.0 },
-  { id: 'rouge', name: 'Rouge', color: '#e0393e', cost: 200, width: 1.0 },
-  { id: 'bleue', name: 'Bleue', color: '#2f7de1', cost: 200, width: 1.0 },
-  { id: 'verte', name: 'Verte', color: '#2fae5f', cost: 300, width: 1.0 },
-  { id: 'sport', name: 'Sport', color: '#ffb020', cost: 600, width: 0.88 },
-  { id: 'suv', name: 'SUV', color: '#5b4a8a', cost: 600, width: 1.18 },
-  { id: 'or', name: 'Or', color: '#f5c542', cost: 1200, width: 1.0, shine: true },
-  { id: 'arc', name: 'Arc-en-ciel', color: '#ff5c8a', cost: 2000, width: 1.0, rainbow: true },
+  { id: 'default', name: 'Berline grise', color: '#9aa3b2', cost: 0, model: 'berline' },
+  { id: 'rouge', name: 'Berline rouge', color: '#e0393e', cost: 200, model: 'berline' },
+  { id: 'bleue', name: 'Citadine bleue', color: '#2f7de1', cost: 200, model: 'citadine' },
+  { id: 'verte', name: 'Berline verte', color: '#2fae5f', cost: 300, model: 'berline' },
+  { id: 'jaune', name: 'Citadine jaune', color: '#f2c230', cost: 400, model: 'citadine' },
+  { id: 'sport', name: 'Sport orange', color: '#ffb020', cost: 600, model: 'sport' },
+  { id: 'or', name: 'Berline or', color: '#f5c542', cost: 1200, model: 'berline', shine: true },
+  { id: 'arc', name: 'Sport arc-en-ciel', color: '#ff5c8a', cost: 2000, model: 'sport', rainbow: true },
 ];
 
 export const EFFECTS = [

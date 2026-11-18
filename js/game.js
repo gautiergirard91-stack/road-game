@@ -1,10 +1,16 @@
-import { THEMES, SKINS, WINDOWS } from './data.js';
+import { THEMES, SKINS, WINDOWS, MAX_MISSES } from './data.js';
 import { buildPattern, judge, pointsFor } from './core.js';
 
 const RESULT_STYLE = {
   perfect: { label: 'PARFAIT', color: '#ffd54a' },
   good: { label: 'BIEN', color: '#7ee081' },
   passable: { label: 'OK', color: '#9ecbff' },
+};
+
+const MODELS = {
+  citadine: { w: 50, bodyH: 56, cabW: 0.66, cabH: 30, spoiler: false },
+  berline: { w: 62, bodyH: 74, cabW: 0.72, cabH: 36, spoiler: false },
+  sport: { w: 66, bodyH: 54, cabW: 0.58, cabH: 24, spoiler: true },
 };
 
 function hexToRgb(hex) {
@@ -33,6 +39,8 @@ export class Game {
     this.audio = opts.audio || {};
     this.onJudge = opts.onJudge || (() => {});
     this.onEnd = opts.onEnd || (() => {});
+    this.onMiss = opts.onMiss || (() => {});
+    this.onThreshold = opts.onThreshold || (() => {});
     this.running = false;
     this.paused = false;
     this.resize();
@@ -80,6 +88,7 @@ export class Game {
     this.time = 0;
     this.running = true;
     this.paused = false;
+    this.pendingContinue = false;
     this.scenery = [];
     for (let i = 0; i < 14; i++) this.scenery.push(this.makeScenery(true));
   }
@@ -116,8 +125,15 @@ export class Game {
         line.state = 'missed';
         this.stats.misses++;
         this.combo = 0;
-        this.stats.score = this.score;
-        this.finish(false);
+        this.popups.push({ text: 'RATÉ', y: this.wheelY - 70, life: 0.9, color: '#ff5c5c' });
+        this.shake = 8;
+        this.audio.miss?.();
+        this.onMiss(this.stats.misses);
+        if (this.stats.misses >= MAX_MISSES && !this.pendingContinue) {
+          this.pendingContinue = true;
+          this.paused = true;
+          this.onThreshold();
+        }
         return;
       }
     }
@@ -162,9 +178,16 @@ export class Game {
     }
   }
 
+  resumeWithContinue() {
+    this.stats.misses = 0;
+    this.pendingContinue = false;
+    this.paused = false;
+    this.onMiss(0);
+  }
+
   spawnTrail() {
     const cx = this.roadX + this.roadW / 2;
-    const cw = 62 * this.skin.width;
+    const cw = (MODELS[this.skin.model] || MODELS.berline).w;
     for (let i = 0; i < 2; i++) {
       this.particles.push({
         x: cx + (Math.random() - 0.5) * cw * 0.7,
@@ -468,8 +491,9 @@ export class Game {
 
   drawCar() {
     const { ctx, roadX, roadW, wheelY, skin, theme } = this;
+    const m = MODELS[skin.model] || MODELS.berline;
     const cx = roadX + roadW / 2;
-    const bw = 62 * skin.width;
+    const bw = m.w;
     const bob = Math.sin(this.time * 9) * 1.5;
     const baseY = wheelY + bob;
     let bodyColor = skin.color;
@@ -479,46 +503,50 @@ export class Game {
     ctx.ellipse(cx, baseY + 12, bw * 0.62, 10, 0, 0, Math.PI * 2);
     ctx.fill();
     if (theme.night) {
-      const g = ctx.createRadialGradient(cx, baseY - 90, 10, cx, baseY - 90, 190);
+      const g = ctx.createRadialGradient(cx, baseY - m.bodyH, 10, cx, baseY - m.bodyH, 190);
       g.addColorStop(0, 'rgba(255,244,190,0.28)');
       g.addColorStop(1, 'rgba(255,244,190,0)');
       ctx.fillStyle = g;
       ctx.beginPath();
-      ctx.moveTo(cx - bw * 0.32, baseY - 70);
-      ctx.lineTo(cx + bw * 0.32, baseY - 70);
-      ctx.lineTo(cx + bw * 0.9, baseY - 260);
-      ctx.lineTo(cx - bw * 0.9, baseY - 260);
+      ctx.moveTo(cx - bw * 0.32, baseY - m.bodyH + 6);
+      ctx.lineTo(cx + bw * 0.32, baseY - m.bodyH + 6);
+      ctx.lineTo(cx + bw * 0.9, baseY - m.bodyH - 190);
+      ctx.lineTo(cx - bw * 0.9, baseY - m.bodyH - 190);
       ctx.closePath();
       ctx.fill();
     }
-    ctx.fillStyle = skin.shine ? '#ffe9a0' : bodyColor;
-    rr(ctx, cx - bw / 2, baseY - 78, bw, 72, 12);
-    ctx.fill();
-    ctx.fillStyle = bodyColor;
-    rr(ctx, cx - bw / 2, baseY - 78, bw, 72, 12);
-    ctx.fill();
     if (skin.shine) {
       const g = ctx.createLinearGradient(cx - bw / 2, 0, cx + bw / 2, 0);
       g.addColorStop(0, '#f5c542');
       g.addColorStop(0.5, '#fff3c4');
       g.addColorStop(1, '#e0a92e');
       ctx.fillStyle = g;
-      rr(ctx, cx - bw / 2, baseY - 78, bw, 72, 12);
-      ctx.fill();
+    } else {
+      ctx.fillStyle = bodyColor;
     }
-    ctx.fillStyle = 'rgba(0,0,0,0.25)';
-    rr(ctx, cx - bw * 0.36, baseY - 108, bw * 0.72, 40, 10);
+    rr(ctx, cx - bw / 2, baseY - m.bodyH, bw, m.bodyH + 6, 12);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,0.22)';
+    rr(ctx, cx - bw * m.cabW / 2, baseY - m.bodyH - m.cabH, bw * m.cabW, m.cabH + 8, 10);
     ctx.fill();
     ctx.fillStyle = bodyColor;
-    rr(ctx, cx - bw * 0.36, baseY - 110, bw * 0.72, 38, 10);
+    rr(ctx, cx - bw * m.cabW / 2, baseY - m.bodyH - m.cabH - 2, bw * m.cabW, m.cabH + 6, 10);
     ctx.fill();
     ctx.fillStyle = '#bfe6ff';
-    rr(ctx, cx - bw * 0.27, baseY - 102, bw * 0.54, 20, 6);
+    rr(ctx, cx - bw * m.cabW / 2 + 6, baseY - m.bodyH - m.cabH + 4, bw * m.cabW - 12, Math.max(10, m.cabH - 6), 6);
     ctx.fill();
+    if (m.spoiler) {
+      ctx.fillStyle = 'rgba(0,0,0,0.4)';
+      ctx.fillRect(cx - bw * 0.4, baseY + 2, 5, 8);
+      ctx.fillRect(cx + bw * 0.4 - 5, baseY + 2, 5, 8);
+      ctx.fillStyle = bodyColor;
+      rr(ctx, cx - bw * 0.48, baseY + 8, bw * 0.96, 6, 3);
+      ctx.fill();
+    }
     ctx.fillStyle = theme.night ? '#ffe9a8' : '#fff8dc';
     ctx.beginPath();
-    ctx.ellipse(cx - bw * 0.3, baseY - 74, 7, 4, 0, 0, Math.PI * 2);
-    ctx.ellipse(cx + bw * 0.3, baseY - 74, 7, 4, 0, 0, Math.PI * 2);
+    ctx.ellipse(cx - bw * 0.3, baseY - m.bodyH + 3, 7, 4, 0, 0, Math.PI * 2);
+    ctx.ellipse(cx + bw * 0.3, baseY - m.bodyH + 3, 7, 4, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = '#14161f';
     for (const sx of [-1, 1]) {
