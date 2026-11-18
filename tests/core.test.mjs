@@ -24,7 +24,8 @@ for (const level of LEVELS) {
     const gap = pattern[i].dist - pattern[i - 1].dist;
     const minGapMs = (gap / level.speed) * 1000;
     assert.ok(minGapMs > WINDOWS.passable, `niveau ${level.id}: écart jouable (${Math.round(minGapMs)} ms > ${WINDOWS.passable} ms)`);
-    assert.ok(['dash', 'band', 'chevron'].includes(pattern[i].type));
+    assert.ok(['dash', 'band', 'chevron', 'crosswalk'].includes(pattern[i].type));
+    if (pattern[i].type === 'crosswalk') assert.ok(level.crosswalk, 'crosswalk uniquement dans les niveaux ville');
   }
   assert.ok(pattern[0].dist >= 600, 'délai de départ suffisant');
   const again = buildPattern(level, 12345);
