@@ -2,7 +2,7 @@ import { LEVELS, THEMES, SKINS, EFFECTS, DIFFICULTIES, WINDOWS, ACHIEVEMENTS, TH
 import { Game } from './game.js';
 import * as store from './store.js';
 import { sfx, setEnabled, setMusicEnabled, unlockAudio } from './audio.js';
-import { coinsForResult, accuracy, avgReaction, continueCost, maxMissesFor } from './core.js';
+import { coinsForResult, accuracy, avgReaction, continueCost, maxMissesFor, firstClearBonus } from './core.js';
 import { watchRewarded } from './ads.js';
 import * as leaderboard from './leaderboard.js';
 import * as cloudsave from './cloudsave.js';
@@ -391,6 +391,7 @@ function startLevel(level) {
 
 function onGameEnd(stats, level) {
   hideContinue();
+  const firstClear = !!stats.completed && !save.best[level.id];
   const isRecord = store.setBest(level.id, stats.score);
   store.addTotals({ runs: 1, perfects: stats.perfects, overtakes: stats.overtakes || 0 });
   checkAchievements(stats, level);
@@ -401,7 +402,12 @@ function onGameEnd(stats, level) {
       .catch(() => {});
   }
   pushCloud();
-  const coins = coinsForResult(stats, level, stats.completed);
+  let coins = coinsForResult(stats, level, stats.completed);
+  let clearBonus = 0;
+  if (firstClear) {
+    clearBonus = firstClearBonus(level);
+    coins += clearBonus;
+  }
   if (coins > 0) {
     store.addCoins(coins);
     sfx.coin();
@@ -424,7 +430,7 @@ function onGameEnd(stats, level) {
     <div><b>${stats.bestCombo}</b><span>Meilleur combo</span></div>
     <div><b>${avg !== null ? avg + ' ms' : '—'}</b><span>Réaction moy.</span></div>
     <div><b>${accuracy(stats)} %</b><span>Précision</span></div>`;
-  $('#over-coins').textContent = `+${coins} 🪙 gagnées`;
+  $('#over-coins').textContent = `+${coins} 🪙 gagnées` + (firstClear ? ` (dont +${clearBonus} 🪙 de premier clear ! 🎉)` : '');
   setTimeout(() => {
     refreshCoins();
     show('screen-over');

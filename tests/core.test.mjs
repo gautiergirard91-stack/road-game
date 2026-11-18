@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { judge, pointsFor, buildPattern, coinsForResult, accuracy, avgReaction, continueCost, maxMissesFor, mulberry32 } from '../js/core.js';
+import { judge, pointsFor, buildPattern, coinsForResult, accuracy, avgReaction, continueCost, maxMissesFor, firstClearBonus, mulberry32 } from '../js/core.js';
 import { LEVELS, WINDOWS, MAX_MISSES, CONTINUE_BASE_COST, SKINS } from '../js/data.js';
 
 assert.equal(judge(0), 'perfect');
@@ -78,5 +78,9 @@ assert.equal(judge(60, wide), 'perfect', 'fenêtres élargies : 60 ms = PARFAIT'
 assert.equal(judge(60), 'good', 'fenêtres standard : 60 ms = BIEN');
 assert.equal(judge(200, wide), 'passable');
 assert.equal(judge(200), null);
+
+assert.equal(firstClearBonus(LEVELS[0]), 300, 'bonus premier clear niveau 1');
+assert.ok(firstClearBonus(LEVELS[11]) > firstClearBonus(LEVELS[0]), 'bonus croissant avec le niveau');
+assert.ok(LEVELS.slice(0, 3).every((l) => l.theme === 'autoroute' && l.lines <= 20), 'niveaux autoroute raccourcis (parties rapides)');
 
 console.log('OK - tous les tests passent (' + LEVELS.length + ' niveaux vérifiés)');

@@ -19,7 +19,7 @@
 
 | Niv | Thème | Vitesse | Particularités |
 |-----|-------|---------|----------------|
-| 1–3 | Autoroute | 250→340 | lignes simples, doubles lignes |
+| 1–3 | Autoroute | 250→340 | parties courtes (15–20 lignes), lignes simples, doubles lignes |
 | 4–5 | Ville | 340→380 | chevrons + **passages piétons** (piéton = arrêt auto) |
 | 6–7 | Désert | 380→420 | bandes continues, doubles |
 | 8–9 | Nuit | 420→470 | néons, trafic dense |
@@ -29,9 +29,9 @@
 
 **Difficultés** (s'appliquent à tous les niveaux) :
 - **Auto école** : 3 vies, tap n'importe où.
-- **Permis A** : 5 vies, chaque ligne se joue 2× indépendamment (roues AV = tap haut, AR = tap bas).
+- **Permis A** : 5 vies, chaque ligne se joue 2× indépendamment (roues AV = tap haut, AR = tap bas) — les guides AV/AR sont suffisamment écartés pour que les deux taps soient bien séparés dans le temps (pas de validation simultanée).
 - **Pilote** : 5 vies, Permis A + voitures lentes devant : swipe ⬅ pour doubler (1 s de grâce, puis ralentissement, combos off, points ×0,2, arrêt = fin).
 
-**Règles communes** : jugement PARFAIT ±45 / BIEN ±100 / OK ±160 ms ; combo ×(1 + 0,05·combo, max ×3) ; raté (ligne manquée ou clic vide) = −1 ❤️, 3ᵉ/5ᵉ raté = overlay continuer (pièces ou pub) ; pièces gagnées = score/8 + 3×PARFAIT + bonus complétion.
+**Règles communes** : jugement PARFAIT ±45 / BIEN ±100 / OK ±160 ms ; combo ×(1 + 0,05·combo, max ×3) ; raté (ligne manquée ou clic vide) = −1 ❤️, 3ᵉ/5ᵉ raté = overlay continuer (pièces ou pub) ; pièces gagnées = score/8 + 3×PARFAIT + bonus complétion + **bonus de premier clear** (250 + 50×n° niveau) la première fois qu'un niveau est terminé.
 
 **Rétention** : 10 succès avec récompenses en pièces, records par niveau, classement filtré par difficulté, sauvegarde cloud (Firebase) si pseudo défini.

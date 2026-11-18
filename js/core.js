@@ -73,6 +73,10 @@ export function maxMissesFor(mode) {
   return mode === 'auto' ? 3 : 5;
 }
 
+export function firstClearBonus(level) {
+  return 250 + level.id * 50;
+}
+
 export function avgReaction(stats) {
   if (!stats.reactions.length) return null;
   return Math.round(stats.reactions.reduce((a, b) => a + b, 0) / stats.reactions.length);

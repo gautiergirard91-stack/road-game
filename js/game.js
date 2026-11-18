@@ -165,7 +165,7 @@ export class Game {
     this.drops = [];
     this.maxMisses = maxMissesFor(this.mode);
     const mm = MODELS[this.skin.model] || MODELS.berline;
-    this.frontAxleY = this.wheelY - mm.bodyH + 18;
+    this.frontAxleY = this.wheelY - mm.bodyH - 16;
     this.scenery = [];
     for (let i = 0; i < 22; i++) this.scenery.push(this.makeScenery(true));
   }

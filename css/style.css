@@ -53,6 +53,38 @@ body {
   background: radial-gradient(ellipse at top, #1b2450 0%, #0d1226 70%);
 }
 
+#screen-menu {
+  justify-content: flex-start;
+  overflow-y: auto;
+  padding-top: calc(28px + env(safe-area-inset-top));
+}
+
+@media (max-height: 760px) {
+  .logo {
+    font-size: 42px;
+  }
+
+  .tagline {
+    font-size: 13px;
+    max-width: 280px;
+  }
+
+  #screen-menu {
+    gap: 8px;
+  }
+
+  .btn {
+    padding: 10px 22px;
+    min-width: 200px;
+    font-size: 15px;
+  }
+
+  .btn.big {
+    padding: 12px 26px;
+    font-size: 17px;
+  }
+}
+
 #screen-levels,
 #screen-shop {
   background: rgba(10, 14, 32, 0.96);

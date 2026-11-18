@@ -54,6 +54,12 @@ python3 -m http.server 8080
 - [ ] Après une partie (opt-in + pseudo) : le score apparaît dans la liste, soi-même surligné en cyan
 - [ ] **Filtre par difficulté** (Tous / Auto école / Permis A / Pilote) : le score va dans la bonne section
 
+### Correctifs récents
+- [ ] **Menu principal scrollable** sur petit écran Firefox (tous les boutons visibles)
+- [ ] Niveaux autoroute (1–3) plus courts → parties plus rapides
+- [ ] **Bonus de premier clear** : finir un niveau pour la 1ʳᵉ fois crédite un bonus affiché « premier clear 🎉 »
+- [ ] Permis A / Pilote : guides **AV et AR bien écartés** — impossible de valider les deux en même temps
+
 ### Nouveautés (tutoriel, succès, survie, météo, thèmes, accessibilité)
 - [ ] **Tutoriel** au 1er lancement (4 étapes) + bouton 👶 Tutoriel dans le menu
 - [ ] **🏅 Succès** : finir le niveau 1 → succès débloqué + pièces créditées (toast)
