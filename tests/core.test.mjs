@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { judge, pointsFor, buildPattern, coinsForResult, accuracy, avgReaction, continueCost, maxMissesFor, firstClearBonus, mulberry32 } from '../js/core.js';
-import { LEVELS, WINDOWS, MAX_MISSES, CONTINUE_BASE_COST, SKINS } from '../js/data.js';
+import { LEVELS, WINDOWS, MAX_MISSES, CONTINUE_BASE_COST, SKINS, EFFECTS, ACHIEVEMENTS } from '../js/data.js';
 
 assert.equal(judge(0), 'perfect');
 assert.equal(judge(-WINDOWS.perfect), 'perfect');
@@ -82,5 +82,11 @@ assert.equal(judge(200), null);
 assert.equal(firstClearBonus(LEVELS[0]), 300, 'bonus premier clear niveau 1');
 assert.ok(firstClearBonus(LEVELS[11]) > firstClearBonus(LEVELS[0]), 'bonus croissant avec le niveau');
 assert.ok(LEVELS.slice(0, 3).every((l) => l.theme === 'autoroute' && l.lines <= 20), 'niveaux autoroute raccourcis (parties rapides)');
+
+assert.equal(LEVELS.length, 15, '15 niveaux (12 + 13/14/15)');
+assert.ok(SKINS.length >= 10, 'au moins 10 voitures');
+assert.ok(EFFECTS.some((e) => e.id === 'fire'), 'effet feu présent');
+assert.ok(ACHIEVEMENTS.length >= 13, 'au moins 13 succès');
+assert.ok(new Set(LEVELS.map((l) => l.theme)).size >= 7, 'au moins 7 thèmes utilisés par les niveaux');
 
 console.log('OK - tous les tests passent (' + LEVELS.length + ' niveaux vérifiés)');

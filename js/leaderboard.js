@@ -8,6 +8,18 @@ export function isOnline() {
   return Boolean(FIREBASE_DB_URL);
 }
 
+export async function ping() {
+  if (!isOnline()) return false;
+  try {
+    const base = FIREBASE_DB_URL.replace(/\/$/, '');
+    const q = FIREBASE_DB_SECRET ? `auth=${FIREBASE_DB_SECRET}&shallow=true` : 'shallow=true';
+    const res = await fetch(`${base}/.json?${q}`);
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 function localList() {
   try {
     const raw = localStorage.getItem(LOCAL_KEY);

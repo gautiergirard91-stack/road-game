@@ -60,6 +60,9 @@ export const LEVELS = [
   { id: 10, name: 'Neige', theme: 'neige', speed: 450, lines: 44, gapMin: 320, gapMax: 450, w: { dash: 0.4, band: 0.3, chevron: 0.3 }, pDouble: 0.35, cost: 5000 },
   { id: 11, name: 'Tempête', theme: 'neige', speed: 510, lines: 48, gapMin: 300, gapMax: 420, w: { dash: 0.35, band: 0.3, chevron: 0.35 }, pDouble: 0.45, cost: 7000 },
   { id: 12, name: 'Hyperdrive', theme: 'nuit', speed: 580, lines: 55, gapMin: 280, gapMax: 380, w: { dash: 0.3, band: 0.35, chevron: 0.35 }, pDouble: 0.5, cost: 10000 },
+  { id: 13, name: 'Néon', theme: 'neon', speed: 620, lines: 50, gapMin: 270, gapMax: 360, w: { dash: 0.3, band: 0.35, chevron: 0.35 }, pDouble: 0.5, cost: 12000 },
+  { id: 14, name: 'Golden hour', theme: 'sunset', speed: 600, lines: 50, gapMin: 275, gapMax: 370, w: { dash: 0.3, band: 0.3, chevron: 0.4 }, pDouble: 0.45, cost: 15000 },
+  { id: 15, name: 'Enfer', theme: 'nuit', speed: 660, lines: 55, gapMin: 260, gapMax: 350, w: { dash: 0.25, band: 0.35, chevron: 0.4 }, pDouble: 0.5, cost: 20000 },
 ];
 
 export const SKINS = [
@@ -67,10 +70,12 @@ export const SKINS = [
   { id: 'rouge', name: 'Berline rouge', color: '#e0393e', cost: 200, model: 'berline' },
   { id: 'bleue', name: 'Citadine bleue', color: '#2f7de1', cost: 200, model: 'citadine' },
   { id: 'verte', name: 'Berline verte', color: '#2fae5f', cost: 300, model: 'berline' },
-  { id: 'jaune', name: 'Citadine jaune', color: '#f2c230', cost: 400, model: 'citadine' },
+  { id: 'jaune', name: 'Citadine lime', color: '#a8c93a', cost: 400, model: 'citadine' },
   { id: 'sport', name: 'Sport orange', color: '#ffb020', cost: 600, model: 'sport' },
   { id: 'or', name: 'Berline or', color: '#f5c542', cost: 1200, model: 'berline', shine: true },
   { id: 'arc', name: 'Sport arc-en-ciel', color: '#ff5c8a', cost: 2000, model: 'sport', rainbow: true },
+  { id: 'taxi', name: 'Taxi', color: '#f7d117', cost: 800, model: 'citadine' },
+  { id: 'police', name: 'Police', color: '#eef2f7', cost: 3000, model: 'berline' },
 ];
 
 export const EFFECTS = [
@@ -80,6 +85,7 @@ export const EFFECTS = [
   { id: 'confetti', name: 'Confettis', desc: 'Des confettis explosent à chaque PARFAIT.', cost: 1000 },
   { id: 'rain', name: '🌧 Pluie', desc: "Il pleut sur la route (effet météo).", cost: 800 },
   { id: 'snowfall', name: '❄ Neige qui tombe', desc: 'Des flocons tombent (effet météo).', cost: 800 },
+  { id: 'fire', name: '🔥 Traînée de feu', desc: 'La voiture crache des flammes quand ton combo atteint 10.', cost: 1500 },
 ];
 
 export const THEME_SHOP = [
@@ -103,4 +109,7 @@ export const ACHIEVEMENTS = [
   { id: 'survie500', name: 'Survivant', desc: '500 points en mode Survie ∞', reward: 200, test: (c) => c.level.endless && c.stats.score >= 500 },
   { id: 'permisA_win', name: 'Permis A obtenu', desc: 'Terminer un niveau en Permis A', reward: 300, test: (c) => c.stats.completed && c.mode === 'permisA' },
   { id: 'pilote_win', name: 'Grand permis', desc: 'Terminer un niveau en Pilote', reward: 500, test: (c) => c.stats.completed && c.mode === 'pilote' },
+  { id: 'combo50', name: 'Machine', desc: 'Atteindre un combo de 50', reward: 500, test: (c) => c.stats.bestCombo >= 50 },
+  { id: 'survie1000', name: 'Légende de la survie', desc: '1000 points en mode Survie ∞', reward: 500, test: (c) => c.level.endless && c.stats.score >= 1000 },
+  { id: 'champion', name: 'Champion', desc: 'Terminer les 12 niveaux', reward: 2000, test: (c) => LEVELS.filter((l) => !l.endless).every((l) => (c.best[l.id] || 0) > 0) },
 ];

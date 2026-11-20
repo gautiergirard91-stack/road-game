@@ -17,10 +17,11 @@ Le jeu est une **PWA (Progressive Web App)** : jouable dans n'importe quel navig
 - **🏆 Classement** : le joueur choisit un pseudo et peut apparaître dans le classement (opt-in). **Filtre par difficulté** (Tous / Auto école / Permis A / Pilote). Classement **local** par défaut, **en ligne via Firebase Realtime Database** si configuré (`docs/FIREBASE.md`), un nœud par difficulté. **Sauvegarde cloud** du profil et **analytics** via le même projet Firebase.
 - **∞ Mode Survie** : génération procédurale infinie, vitesse croissante, écarts qui se resserrent.
 - **👶 Tutoriel guidé** au premier lancement (réouvrable depuis le menu) ; **🏅 10 succès** avec récompenses en pièces ; **♿ accessibilité** (fenêtres élargies, symboles daltonien) ; **🎵 musique de fond** + vibrations ; **effets météo** achetables (pluie, neige) ; **thèmes de route déblocables** (Néon, Coucher de soleil) qui remplacent le décor de tous les niveaux ; **CI GitHub Actions** (tests auto à chaque push/PR).
-- **12 niveaux déblocables** avec difficulté croissante : vitesse, espacement des lignes, et 3 types de balisage (ligne pointillée, bande continue, chevrons, doubles lignes rapprochées).
+- **15 niveaux déblocables** avec difficulté croissante (bonus de premier clear 🎉) : vitesse, espacement des lignes, 3 types de balisage (pointillé, bande continue, chevrons, doubles lignes) + **passages piétons** en ville.
 - **5 thèmes de route** : Autoroute, Ville, Désert, Neige, Nuit (scénarios animés, parallaxe, néons).
 - **Économie de jeu** : pièces gagnées à chaque partie, dépensables pour débloquer les niveaux suivants.
-- **Boutique de personnalisation** : 8 voitures réparties en **3 modèles dessinés différemment** (citadine, berline, sport avec aileron), toutes assez grandes et détaillées (carrosserie en dégradé, vitres encadrées, rétroviseurs, calandre, phares/feux, roues avec moyeu) + couleurs/or/arc-en-ciel. **Plus la voiture coûte cher, plus elle est détaillée** (jantes à bâtons, reflet de vitre, pare-chocs, aileron à 600 🪙+ ; bande de course à 1200 🪙+), et 4 effets visuels (traînée de particules, lignes lumineuses, secousse, confettis).
+- **Boutique de personnalisation** : 10 voitures en **3 modèles** (citadine, berline, sport avec aileron), de plus en plus détaillées selon le prix (dégradé de base → rétroviseurs/jantes 600 🪙+ → bande de course 1200 🪙+), + **7 effets visuels** (traînée, glow, secousse, confettis, pluie 🌧, neige ❄, **traînée de feu 🔥 à combo ≥ 10**) + 2 thèmes de route premium.
+- **Game feel & perfs** : halo pulsant sur la ligne qui approche, lignes de vitesse à haute vélocité, transitions en fondu, tutoriel in-game (3 premières lignes surlignées + astuce), pastille version + statut serveur dans le menu, rendu stoppé quand l'onglet est caché (batterie), cap de particules.
 - **Sauvegarde locale** (`localStorage`) : pièces, achats, records.
 - **PWA complète** : manifest, service worker (hors ligne), icônes 192/512/maskable, plein écran portrait, sons générés en WebAudio (aucun asset externe).
 - **Contrôles** : tactile (tap) ou clavier (Espace / Flèche bas), pause (P ou ⏸).
@@ -48,6 +49,8 @@ docs/                    GAME_DESIGN (DA + level design), QA, MARKETING, LEGAL, 
 PRIVACY.md               Politique de confidentialité (à héberger et référencer dans la Play Console)
 tests/core.test.mjs      Tests Node : node tests/core.test.mjs  (lancés aussi en CI : .github/workflows/ci.yml)
 tools/make_icons.py      Régénère les icônes : python3 tools/make_icons.py
+tools/make_store_assets.py  Assets Play Store (store/) : python3 tools/make_store_assets.py
+store/                   Bannière 1024x500 + captures placeholder (à remplacer par de vraies captures)
 ```
 
 ## ▶️ Lancer en local

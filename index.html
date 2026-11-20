@@ -19,6 +19,8 @@
 <body>
   <canvas id="game"></canvas>
 
+  <div id="game-hint" class="hidden">👆 Tape quand la ligne atteint les roues !</div>
+
   <div id="hud" class="hidden">
     <div id="hud-score">0</div>
     <div id="hud-combo"></div>
@@ -42,6 +44,10 @@
     <button class="btn secondary" id="btn-achievements">🏅 Succès</button>
     <button class="btn secondary" id="btn-access">♿ Accessibilité</button>
     <button class="btn secondary" id="btn-tutorial">👶 Tutoriel</button>
+    <div class="menu-footer">
+      <span id="version-label"></span>
+      <span id="net-status" class="net-pill"></span>
+    </div>
   </section>
 
   <section id="screen-achievements" class="screen">
