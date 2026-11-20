@@ -287,7 +287,9 @@ export class Game {
     }
     this.popups = this.popups.filter((p) => p.life > 0);
     this.shake = Math.max(0, this.shake - dt * 28);
-    this.carXFrac += (this.laneTarget - this.carXFrac) * Math.min(1, dt * 4);
+    // changement de voie quasi instantané pendant un dépassement (évite de traverser la voiture doublée)
+    const laneRate = this.laneTarget === ONCOMING_LANE ? 18 : 4;
+    this.carXFrac += (this.laneTarget - this.carXFrac) * Math.min(1, dt * laneRate);
     const range = this.h + 240;
     for (const s of this.scenery) {
       if (s.dist + this.distance > this.h + 120) {
@@ -401,7 +403,11 @@ export class Game {
     this.ped.y = this.lineY(this.ped.line) + 16;
     this.ped.x += this.ped.dir * this.ped.speed * dt;
     this.ped.phase += dt * 9;
-    this.autoStop = this.ped.x > this.roadX + 6 && this.ped.x < this.roadX + this.roadW - 6;
+    // la voiture freine AVANT le passage piéton dès que le piéton approche de la route
+    // (et tant que la voiture n'a pas encore atteint la ligne) -> elle ne s'arrête plus AU MILIEU du passage
+    const cwY = this.lineY(this.ped.line);
+    const pedNearRoad = this.ped.x > this.roadX - 90 && this.ped.x < this.roadX + this.roadW + 90;
+    this.autoStop = pedNearRoad && cwY >= this.wheelY - 240 && cwY <= this.wheelY + 80;
     const past = this.ped.dir > 0 ? this.ped.x > this.roadX + this.roadW + 34 : this.ped.x < this.roadX - 34;
     if (past) {
       this.ped = null;
@@ -488,9 +494,22 @@ export class Game {
   swipeLeft() {
     if (!this.running || this.paused || this.tutHold) return;
     this.pendingStray = 0;
-    if (this.mode === 'pilote' && this.blocker && !this.blocker.overtaken) {
-      this.blocker.overtaken = true;
-      this.lastOvertaken = this.blocker;
+    if (this.mode !== 'pilote') return;
+    // dépassement autorisé DÈS que la voiture à doubler est visible à l'écran
+    let target = this.blocker && !this.blocker.overtaken ? this.blocker : null;
+    if (!target) {
+      for (const c of this.sameDir) {
+        if (c.overtaken) continue;
+        const sy = this.wheelY + this.distance - c.p;
+        if (sy < this.h + 60) {
+          target = c;
+          break;
+        }
+      }
+    }
+    if (target) {
+      target.overtaken = true;
+      this.lastOvertaken = target;
       this.laneTarget = ONCOMING_LANE;
       this.stats.overtakes++;
       const bonus = 50 + this.combo * 5;
