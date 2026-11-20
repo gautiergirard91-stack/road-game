@@ -233,6 +233,7 @@ function show(id) {
   currentScreen = id;
   $$('.screen').forEach((s) => s.classList.toggle('active', s.id === id));
   $('#hud').classList.toggle('hidden', id !== 'screen-game');
+  $('#tut-banner').classList.toggle('hidden', id !== 'screen-game');
   if (id === 'screen-menu') refreshStatus();
 }
 
@@ -265,7 +266,7 @@ function renderLevels() {
   const list = $('#levels-list');
   list.innerHTML = '';
   for (const l of [ENDLESS_LEVEL, ...LEVELS]) {
-    const locked = !save.unlockedLevels.includes(l.id);
+    const locked = !l.endless && !save.unlockedLevels.includes(l.id);
     const best = save.best[l.id];
     const card = document.createElement('div');
     card.className = 'card';
@@ -418,7 +419,6 @@ function startLevel(level) {
   continuesThisRun = 0;
   updateLives(0);
   logEvent('level_start', { level: level.id, mode: save.difficulty });
-  $('#game-hint').classList.add('hidden');
   game = new Game($('#game'), {
     level,
     skinId: save.skin,
@@ -685,6 +685,10 @@ window.addEventListener('pointerup', (e) => {
   if (pointerStart && currentScreen === 'screen-game' && game && game.running && !game.paused) {
     if (e.clientX - pointerStart.x < -40) game.swipeLeft();
   }
+  pointerStart = null;
+});
+
+window.addEventListener('pointercancel', () => {
   pointerStart = null;
 });
 

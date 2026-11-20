@@ -57,6 +57,7 @@ function startMusic() {
   if (musicTimer) return;
   musicTimer = setInterval(() => {
     if (!musicOn || !enabled) return;
+    if (typeof document !== 'undefined' && document.hidden) return;
     tone(BASS[musicStep % 4], 0.22, 'triangle', 0.055);
     tone(ARP[(musicStep * 2) % 4] * (musicStep % 8 < 4 ? 1 : 0.5), 0.12, 'sine', 0.035);
     musicStep++;
