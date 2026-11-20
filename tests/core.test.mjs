@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { judge, pointsFor, buildPattern, coinsForResult, accuracy, avgReaction, continueCost, maxMissesFor, firstClearBonus, isPerfectClear, perfectClearBonus, axleDelta, mulberry32 } from '../js/core.js';
+import { judge, pointsFor, buildPattern, coinsForResult, accuracy, avgReaction, continueCost, maxMissesFor, firstClearBonus, isPerfectClear, perfectClearBonus, axleDelta, mulberry32, dayKey, weekKey, dailyChallenge, weeklyQuests } from '../js/core.js';
 import { LEVELS, WINDOWS, MAX_MISSES, CONTINUE_BASE_COST, SKINS, EFFECTS, ACHIEVEMENTS, CURRENCIES, DIFFICULTIES, THEME_SHOP, PACKS, SOUND_PACKS } from '../js/data.js';
 
 assert.equal(judge(0), 'perfect');
@@ -133,6 +133,25 @@ for (const l of LEVELS) {
   assert.ok(trophyAch, 'succès collectionneur présent');
   assert.ok(trophyAch.test({ trophies: Object.fromEntries(LEVELS.map((l) => [l.id, true])) }), 'toutes les médailles = succès débloqué');
   assert.ok(!trophyAch.test({ trophies: { 1: true } }), '1 médaille insuffisante');
+}
+
+// --- v1.3.5 : défis du jour & quêtes hebdo (rétention) ---
+{
+  const d1 = new Date(2026, 10, 24); // mardi 24 nov 2026
+  assert.equal(dayKey(d1), '2026-11-24');
+  assert.equal(weekKey(d1), '2026-11-23', 'semaine commençant le lundi');
+  const c1 = dailyChallenge(d1);
+  assert.deepEqual(dailyChallenge(d1), c1, 'défi du jour déterministe (même jour = même défi)');
+  assert.notDeepEqual(dailyChallenge(new Date(2026, 10, 25)), c1, 'défi différent le lendemain');
+  assert.ok(['auto', 'permisA', 'pilote'].includes(c1.mode), 'mode valide');
+  assert.ok(LEVELS.some((l) => l.id === c1.levelId), 'niveau valide');
+  assert.ok(c1.target > 0 && c1.reward > 0 && c1.label.length > 3, 'cible/récompense/label OK');
+  if (c1.kind === 'overtakes') assert.equal(c1.mode, 'pilote', 'dépassements = mode Pilote forcé');
+  const q = weeklyQuests(d1);
+  assert.equal(q.length, 3, '3 quêtes hebdo');
+  assert.equal(new Set(q.map((x) => x.kind)).size, 3, '3 quêtes de types distincts');
+  assert.ok(q.every((x) => x.target > 0 && x.reward > 0), 'cibles/récompenses > 0');
+  assert.deepEqual(weeklyQuests(d1), q, 'quêtes déterministes pour une même semaine');
 }
 
 console.log('OK - tous les tests passent (' + LEVELS.length + ' niveaux vérifiés)');

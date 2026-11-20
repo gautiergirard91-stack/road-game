@@ -1,3 +1,5 @@
+import { dayKey, weekKey, weeklyQuests } from './core.js';
+
 const KEY = 'roadtap_save_v1';
 
 const defaults = () => ({
@@ -24,6 +26,11 @@ const defaults = () => ({
   packs: [],
   soundPacks: ['default'],
   soundPack: 'default',
+  lastLogin: '',
+  streak: 0,
+  streakRewardDay: '',
+  quests: { weekKey: '', progress: {}, done: {} },
+  challengeDone: {},
 });
 
 let save;
@@ -227,6 +234,50 @@ export function selectSoundPack(id) {
   return true;
 }
 
+// --- rétention : série de connexion (1 récompense 🪙 par jour, plafonnée à 7 jours) ---
+export function touchLogin() {
+  const today = dayKey();
+  if (save.lastLogin === today) return { streak: save.streak, reward: 0 };
+  const yesterday = dayKey(new Date(Date.now() - 86400000));
+  save.streak = save.lastLogin === yesterday ? save.streak + 1 : 1;
+  save.lastLogin = today;
+  let reward = 0;
+  if (save.streakRewardDay !== today) {
+    reward = Math.min(save.streak, 7) * 25;
+    save.streakRewardDay = today;
+    save.wallets.auto = (save.wallets.auto || 0) + reward;
+  }
+  persist();
+  return { streak: save.streak, reward };
+}
+
+// --- quêtes hebdo : progression cumulée, quêtes terminées renvoyées ---
+export function addQuestProgress(delta) {
+  const wk = weekKey();
+  if (save.quests.weekKey !== wk) save.quests = { weekKey: wk, progress: {}, done: {} };
+  const newly = [];
+  for (const q of weeklyQuests()) {
+    if (save.quests.done[q.id]) continue;
+    const cur = (save.quests.progress[q.kind] || 0) + (delta[q.kind] || 0);
+    save.quests.progress[q.kind] = cur;
+    if (cur >= q.target) {
+      save.quests.done[q.id] = true;
+      newly.push(q);
+    }
+  }
+  persist();
+  return newly;
+}
+
+export function markChallengeDone(dayId) {
+  save.challengeDone[dayId] = true;
+  persist();
+}
+
+export function isChallengeDone(dayId) {
+  return !!save.challengeDone[dayId];
+}
+
 export function unlockAchievement(id) {
   if (!save.achievements.includes(id)) {
     save.achievements.push(id);
@@ -259,6 +310,11 @@ export function snapshot() {
     packs: save.packs,
     soundPacks: save.soundPacks,
     soundPack: save.soundPack,
+    lastLogin: save.lastLogin,
+    streak: save.streak,
+    streakRewardDay: save.streakRewardDay,
+    quests: save.quests,
+    challengeDone: save.challengeDone,
   };
 }
 
@@ -272,6 +328,14 @@ export function mergeRemote(remote) {
   save.packs = [...new Set([...save.packs, ...(remote.packs || [])])];
   save.soundPacks = [...new Set([...save.soundPacks, 'default', ...(remote.soundPacks || [])])];
   if (remote.soundPack && save.soundPacks.includes(remote.soundPack)) save.soundPack = remote.soundPack;
+  save.streak = Math.max(save.streak || 0, remote.streak || 0);
+  save.challengeDone = { ...(remote.challengeDone || {}), ...save.challengeDone };
+  if (remote.quests && remote.quests.weekKey === save.quests.weekKey) {
+    save.quests.done = { ...remote.quests.done, ...save.quests.done };
+    for (const [k, v] of Object.entries(remote.quests.progress || {})) {
+      save.quests.progress[k] = Math.max(save.quests.progress[k] || 0, v);
+    }
+  }
   save.unlockedLevels = [...new Set([...save.unlockedLevels, ...(remote.unlockedLevels || [])])];
   save.skins = [...new Set([...save.skins, ...(remote.skins || [])])];
   save.effects = [...new Set([...save.effects, ...(remote.effects || [])])];

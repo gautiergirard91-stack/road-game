@@ -32,6 +32,12 @@ En production, remplacer les règles de test par :
     "analytics": {
       ".read": false,
       ".write": true
+    },
+    "challenges": {
+      "$day": {
+        ".read": true,
+        ".write": "newData.exists() && newData.hasChildren(['pseudo','score','mode','date']) && newData.child('score').val() <= 1000000 && newData.child('pseudo').val().length <= 16"
+      }
     }
   }
 }
@@ -59,4 +65,5 @@ export const FIREBASE_DB_SECRET = '';
 
 - `/scores/<mode>` : `{ pseudo, score, level, mode, date }` — public en lecture.
 - `/players/<pseudo>` : snapshot du profil (pièces, achats, records, succès) — lisible publiquement, modifiable uniquement via l'app.
+- `/challenges/<dayKey>` : `{ pseudo, score, mode, date }` — classement du défi du jour (écriture validée, lecture publique).
 - `/analytics/<event>` : événements agrégés (level_start, game_over, purchase, ad_watched, continue_purchased) — écriture seule.

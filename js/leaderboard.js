@@ -96,3 +96,36 @@ export async function getTop(mode = 'all') {
   if (all.length) return sortDesc(all);
   return sortDesc(filterMode(localList(), mode));
 }
+
+// --- Classement du défi du jour (nœud /challenges/<dayKey>) ---
+export async function submitChallengeScore(dayId, entry) {
+  if (!isOnline()) return false;
+  try {
+    const base = FIREBASE_DB_URL.replace(/\/$/, '');
+    const auth = FIREBASE_DB_SECRET ? `?auth=${FIREBASE_DB_SECRET}` : '';
+    const res = await fetch(`${base}/challenges/${dayId}.json${auth}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(entry),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+export async function getChallengeTop(dayId) {
+  if (!isOnline()) return [];
+  try {
+    const base = FIREBASE_DB_URL.replace(/\/$/, '');
+    const params = `orderBy="score"&limitToLast=20${FIREBASE_DB_SECRET ? `&auth=${FIREBASE_DB_SECRET}` : ''}`;
+    const res = await fetch(`${base}/challenges/${dayId}.json?${params}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data && typeof data === 'object') return sortDesc(Object.values(data));
+    }
+  } catch {
+    /* réseau indisponible */
+  }
+  return [];
+}

@@ -37,3 +37,11 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] **Gains réduits** : vérifier à l'écran de fin `+X monnaie` plus faible qu'avant (score/8 + 3×PARFAIT + 100+20×n° si terminé)
 - [ ] Full PARFAIT = 🥇 + bonus 300+60×n° ; premier clear = 150+30×n°
 - [ ] CI verte
+
+## Checklist v1.3.5 (défis & rétention)
+
+- [ ] **Écran 🎯 Défis** : série de connexion affichée ; défi du jour identique pour tous (tester 2 jours différents) ; quêtes hebdo avec barres de progression
+- [ ] Finir une partie correspondant au défi du jour → toast + récompense dans la monnaie du mode + score envoyé au classement du défi (Firebase, nœud `challenges` — **mettre à jour les règles RTDB avec celles de docs/FIREBASE.md**)
+- [ ] Quêtes : la progression monte après chaque partie ; quête terminée = +🪙 et ✅
+- [ ] Streak : fermer/rouvrir le même jour = rien ; lendemain = +1 jour et +N 🪙 (max x7) ; trou > 1 jour = remise à 1
+- [ ] CI verte + CACHE sw bumpé

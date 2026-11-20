@@ -2,7 +2,7 @@ import { LEVELS, THEMES, SKINS, EFFECTS, DIFFICULTIES, CURRENCIES, WINDOWS, ACHI
 import { Game } from './game.js';
 import * as store from './store.js';
 import { sfx, setEnabled, setMusicEnabled, unlockAudio, applySoundPack } from './audio.js';
-import { coinsForResult, accuracy, avgReaction, continueCost, maxMissesFor, firstClearBonus, isPerfectClear, perfectClearBonus } from './core.js';
+import { coinsForResult, accuracy, avgReaction, continueCost, maxMissesFor, firstClearBonus, isPerfectClear, perfectClearBonus, dailyChallenge, weeklyQuests } from './core.js';
 import { watchRewarded } from './ads.js';
 import { Tutorial } from './tutorial.js';
 import * as leaderboard from './leaderboard.js';
@@ -16,6 +16,10 @@ const $$ = (sel) => [...document.querySelectorAll(sel)];
 let save = store.load();
 setEnabled(save.sound);
 applySoundPack(save.soundPack || 'default');
+const loginBonus = store.touchLogin();
+if (loginBonus.reward > 0) {
+  setTimeout(() => toast(`🔥 ${loginBonus.streak} jour${loginBonus.streak > 1 ? 's' : ''} de suite ! +${loginBonus.reward} 🪙`), 800);
+}
 
 let game = null;
 let rafId = null;
@@ -285,6 +289,65 @@ function updateSoundBtn() {
 
 function updateMusicBtn() {
   $('#btn-music').textContent = save.music ? '🎵 Musique : ON' : '🎵 Musique : OFF';
+}
+
+async function renderChallenges() {
+  const dc = dailyChallenge();
+  const done = store.isChallengeDone(dc.id);
+  const modeName = (DIFFICULTIES.find((d) => d.id === dc.mode) || {}).name || dc.mode;
+  $('#challenge-streak').innerHTML = `
+    <div class="card-body">
+      <div class="card-title">🔥 Série de connexion : <b>${save.streak} jour${save.streak > 1 ? 's' : ''}</b></div>
+      <div class="card-sub">Reviens chaque jour : jusqu'à +${7 * 25} 🪙 par jour (série plafonnée à 7).</div>
+    </div>`;
+  const dEl = $('#challenge-daily');
+  dEl.innerHTML = '';
+  const dCard = document.createElement('div');
+  dCard.className = 'card';
+  dCard.innerHTML = `
+    <div class="card-body">
+      <div class="card-title">${done ? '✅ Défi du jour terminé !' : '🎯 ' + dc.label}</div>
+      <div class="card-sub">Niveau ${dc.levelId} · ${modeName} · récompense +${dc.reward} ${cur(dc.mode).icon}</div>
+    </div>
+    <button class="btn small">${done ? '✓' : '▶ Niveaux'}</button>`;
+  dCard.querySelector('button').addEventListener('click', () => {
+    if (done) return;
+    sfx.click();
+    store.setDifficulty(dc.mode);
+    renderDifficultyPicker();
+    renderLevels();
+    show('screen-levels');
+    toast(`Défi du jour : niveau ${dc.levelId} en ${modeName} — ${dc.label} !`);
+  });
+  dEl.appendChild(dCard);
+  const qEl = $('#challenge-quests');
+  qEl.innerHTML = '';
+  for (const q of weeklyQuests()) {
+    const qDone = !!save.quests.done[q.id];
+    const prog = Math.min(save.quests.progress[q.kind] || 0, q.target);
+    const row = document.createElement('div');
+    row.className = 'card lb-row' + (qDone ? ' ach-done' : '');
+    row.innerHTML = `<div class="card-body"><div class="card-title">${qDone ? '✅' : '🎯'} ${q.label}</div><div class="card-sub">${prog}/${q.target} · +${q.reward} 🪙</div><div class="quest-bar"><div style="width:${Math.round((100 * prog) / q.target)}%"></div></div></div>`;
+    qEl.appendChild(row);
+  }
+  const lbEl = $('#challenge-lb');
+  lbEl.innerHTML = '<div class="card-sub">Chargement…</div>';
+  try {
+    const top = await leaderboard.getChallengeTop(dc.id);
+    lbEl.innerHTML = '';
+    if (!top.length) {
+      lbEl.innerHTML = '<div class="card-sub">Aucun score pour aujourd\'hui — sois le premier !</div>';
+    } else {
+      top.forEach((e, i) => {
+        const row = document.createElement('div');
+        row.className = 'card lb-row';
+        row.innerHTML = `<span class="lb-rank">${i + 1}</span><span class="lb-name">${escapeHtml(e.pseudo || 'Anonyme')}</span><span class="lb-score">${e.score}</span>`;
+        lbEl.appendChild(row);
+      });
+    }
+  } catch {
+    lbEl.innerHTML = '<div class="card-sub">Classement indisponible (hors ligne).</div>';
+  }
 }
 
 function renderLevels() {
@@ -585,6 +648,39 @@ function onGameEnd(stats, level) {
     sfx.coin();
   }
   $('#hud-coins').textContent = `${cur(save.difficulty).icon} ${store.getWallet(save.difficulty)}`;
+  // défi du jour (même défi pour tous, dérivé de la date)
+  const dc = dailyChallenge();
+  if (!store.isChallengeDone(dc.id) && save.difficulty === dc.mode && level.id === dc.levelId) {
+    let ok = false;
+    if (dc.kind === 'score') ok = stats.score >= dc.target;
+    else if (dc.kind === 'perfects') ok = stats.perfects >= dc.target;
+    else if (dc.kind === 'combo') ok = stats.bestCombo >= dc.target;
+    else if (dc.kind === 'overtakes') ok = (stats.overtakes || 0) >= dc.target;
+    else if (dc.kind === 'complete') ok = !!stats.completed;
+    if (ok) {
+      store.markChallengeDone(dc.id);
+      store.addCoins(dc.mode, dc.reward);
+      refreshCoins();
+      toast(`🎯 Défi du jour réussi : « ${dc.label} » → +${dc.reward} ${cur(dc.mode).icon}`);
+      if (save.pseudo && save.leaderboardOptIn) {
+        leaderboard.submitChallengeScore(dc.id, { pseudo: save.pseudo, score: stats.score, mode: dc.mode, date: Date.now() }).catch(() => {});
+      }
+      pushCloud();
+    }
+  }
+  // quêtes de la semaine (progression cumulée)
+  const doneQuests = store.addQuestProgress({
+    runs: 1,
+    perfects: stats.perfects,
+    overtakes: stats.overtakes || 0,
+    score: stats.score,
+    complete: stats.completed ? 1 : 0,
+  });
+  for (const q of doneQuests) {
+    store.addCoins('auto', q.reward);
+    refreshCoins();
+    toast(`✅ Quête terminée : « ${q.label} » → +${q.reward} 🪙`);
+  }
   const reason = stats.reason;
   $('#over-title').textContent = stats.completed
     ? '🏁 Niveau terminé !'
@@ -686,6 +782,15 @@ $('#btn-leaderboard').addEventListener('click', () => {
   renderLbFilter();
   renderLeaderboard();
   show('screen-leaderboard');
+});
+$('#btn-challenges').addEventListener('click', () => {
+  sfx.click();
+  renderChallenges();
+  show('screen-challenges');
+});
+$('#btn-challenges-back').addEventListener('click', () => {
+  sfx.click();
+  show('screen-menu');
 });
 $('#btn-leaderboard-back').addEventListener('click', () => {
   sfx.click();
