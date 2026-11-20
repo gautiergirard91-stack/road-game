@@ -13,6 +13,8 @@ export class Tutorial {
     this.reading = false;
     this.i = 0;
     this.attempts = 0;
+    this.missed = false;
+    this.lastEvent = null;
     this.overtakes = 0;
     this.saw = { front: false, rear: false };
     this.stepStart = performance.now();
@@ -31,8 +33,8 @@ export class Tutorial {
         done: (t, e) => Boolean(e) && e.combo >= 3,
       },
       {
-        text: "💥 Ligne manquée ou clic dans le vide = −1 ❤️ (3 vies en Auto école, 5 en Permis A/Pilote). Lis bien cette règle, puis essaie : laisse passer une ligne volontairement.",
-        missDone: (t) => performance.now() - t.stepStart > 5000,
+        text: "💥 Ligne manquée ou clic dans le vide = −1 ❤️ (3 vies en Auto école, 5 en Permis A/Pilote). Laisse passer une ligne volontairement : tu perds VRAIMENT un ❤️ et l'effet reste visible 0,5 s !",
+        missStep: true,
       },
       {
         text: "🎚️ Permis A : chaque ligne se joue 2 fois, indépendamment ! Tap en HAUT de l'écran = roues AV, tap en BAS = roues AR. Fais les deux sur une même ligne.",
@@ -43,17 +45,19 @@ export class Tutorial {
         done: (t) => t.saw.front && t.saw.rear,
       },
       {
-        text: '🚗 Pilote : une voiture lente est devant toi ! SWIPE vers la gauche (ou touche ⬅) pour doubler. (1er essai)',
+        text: '🚗 Pilote : une voiture lente est devant toi ! SWIPE vers la gauche (ou touche ⬅) pour doubler. (1er essai) — attends que ta voiture soit revenue à droite !',
         enter: (g) => {
           g.mode = 'pilote';
           g.axles = ['front', 'rear'];
           g.forceBlocker();
         },
-        done: (t) => t.overtakes >= 1,
+        poll: true, // on laisse le temps de voir la voiture doubler ET revenir à droite
+        done: (t) => t.overtakes >= 1 && t.game.laneTarget === 0.72 && t.game.carXFrac > 0.68,
       },
       {
         text: '🔁 Encore un dépassement ! (2ème) — puis laisse ta voiture revenir complètement dans la voie de droite avant de continuer.',
         enter: (g) => g.forceBlocker(),
+        poll: true,
         done: (t) => t.overtakes >= 2 && t.game.laneTarget === 0.72 && t.game.carXFrac > 0.68,
       },
       {
@@ -120,6 +124,8 @@ export class Tutorial {
   next() {
     this.i++;
     this.attempts = 0;
+    this.missed = false;
+    this.lastEvent = null;
     this.saw = { front: false, rear: false };
     this.stepStart = performance.now();
     if (this.i >= this.steps.length) return this.finish();
@@ -131,6 +137,7 @@ export class Tutorial {
   onJudge(e) {
     if (this.finished || this.reading) return;
     this.attempts++;
+    this.lastEvent = e;
     if (e.axle === 'front') this.saw.front = true;
     if (e.axle === 'rear') this.saw.rear = true;
     if (e.overtake) this.overtakes++;
@@ -141,7 +148,31 @@ export class Tutorial {
   onMiss() {
     if (this.finished || this.reading) return;
     const s = this.steps[this.i];
-    if (s.missDone && s.missDone(this)) this.next();
+    if (s && s.missStep) {
+      this.missed = true;
+      // 0,5 s après la perte de ❤️ (l'effet RATÉ est bien visible), on met le jeu
+      // en pause et on passe à l'étape suivante
+      setTimeout(() => {
+        if (this.finished || this.reading) return;
+        const cur = this.steps[this.i];
+        if (cur && cur.missStep) this.next();
+      }, 500);
+    }
+  }
+
+  tick() {
+    if (this.finished || this.reading) return;
+    const s = this.steps[this.i];
+    // repli : si le joueur tape tout parfaitement et ne rate jamais rien, on avance quand même après 12 s
+    if (s && s.missStep && !this.missed && performance.now() - this.stepStart > 12000) return this.next();
+    // étapes sondées en continu (ex. dépassement : attendre le retour en file de droite)
+    if (s && s.poll && performance.now() - this.stepStart >= (s.minTime || 0)) {
+      try {
+        if (s.done(this, this.lastEvent || null)) this.next();
+      } catch {
+        /* ignore */
+      }
+    }
   }
 
   finish() {

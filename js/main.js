@@ -544,6 +544,7 @@ function loop(t) {
     game.update(dt);
     game.render();
   }
+  if (tut && currentScreen === 'screen-game') tut.tick();
 }
 
 window.addEventListener('error', (e) => {
