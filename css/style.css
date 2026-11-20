@@ -670,3 +670,43 @@ body {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
 }
+
+/* --- v1.3.4 : monnaies par difficulté, HUD, tutoriel en pause à curseur --- */
+#hud {
+  touch-action: none;
+}
+
+#hud-coins {
+  font-weight: 700;
+  color: #ffd54a;
+  margin-right: 10px;
+  font-size: 14px;
+}
+
+#tut-read {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: min(340px, 80vw);
+  margin-top: 6px;
+}
+
+#tut-read-label {
+  font-size: 13px;
+  color: #cfd6ee;
+  text-align: center;
+}
+
+#tut-slider {
+  width: 100%;
+  accent-color: #ffb020;
+  height: 26px;
+  cursor: pointer;
+}
+
+#tut-quit {
+  margin-top: 6px;
+  min-width: 0;
+  padding: 6px 14px;
+  font-size: 13px;
+}

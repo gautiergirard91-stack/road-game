@@ -98,6 +98,7 @@ function step(game, seconds, tapper) {
 {
   const { game } = makeGame(LEVELS[3], 'auto');
   game.start();
+  game.lines = game.lines.filter((l) => l.type !== 'crosswalk'); // déterministe : un seul passage piéton
   game.spawnLine('crosswalk', 800);
   let sawSlow = false;
   const dt = 1 / 60;
@@ -144,4 +145,57 @@ function step(game, seconds, tapper) {
   game.resize();
 }
 
-console.log('OK - smoke test moteur : 5 scénarios sans crash, mécaniques vérifiées');
+{
+  // v1.3.4 : le combo ne monte QUE sur PARFAIT
+  const { game, events } = makeGame(LEVELS[0], 'auto');
+  game.start();
+  const l1 = game.lines[0];
+  game.distance = l1.dist; // roues pile sur la ligne
+  game.tap('rear');
+  assert.equal(events.judge.at(-1).result, 'perfect');
+  assert.equal(game.combo, 1, 'PARFAIT -> combo 1');
+  const l2 = game.lines.find((l) => l.state === 'pending');
+  game.distance = l2.dist + game.effSpeed * 0.08; // ~80 ms -> BIEN
+  game.tap('rear');
+  assert.equal(events.judge.at(-1).result, 'good');
+  assert.equal(game.combo, 1, 'BIEN ne fait PAS monter le combo');
+  const l3 = game.lines.find((l) => l.state === 'pending');
+  game.distance = l3.dist;
+  game.tap('rear');
+  assert.equal(events.judge.at(-1).result, 'perfect');
+  assert.equal(game.combo, 2, 'PARFAIT -> combo 2');
+}
+
+{
+  // v1.3.4 : dépassement autorisé DÈS que la voiture est visible à l'écran (pas besoin d'attendre)
+  const { game, events } = makeGame(LEVELS[0], 'pilote');
+  game.start();
+  game.tSame = 9999;
+  game.sameDir.push({ p: game.distance + game.wheelY - 100, v: game.level.speed * 0.5, color: '#fff', w: 60, overtaken: false, grace: 0 });
+  assert.equal(game.blocker, null, 'pas encore de bloqueur proche (hors BLOCK_RANGE)');
+  game.swipeLeft();
+  assert.equal(game.stats.overtakes, 1, "dépassement dès l'arrivée à l'écran");
+  assert.equal(game.laneTarget, 0.28, 'voie de gauche visée');
+  assert.ok(events.judge.some((e) => e.overtake), 'événement overtake émis');
+}
+
+{
+  // v1.3.4 : piéton -> la voiture s'arrête AVANT le passage piéton, pas au milieu
+  const { game } = makeGame(LEVELS[3], 'auto');
+  game.start();
+  game.lines = game.lines.filter((l) => l.type !== 'crosswalk'); // déterministe : un seul passage piéton
+  game.spawnLine('crosswalk', 500);
+  const dt = 1 / 60;
+  let stoppedBefore = false;
+  for (let t = 0; t < 30 && game.running; t += dt) {
+    game.update(dt);
+    game.render();
+    if (game.autoStop && game.slow <= 0.05 && game.ped) {
+      const cw = game.ped.line; // le passage piéton concerné par le piéton en cours
+      if (game.lineY(cw) <= game.wheelY - 40) stoppedBefore = true; // arrêtée au moins 40 px avant la ligne
+    }
+  }
+  assert.ok(stoppedBefore, "à l'arrêt pour le piéton, la voiture est AVANT le passage piéton");
+}
+
+console.log('OK - smoke test moteur : 8 scénarios sans crash, mécaniques vérifiées');

@@ -22,6 +22,11 @@
   <div id="tut-banner" class="hidden">
     <div id="tut-dots"></div>
     <div id="tut-text"></div>
+    <div id="tut-read" class="hidden">
+      <span id="tut-read-label">👀 Lis bien, puis glisse le curseur jusqu'au bout quand tu es prêt ▶</span>
+      <input type="range" id="tut-slider" min="0" max="100" value="0" step="1" aria-label="Lu et prêt à continuer">
+    </div>
+    <button id="tut-quit" class="btn secondary">✖ Quitter le tutoriel</button>
   </div>
 
   <div id="hud" class="hidden">
@@ -30,6 +35,7 @@
     <div id="hud-right">
       <span id="hud-lives">❤️❤️❤️</span>
       <span id="hud-level"></span>
+      <span id="hud-coins">🪙 0</span>
       <button id="btn-pause" aria-label="Pause">⏸</button>
     </div>
   </div>
@@ -106,6 +112,7 @@
     <div class="panel">
       <h2 id="over-title">Partie terminée</h2>
       <div id="over-record" class="record hidden">🏆 Nouveau record !</div>
+      <div id="over-trophy" class="record hidden">🥇 FULL PARFAIT ! Médaille du niveau remportée</div>
       <div id="over-score">0</div>
       <div class="score-label">points</div>
       <div id="over-stats" class="stats-grid"></div>

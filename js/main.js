@@ -1,8 +1,8 @@
-import { LEVELS, THEMES, SKINS, EFFECTS, DIFFICULTIES, WINDOWS, ACHIEVEMENTS, THEME_SHOP, ENDLESS_LEVEL } from './data.js';
+import { LEVELS, THEMES, SKINS, EFFECTS, DIFFICULTIES, CURRENCIES, WINDOWS, ACHIEVEMENTS, THEME_SHOP, ENDLESS_LEVEL } from './data.js';
 import { Game } from './game.js';
 import * as store from './store.js';
 import { sfx, setEnabled, setMusicEnabled, unlockAudio } from './audio.js';
-import { coinsForResult, accuracy, avgReaction, continueCost, maxMissesFor, firstClearBonus } from './core.js';
+import { coinsForResult, accuracy, avgReaction, continueCost, maxMissesFor, firstClearBonus, isPerfectClear, perfectClearBonus } from './core.js';
 import { watchRewarded } from './ads.js';
 import { Tutorial } from './tutorial.js';
 import * as leaderboard from './leaderboard.js';
@@ -108,7 +108,7 @@ function updateLives(m) {
 function showContinue() {
   const max = maxMissesFor(save.difficulty);
   $('#continue-title').textContent = `💥 ${game ? game.stats.misses : max}/${max} ratés !`;
-  $('#btn-continue-coins').textContent = `Continuer — ${continueCost(continuesThisRun)} 🪙`;
+  $('#btn-continue-coins').textContent = `Continuer — ${continueCost(continuesThisRun)} ${cur(save.difficulty).icon}`;
   $('#continue-overlay').classList.add('active');
 }
 
@@ -158,15 +158,30 @@ function startTutorial() {
     onEnd: () => {},
   });
   game.start();
-  tut = new Tutorial(game, { text: $('#tut-text'), dots: $('#tut-dots') }, () => {
-    $('#tut-banner').classList.add('hidden');
-    logEvent('tutorial_done', {});
-    toast('🏁 Tutoriel terminé ! +200 🪙');
-    refreshCoins();
-    renderDifficultyPicker();
-    renderLevels();
-    show('screen-levels');
-  });
+  $('#hud-coins').textContent = `${cur('auto').icon} ${store.getWallet('auto')}`;
+  tut = new Tutorial(
+    game,
+    { text: $('#tut-text'), dots: $('#tut-dots'), read: $('#tut-read'), slider: $('#tut-slider'), quit: $('#tut-quit') },
+    () => {
+      $('#tut-banner').classList.add('hidden');
+      logEvent('tutorial_done', {});
+      toast('🏁 Tutoriel terminé ! +200 🪙');
+      refreshCoins();
+      renderDifficultyPicker();
+      renderLevels();
+      show('screen-levels');
+    },
+    () => {
+      // quitter avant la fin : tutorialDone reste false -> le tutoriel reviendra à la prochaine partie
+      $('#tut-banner').classList.add('hidden');
+      tut = null;
+      logEvent('tutorial_aborted', {});
+      toast('Tutoriel interrompu — il te sera proposé à ta prochaine partie 👶');
+      renderDifficultyPicker();
+      renderLevels();
+      show('screen-levels');
+    }
+  );
   lastT = performance.now();
   cancelAnimationFrame(rafId);
   rafId = requestAnimationFrame(loop);
@@ -185,7 +200,7 @@ function renderAchievements() {
 }
 
 function checkAchievements(stats, level) {
-  const ctx = { stats, level, totals: store.get().totals, mode: save.difficulty, best: save.best };
+  const ctx = { stats, level, totals: store.get().totals, mode: save.difficulty, best: save.best, trophies: store.get().trophies || {} };
   const newly = [];
   for (const a of ACHIEVEMENTS) {
     if (!save.achievements.includes(a.id)) {
@@ -203,7 +218,7 @@ function checkAchievements(stats, level) {
   }
   if (newly.length) {
     const reward = newly.reduce((s, a) => s + a.reward, 0);
-    store.addCoins(reward);
+    store.addCoins('auto', reward);
     toast(`🏅 Succès débloqué${newly.length > 1 ? 's' : ''} : ${newly.map((a) => a.name).join(', ')} (+${reward} 🪙)`);
   }
 }
@@ -240,9 +255,12 @@ function show(id) {
 window.addEventListener('online', refreshStatus);
 window.addEventListener('offline', refreshStatus);
 
+const cur = (diff) => CURRENCIES[diff] || CURRENCIES.auto;
+
 function refreshCoins() {
+  const html = Object.entries(CURRENCIES).map(([id, c]) => `${c.icon} ${store.getWallet(id)}`).join(' · ');
   $$('.coins-display').forEach((el) => {
-    el.textContent = `🪙 ${save.coins}`;
+    el.innerHTML = html;
   });
 }
 
@@ -266,32 +284,39 @@ function renderLevels() {
   const list = $('#levels-list');
   list.innerHTML = '';
   for (const l of [ENDLESS_LEVEL, ...LEVELS]) {
-    const locked = !l.endless && !save.unlockedLevels.includes(l.id);
+    const locked = !l.endless && l.cost > 0 && !save.unlockedLevels.includes(l.id);
+    const canBuy = !locked || l.id === 1 || save.unlockedLevels.includes(l.id - 1);
+    const c = cur(l.diff || 'auto');
     const best = save.best[l.id];
+    const medal = save.trophies[l.id] ? ' 🥇' : '';
     const card = document.createElement('div');
     card.className = 'card';
     card.innerHTML = `
       <div class="card-theme theme-${l.theme}"></div>
       <div class="card-body">
-        <div class="card-title">${l.endless ? '∞' : l.id}. ${l.name}</div>
+        <div class="card-title">${l.endless ? '∞' : l.id}. ${l.name}${medal}</div>
         <div class="card-sub">${THEMES[l.theme].name} · ${l.endless ? 'vitesse croissante' : `vitesse ${l.speed} · ${l.lines} lignes`}</div>
         <div class="card-best">${best ? `🏆 Record : ${best}` : ''}</div>
       </div>
-      <button class="btn small">${locked ? `🔒 ${l.cost} 🪙` : '▶ Jouer'}</button>`;
+      <button class="btn small">${locked ? (canBuy ? `🔒 ${l.cost} ${c.icon}` : '🔒 niveau précédent') : '▶ Jouer'}</button>`;
     card.querySelector('button').addEventListener('click', () => {
       sfx.click();
       if (locked) {
-        if (store.spend(l.cost)) {
+        if (!canBuy) {
+          toast(`Débloque d'abord le niveau ${l.id - 1} !`);
+          return;
+        }
+        if (store.spend(l.diff || 'auto', l.cost)) {
           store.unlockLevel(l.id);
           sfx.coin();
-          logEvent('purchase', { item: `level:${l.id}`, cost: l.cost });
+          logEvent('purchase', { item: `level:${l.id}`, cost: l.cost, currency: l.diff || 'auto' });
           toast(`Niveau ${l.id} débloqué !`);
           pushCloud();
           refreshCoins();
           renderLevels();
           startLevel(l);
         } else {
-          toast(`Il te manque ${l.cost - save.coins} pièces 🪙`);
+          toast(`Il te manque ${l.cost - store.getWallet(l.diff || 'auto')} ${c.icon} (${c.name})`);
         }
       } else {
         startLevel(l);
@@ -328,7 +353,7 @@ function renderShop() {
         toast(`${s.name} achetée et équipée !`);
         pushCloud();
       } else {
-        toast(`Il te manque ${s.cost - save.coins} pièces 🪙`);
+        toast(`Il te manque ${s.cost - store.getWallet('auto')} 🪙`);
         return;
       }
       refreshCoins();
@@ -359,7 +384,7 @@ function renderShop() {
             toast(`${t.name} acheté !`);
             pushCloud();
           } else {
-            toast(`Il te manque ${t.cost - save.coins} pièces 🪙`);
+            toast(`Il te manque ${t.cost - store.getWallet('auto')} 🪙`);
             return;
           }
         } else {
@@ -399,7 +424,7 @@ function renderShop() {
         toast(`${e.name} acheté et activé !`);
         pushCloud();
       } else {
-        toast(`Il te manque ${e.cost - save.coins} pièces 🪙`);
+        toast(`Il te manque ${e.cost - store.getWallet('auto')} 🪙`);
         return;
       }
       refreshCoins();
@@ -418,6 +443,7 @@ function startLevel(level) {
   hudCombo.textContent = '';
   continuesThisRun = 0;
   updateLives(0);
+  $('#hud-coins').textContent = `${cur(save.difficulty).icon} ${store.getWallet(save.difficulty)}`;
   logEvent('level_start', { level: level.id, mode: save.difficulty });
   game = new Game($('#game'), {
     level,
@@ -461,10 +487,13 @@ function onGameEnd(stats, level) {
     clearBonus = firstClearBonus(level);
     coins += clearBonus;
   }
+  const perfectClear = !!stats.completed && isPerfectClear(stats);
+  if (perfectClear) store.setTrophy(level.id);
   if (coins > 0) {
-    store.addCoins(coins);
+    store.addCoins(save.difficulty, coins);
     sfx.coin();
   }
+  $('#hud-coins').textContent = `${cur(save.difficulty).icon} ${store.getWallet(save.difficulty)}`;
   const reason = stats.reason;
   $('#over-title').textContent = stats.completed
     ? '🏁 Niveau terminé !'
@@ -472,6 +501,7 @@ function onGameEnd(stats, level) {
       ? '🚦 Bloqué dans les bouchons !'
       : '💥 3 ratés !';
   $('#over-record').classList.toggle('hidden', !isRecord);
+  $('#over-trophy').classList.toggle('hidden', !perfectClear);
   $('#over-score').textContent = stats.score;
   const avg = avgReaction(stats);
   $('#over-stats').innerHTML = `
@@ -483,7 +513,11 @@ function onGameEnd(stats, level) {
     <div><b>${stats.bestCombo}</b><span>Meilleur combo</span></div>
     <div><b>${avg !== null ? avg + ' ms' : '—'}</b><span>Réaction moy.</span></div>
     <div><b>${accuracy(stats)} %</b><span>Précision</span></div>`;
-  $('#over-coins').textContent = `+${coins} 🪙 gagnées` + (firstClear ? ` (dont +${clearBonus} 🪙 de premier clear ! 🎉)` : '');
+  const ci = cur(save.difficulty).icon;
+  $('#over-coins').textContent =
+    `+${coins} ${ci} gagnées` +
+    (firstClear ? ` (dont +${clearBonus} ${ci} de premier clear ! 🎉)` : '') +
+    (perfectClear ? ` — 🥇 FULL PARFAIT ! +${perfectClearBonus(level)} ${ci} et médaille du niveau !` : '');
   setTimeout(() => {
     refreshCoins();
     show('screen-over');
@@ -643,14 +677,14 @@ $('#btn-continue-restart').addEventListener('click', () => {
 });
 $('#btn-continue-coins').addEventListener('click', () => {
   const cost = continueCost(continuesThisRun);
-  if (store.spend(cost)) {
+  if (store.spend(save.difficulty, cost)) {
     continuesThisRun++;
     sfx.coin();
-    logEvent('continue_purchased', { cost });
+    logEvent('continue_purchased', { cost, currency: save.difficulty });
     hideContinue();
     game?.resumeWithContinue();
   } else {
-    toast(`Il te manque ${cost - store.get().coins} pièces 🪙`);
+    toast(`Il te manque ${cost - store.getWallet(save.difficulty)} ${cur(save.difficulty).icon}`);
   }
 });
 $('#btn-continue-ad').addEventListener('click', () => {
@@ -671,30 +705,56 @@ $('#btn-continue-quit').addEventListener('click', () => {
 });
 
 let pointerStart = null;
+let pointerLast = null;
+let swipeFired = false;
+
+const canPlayNow = () => currentScreen === 'screen-game' && game && game.running && !game.paused && !game.tutHold;
+
+// Le swipe vers la gauche est détecté dès 40 px de déplacement (pointermove),
+// au relâchement (pointerup) ET à l'annulation (pointercancel) : fiable sur
+// téléphone même si le navigateur interrompt le geste par un pointercancel.
+function trySwipe(x) {
+  if (!pointerStart || swipeFired) return;
+  if (x - pointerStart.x < -40) {
+    swipeFired = true;
+    if (canPlayNow()) game.swipeLeft();
+  }
+}
 
 window.addEventListener('pointerdown', (e) => {
   unlockAudio();
   pointerStart = { x: e.clientX, y: e.clientY };
-  if (currentScreen !== 'screen-game' || !game || !game.running || game.paused) return;
+  pointerLast = pointerStart;
+  swipeFired = false;
+  if (!canPlayNow()) return;
   if (e.target.closest('button')) return;
   const zone = e.clientY < window.innerHeight / 2 ? 'front' : 'rear';
   game.tap(zone);
 });
 
+window.addEventListener('pointermove', (e) => {
+  if (!pointerStart) return;
+  pointerLast = { x: e.clientX, y: e.clientY };
+  trySwipe(e.clientX);
+});
+
 window.addEventListener('pointerup', (e) => {
-  if (pointerStart && currentScreen === 'screen-game' && game && game.running && !game.paused) {
-    if (e.clientX - pointerStart.x < -40) game.swipeLeft();
-  }
+  trySwipe(e.clientX);
   pointerStart = null;
+  pointerLast = null;
+  swipeFired = false;
 });
 
 window.addEventListener('pointercancel', () => {
+  if (pointerLast) trySwipe(pointerLast.x);
   pointerStart = null;
+  pointerLast = null;
+  swipeFired = false;
 });
 
 window.addEventListener('keydown', (e) => {
   if (e.repeat) return;
-  const canPlay = currentScreen === 'screen-game' && game && game.running && !game.paused;
+  const canPlay = canPlayNow();
   if (e.code === 'Space' || e.code === 'ArrowDown' || e.code === 'Enter') {
     e.preventDefault();
     if (canPlay) game.tap('rear');

@@ -5,7 +5,7 @@
 ## Revenus actuels (gratuits)
 
 - **Pièces gagnées en jouant** → boutique cosmétique (voitures détaillées par paliers, effets visuels, météo, thèmes de route).
-- **Succès** avec récompenses en pièces (rétention gratuite).
+- **Succès** avec récompenses en pièces (rétention gratuite). **3 monnaies** (🪙 Auto école / 🎓 Permis A / 🏁 Pilote), toutes **100 % gagnables en jouant** selon le mode joué — aucune monnaie n'est vendable ; les niveaux se débloquent dans l'ordre avec la monnaie de leur palier.
 - **Classement** (local ou Firebase) : rétention compétitive gratuite.
 
 ## Revenus payants / pubs (à activer avant ou après le lancement)

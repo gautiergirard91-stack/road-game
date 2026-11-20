@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
-import { judge, pointsFor, buildPattern, coinsForResult, accuracy, avgReaction, continueCost, maxMissesFor, firstClearBonus, axleDelta, mulberry32 } from '../js/core.js';
-import { LEVELS, WINDOWS, MAX_MISSES, CONTINUE_BASE_COST, SKINS, EFFECTS, ACHIEVEMENTS } from '../js/data.js';
+import { judge, pointsFor, buildPattern, coinsForResult, accuracy, avgReaction, continueCost, maxMissesFor, firstClearBonus, isPerfectClear, perfectClearBonus, axleDelta, mulberry32 } from '../js/core.js';
+import { LEVELS, WINDOWS, MAX_MISSES, CONTINUE_BASE_COST, SKINS, EFFECTS, ACHIEVEMENTS, CURRENCIES, DIFFICULTIES } from '../js/data.js';
 
 assert.equal(judge(0), 'perfect');
 assert.equal(judge(-WINDOWS.perfect), 'perfect');
@@ -93,5 +93,31 @@ assert.ok(new Set(LEVELS.map((l) => l.theme)).size >= 7, 'au moins 7 thèmes uti
 assert.equal(axleDelta(800, 700, 'rear'), 0, 'essieu arrière : delta nul');
 assert.equal(axleDelta(800, 700, 'front'), 100, 'essieu avant : delta = écart AV/AR (ici 100 px)');
 assert.ok(axleDelta(800, 702, 'front') >= 70, 'écart AV/AR suffisant pour séparer les deux taps (> 70 px)');
+
+// --- v1.3.4 : full parfait, monnaies par difficulté, médaille collectionneur ---
+const pcStats = { score: 1500, perfects: 15, goods: 0, passables: 0, misses: 0, reactions: [20, 30] };
+assert.ok(isPerfectClear(pcStats), 'full parfait détecté');
+assert.ok(!isPerfectClear({ ...pcStats, goods: 1 }), 'un BIEN casse le full parfait');
+assert.ok(!isPerfectClear({ ...pcStats, misses: 1 }), 'un raté casse le full parfait');
+assert.ok(!isPerfectClear({ ...pcStats, perfects: 0 }), 'sans PARFAIT, pas de full parfait');
+assert.equal(perfectClearBonus(LEVELS[0]), 600, 'bonus full parfait niveau 1');
+{
+  const base = Math.round(pcStats.score / 5) + pcStats.perfects * 5;
+  assert.equal(coinsForResult(pcStats, LEVELS[0], false), base, 'pas de bonus full parfait si niveau non terminé');
+  assert.equal(coinsForResult(pcStats, LEVELS[0], true), base + 150 + LEVELS[0].id * 30 + perfectClearBonus(LEVELS[0]), 'full parfait terminé = gros bonus de pièces');
+  assert.ok(coinsForResult(pcStats, LEVELS[14], true) > coinsForResult({ ...pcStats, goods: 1 }, LEVELS[14], true), 'le full parfait rapporte nettement plus');
+}
+for (const d of DIFFICULTIES) {
+  assert.ok(CURRENCIES[d.id] && CURRENCIES[d.id].icon, `monnaie définie pour la difficulté ${d.id}`);
+}
+for (const l of LEVELS) {
+  assert.ok(CURRENCIES[l.diff], `niveau ${l.id} : palier ${l.diff} avec monnaie dédiée`);
+}
+{
+  const trophyAch = ACHIEVEMENTS.find((a) => a.id === 'trophy_all');
+  assert.ok(trophyAch, 'succès collectionneur présent');
+  assert.ok(trophyAch.test({ trophies: Object.fromEntries(LEVELS.map((l) => [l.id, true])) }), 'toutes les médailles = succès débloqué');
+  assert.ok(!trophyAch.test({ trophies: { 1: true } }), '1 médaille insuffisante');
+}
 
 console.log('OK - tous les tests passent (' + LEVELS.length + ' niveaux vérifiés)');

@@ -32,7 +32,7 @@
 - **Permis A** : 5 vies, chaque ligne se joue 2× indépendamment (roues AV = tap haut, AR = tap bas) — les guides AV/AR sont suffisamment écartés pour que les deux taps soient bien séparés dans le temps (pas de validation simultanée).
 - **Pilote** : 5 vies, Permis A + voitures lentes devant : swipe ⬅ pour doubler (1 s de grâce, puis ralentissement, combos off, points ×0,2, arrêt = fin).
 
-**Règles communes** : jugement PARFAIT ±45 / BIEN ±100 / OK ±160 ms ; combo ×(1 + 0,05·combo, max ×3) ; raté (ligne manquée ou clic vide) = −1 ❤️, 3ᵉ/5ᵉ raté = overlay continuer (pièces ou pub) ; pièces gagnées = score/8 + 3×PARFAIT + bonus complétion + **bonus de premier clear** (250 + 50×n° niveau) la première fois qu'un niveau est terminé.
+**Règles communes** : jugement PARFAIT ±45 / BIEN ±100 / OK ±160 ms ; combo ×(1 + 0,05·combo, max ×3) **montant uniquement sur PARFAIT** ; raté (ligne manquée ou clic vide) = −1 ❤️, 3ᵉ/5ᵉ raté = overlay continuer (pièces ou pub) ; pièces gagnées = score/8 + 3×PARFAIT + bonus complétion + **bonus de premier clear** (250 + 50×n° niveau) la première fois qu'un niveau est terminé.
 
 **Rétention** : 13 succès avec récompenses en pièces, records par niveau, classement filtré par difficulté, sauvegarde cloud (Firebase) si pseudo défini.
 
@@ -49,6 +49,7 @@ Résultats (σ = 60 ms, mode auto) : taux de réussite 98–100 % sur les 15 niv
 
 Résultats (σ = 95 ms, casual) : niveaux 1–3 ~100 %, puis la difficulté monte franchement (Permis A dès le niveau 3 ~50 %, niveaux 13–15 ~2–4 %) — conforme à un endgame difficile ; les 5 ❤️ de Permis A/Pilote compensent le double tap.
 
-**Économie** : coût total de déblocage des 15 niveaux = **63 950 🪙** ; gains simulés d'un joueur moyen qui termine tout ≈ 46 000 🪙 (parties) + 9 750 🪙 (bonus premier clear) + ~6 000 🪙 (succès) ≈ **62 000 🪙** + replays → l objectifs sont atteignables sans frustration. Formule : `pièces = score/5 + 5×PARFAIT + (terminé ? 150 + 30×n° : 0) + premier clear (250 + 50×n°)`.
+**Économie** : coût total de déblocage des 15 niveaux = **63 950 🪙** ; gains simulés d'un joueur moyen qui termine tout ≈ 46 000 🪙 (parties) + 9 750 🪙 (bonus premier clear) + ~6 000 🪙 (succès) ≈ **62 000 🪙** + replays → l objectifs sont atteignables sans frustration. Formule : `monnaie = score/5 + 5×PARFAIT + (terminé ? 150 + 30×n° : 0) + premier clear (250 + 50×n°)`.
+- **v1.3.4 — 3 monnaies** : 🪙 auto / 🎓 permisA / 🏁 pilote, gagnées selon le mode joué ; déblocage **séquentiel** des niveaux (N-1 d'abord) avec la monnaie du palier du niveau (1-5 🪙, 6-10 🎓, 11-15 🏁). **Full PARFAIT** (terminé, 0 BIEN/OK/raté) = 🥇 médaille du niveau + bonus 500 + 100×n° + succès Collectionneur.
 
 **Règles anti-frustration** : 3 ❤️ (auto) / 5 ❤️ (Permis A, Pilote) ; continuer possible au dernier raté (pièces ou pub) ; fenêtre de raté 160 ms ; écart AV/AR ≈ 98 px (~150–290 ms selon la vitesse) pour séparer nettement les deux taps.

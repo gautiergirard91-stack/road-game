@@ -9,6 +9,15 @@ export const DIFFICULTIES = [
   { id: 'pilote', name: 'Pilote', desc: 'Permis A + voitures devant : swipe vers la gauche pour doubler, sinon bouchon !' },
 ];
 
+// Une monnaie par difficulté : on gagne celle du mode joué, et chaque niveau
+// se débloque (dans l'ordre) avec la monnaie de son palier -> on progresse
+// niveau par niveau et on ne peut pas acheter le dernier niveau directement.
+export const CURRENCIES = {
+  auto: { icon: '🪙', name: 'Pièces' },
+  permisA: { icon: '🎓', name: 'Badges permis' },
+  pilote: { icon: '🏁', name: 'Trophées' },
+};
+
 export const THEMES = {
   autoroute: {
     id: 'autoroute', name: 'Autoroute', scenery: 'trees', night: false,
@@ -48,21 +57,21 @@ export const THEMES = {
 };
 
 export const LEVELS = [
-  { id: 1, name: 'Premiers tours', theme: 'autoroute', speed: 270, lines: 10, gapMin: 460, gapMax: 700, w: { dash: 1 }, pDouble: 0, cost: 0 },
-  { id: 2, name: 'Accélération', theme: 'autoroute', speed: 300, lines: 18, gapMin: 420, gapMax: 620, w: { dash: 1 }, pDouble: 0.15, cost: 150 },
-  { id: 3, name: 'Double file', theme: 'autoroute', speed: 340, lines: 20, gapMin: 400, gapMax: 560, w: { dash: 0.7, band: 0.3 }, pDouble: 0.3, cost: 300 },
-  { id: 4, name: 'En ville', theme: 'ville', speed: 340, lines: 34, gapMin: 390, gapMax: 560, w: { dash: 0.6, chevron: 0.4 }, pDouble: 0.2, cost: 500, crosswalk: true },
-  { id: 5, name: 'Heures de pointe', theme: 'ville', speed: 380, lines: 36, gapMin: 360, gapMax: 520, w: { dash: 0.5, band: 0.25, chevron: 0.25 }, pDouble: 0.3, cost: 800, crosswalk: true },
-  { id: 6, name: 'Désert', theme: 'desert', speed: 380, lines: 38, gapMin: 350, gapMax: 500, w: { dash: 0.5, band: 0.3, chevron: 0.2 }, pDouble: 0.25, cost: 1200 },
-  { id: 7, name: 'Coucher de soleil', theme: 'desert', speed: 420, lines: 40, gapMin: 330, gapMax: 480, w: { dash: 0.4, band: 0.3, chevron: 0.3 }, pDouble: 0.35, cost: 1800 },
-  { id: 8, name: 'Nuit', theme: 'nuit', speed: 420, lines: 40, gapMin: 330, gapMax: 470, w: { dash: 0.4, band: 0.3, chevron: 0.3 }, pDouble: 0.3, cost: 2600 },
-  { id: 9, name: 'Néon', theme: 'nuit', speed: 470, lines: 44, gapMin: 310, gapMax: 440, w: { dash: 0.35, band: 0.3, chevron: 0.35 }, pDouble: 0.4, cost: 3600 },
-  { id: 10, name: 'Neige', theme: 'neige', speed: 450, lines: 44, gapMin: 320, gapMax: 450, w: { dash: 0.4, band: 0.3, chevron: 0.3 }, pDouble: 0.35, cost: 5000 },
-  { id: 11, name: 'Tempête', theme: 'neige', speed: 510, lines: 48, gapMin: 300, gapMax: 420, w: { dash: 0.35, band: 0.3, chevron: 0.35 }, pDouble: 0.45, cost: 7000 },
-  { id: 12, name: 'Hyperdrive', theme: 'nuit', speed: 580, lines: 55, gapMin: 280, gapMax: 380, w: { dash: 0.3, band: 0.35, chevron: 0.35 }, pDouble: 0.5, cost: 8000 },
-  { id: 13, name: 'Néon', theme: 'neon', speed: 620, lines: 50, gapMin: 270, gapMax: 360, w: { dash: 0.3, band: 0.35, chevron: 0.35 }, pDouble: 0.5, cost: 9000 },
-  { id: 14, name: 'Golden hour', theme: 'sunset', speed: 600, lines: 50, gapMin: 275, gapMax: 370, w: { dash: 0.3, band: 0.3, chevron: 0.4 }, pDouble: 0.45, cost: 11000 },
-  { id: 15, name: 'Enfer', theme: 'nuit', speed: 660, lines: 55, gapMin: 260, gapMax: 350, w: { dash: 0.25, band: 0.35, chevron: 0.4 }, pDouble: 0.5, cost: 13000 },
+  { id: 1, name: 'Premiers tours', theme: 'autoroute', diff: 'auto', speed: 270, lines: 10, gapMin: 460, gapMax: 700, w: { dash: 1 }, pDouble: 0, cost: 0 },
+  { id: 2, name: 'Accélération', theme: 'autoroute', diff: 'auto', speed: 300, lines: 18, gapMin: 420, gapMax: 620, w: { dash: 1 }, pDouble: 0.15, cost: 150 },
+  { id: 3, name: 'Double file', theme: 'autoroute', diff: 'auto', speed: 340, lines: 20, gapMin: 400, gapMax: 560, w: { dash: 0.7, band: 0.3 }, pDouble: 0.3, cost: 300 },
+  { id: 4, name: 'En ville', theme: 'ville', diff: 'auto', speed: 340, lines: 34, gapMin: 390, gapMax: 560, w: { dash: 0.6, chevron: 0.4 }, pDouble: 0.2, cost: 500, crosswalk: true },
+  { id: 5, name: 'Heures de pointe', theme: 'ville', diff: 'auto', speed: 380, lines: 36, gapMin: 360, gapMax: 520, w: { dash: 0.5, band: 0.25, chevron: 0.25 }, pDouble: 0.3, cost: 800, crosswalk: true },
+  { id: 6, name: 'Désert', theme: 'desert', diff: 'permisA', speed: 380, lines: 38, gapMin: 350, gapMax: 500, w: { dash: 0.5, band: 0.3, chevron: 0.2 }, pDouble: 0.25, cost: 1200 },
+  { id: 7, name: 'Coucher de soleil', theme: 'desert', diff: 'permisA', speed: 420, lines: 40, gapMin: 330, gapMax: 480, w: { dash: 0.4, band: 0.3, chevron: 0.3 }, pDouble: 0.35, cost: 1800 },
+  { id: 8, name: 'Nuit', theme: 'nuit', diff: 'permisA', speed: 420, lines: 40, gapMin: 330, gapMax: 470, w: { dash: 0.4, band: 0.3, chevron: 0.3 }, pDouble: 0.3, cost: 2600 },
+  { id: 9, name: 'Néon', theme: 'nuit', diff: 'permisA', speed: 470, lines: 44, gapMin: 310, gapMax: 440, w: { dash: 0.35, band: 0.3, chevron: 0.35 }, pDouble: 0.4, cost: 3600 },
+  { id: 10, name: 'Neige', theme: 'neige', diff: 'permisA', speed: 450, lines: 44, gapMin: 320, gapMax: 450, w: { dash: 0.4, band: 0.3, chevron: 0.3 }, pDouble: 0.35, cost: 5000 },
+  { id: 11, name: 'Tempête', theme: 'neige', diff: 'pilote', speed: 510, lines: 48, gapMin: 300, gapMax: 420, w: { dash: 0.35, band: 0.3, chevron: 0.35 }, pDouble: 0.45, cost: 7000 },
+  { id: 12, name: 'Hyperdrive', theme: 'nuit', diff: 'pilote', speed: 580, lines: 55, gapMin: 280, gapMax: 380, w: { dash: 0.3, band: 0.35, chevron: 0.35 }, pDouble: 0.5, cost: 8000 },
+  { id: 13, name: 'Néon', theme: 'neon', diff: 'pilote', speed: 620, lines: 50, gapMin: 270, gapMax: 360, w: { dash: 0.3, band: 0.35, chevron: 0.35 }, pDouble: 0.5, cost: 9000 },
+  { id: 14, name: 'Golden hour', theme: 'sunset', diff: 'pilote', speed: 600, lines: 50, gapMin: 275, gapMax: 370, w: { dash: 0.3, band: 0.3, chevron: 0.4 }, pDouble: 0.45, cost: 11000 },
+  { id: 15, name: 'Enfer', theme: 'nuit', diff: 'pilote', speed: 660, lines: 55, gapMin: 260, gapMax: 350, w: { dash: 0.25, band: 0.35, chevron: 0.4 }, pDouble: 0.5, cost: 13000 },
 ];
 
 export const SKINS = [
@@ -94,7 +103,7 @@ export const THEME_SHOP = [
 ];
 
 export const ENDLESS_LEVEL = {
-  id: 99, name: 'Survie ∞', theme: 'autoroute', speed: 300, lines: 60,
+  id: 99, name: 'Survie ∞', theme: 'autoroute', diff: 'auto', speed: 300, lines: 60,
   gapMin: 400, gapMax: 600, w: { dash: 0.7, band: 0.15, chevron: 0.15 }, pDouble: 0.2, cost: 0, endless: true,
 };
 
@@ -112,4 +121,5 @@ export const ACHIEVEMENTS = [
   { id: 'combo50', name: 'Machine', desc: 'Atteindre un combo de 50', reward: 500, test: (c) => c.stats.bestCombo >= 50 },
   { id: 'survie1000', name: 'Légende de la survie', desc: '1000 points en mode Survie ∞', reward: 500, test: (c) => c.level.endless && c.stats.score >= 1000 },
   { id: 'champion', name: 'Champion', desc: 'Terminer les 12 niveaux', reward: 2000, test: (c) => LEVELS.filter((l) => !l.endless).every((l) => (c.best[l.id] || 0) > 0) },
+  { id: 'trophy_all', name: 'Collectionneur', desc: 'Médaille 🥇 (full parfait) sur tous les niveaux', reward: 3000, test: (c) => Object.keys(c.trophies || {}).length >= LEVELS.filter((l) => !l.endless).length },
 ];

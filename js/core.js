@@ -55,8 +55,17 @@ export function buildPattern(level, seed, mode = 'auto') {
   return lines;
 }
 
+export function isPerfectClear(stats) {
+  return stats.perfects > 0 && stats.goods === 0 && stats.passables === 0 && stats.misses === 0;
+}
+
+export function perfectClearBonus(level) {
+  return 500 + level.id * 100;
+}
+
 export function coinsForResult(stats, level, completed) {
-  return Math.round(stats.score / 5) + stats.perfects * 5 + (completed ? 150 + level.id * 30 : 0);
+  const perfectBonus = completed && isPerfectClear(stats) ? perfectClearBonus(level) : 0;
+  return Math.round(stats.score / 5) + stats.perfects * 5 + (completed ? 150 + level.id * 30 : 0) + perfectBonus;
 }
 
 export function accuracy(stats) {

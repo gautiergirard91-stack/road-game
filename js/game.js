@@ -100,6 +100,7 @@ export class Game {
     this.onThreshold = opts.onThreshold || (() => {});
     this.running = false;
     this.paused = false;
+    this.tutHold = false;
     this.resize();
     this.stars = [];
     for (let i = 0; i < 60; i++) {
@@ -152,6 +153,7 @@ export class Game {
     this.time = 0;
     this.running = true;
     this.paused = false;
+    this.tutHold = false;
     this.pendingContinue = false;
     this.pendingStray = 0;
     this.slow = 1;
@@ -227,7 +229,7 @@ export class Game {
   }
 
   update(dt) {
-    if (!this.running || this.paused) return;
+    if (!this.running || this.paused || this.tutHold) return;
     this.time += dt;
     const baseSpeed = this.level.endless
       ? Math.min(this.level.speed + this.distance * 0.02, this.level.speed * 2.4)
@@ -285,7 +287,9 @@ export class Game {
     }
     this.popups = this.popups.filter((p) => p.life > 0);
     this.shake = Math.max(0, this.shake - dt * 28);
-    this.carXFrac += (this.laneTarget - this.carXFrac) * Math.min(1, dt * 4);
+    // changement de voie quasi instantané pendant un dépassement (évite de traverser la voiture doublée)
+    const laneRate = this.laneTarget === ONCOMING_LANE ? 18 : 4;
+    this.carXFrac += (this.laneTarget - this.carXFrac) * Math.min(1, dt * laneRate);
     const range = this.h + 240;
     for (const s of this.scenery) {
       if (s.dist + this.distance > this.h + 120) {
@@ -399,7 +403,11 @@ export class Game {
     this.ped.y = this.lineY(this.ped.line) + 16;
     this.ped.x += this.ped.dir * this.ped.speed * dt;
     this.ped.phase += dt * 9;
-    this.autoStop = this.ped.x > this.roadX + 6 && this.ped.x < this.roadX + this.roadW - 6;
+    // la voiture freine AVANT le passage piéton dès que le piéton approche de la route
+    // (et tant que la voiture n'a pas encore atteint la ligne) -> elle ne s'arrête plus AU MILIEU du passage
+    const cwY = this.lineY(this.ped.line);
+    const pedNearRoad = this.ped.x > this.roadX - 90 && this.ped.x < this.roadX + this.roadW + 90;
+    this.autoStop = pedNearRoad && cwY >= this.wheelY - 240 && cwY <= this.wheelY + 80;
     const past = this.ped.dir > 0 ? this.ped.x > this.roadX + this.roadW + 34 : this.ped.x < this.roadX - 34;
     if (past) {
       this.ped = null;
@@ -484,11 +492,24 @@ export class Game {
   }
 
   swipeLeft() {
-    if (!this.running || this.paused) return;
+    if (!this.running || this.paused || this.tutHold) return;
     this.pendingStray = 0;
-    if (this.mode === 'pilote' && this.blocker && !this.blocker.overtaken) {
-      this.blocker.overtaken = true;
-      this.lastOvertaken = this.blocker;
+    if (this.mode !== 'pilote') return;
+    // dépassement autorisé DÈS que la voiture à doubler est visible à l'écran
+    let target = this.blocker && !this.blocker.overtaken ? this.blocker : null;
+    if (!target) {
+      for (const c of this.sameDir) {
+        if (c.overtaken) continue;
+        const sy = this.wheelY + this.distance - c.p;
+        if (sy < this.h + 60) {
+          target = c;
+          break;
+        }
+      }
+    }
+    if (target) {
+      target.overtaken = true;
+      this.lastOvertaken = target;
       this.laneTarget = ONCOMING_LANE;
       this.stats.overtakes++;
       const bonus = 50 + this.combo * 5;
@@ -574,7 +595,7 @@ export class Game {
   }
 
   tap(zone = 'rear') {
-    if (!this.running || this.paused) return;
+    if (!this.running || this.paused || this.tutHold) return;
     const axle = this.mode === 'auto' ? 'rear' : zone;
     const speed = this.effSpeed;
     const missPx = (speed * this.windows.passable) / 1000;
@@ -608,7 +629,8 @@ export class Game {
     if (this.slowCause === 'traffic' && this.slow < 1) {
       pts = Math.max(1, Math.round(pts * 0.2));
       label = `RALENTI ${label}`;
-    } else {
+    } else if (result === 'perfect') {
+      // le combo ne monte QUE sur un PARFAIT (le dépassement compte aussi, voir swipeLeft)
       this.combo++;
       this.bestCombo = Math.max(this.bestCombo, this.combo);
     }
