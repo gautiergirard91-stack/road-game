@@ -96,6 +96,14 @@ python3 -m http.server 8080
 - [ ] Économie : pièces par partie plus généreuses (score/5 + 5×PARFAIT) ; coûts des niveaux 12–15 réduits (8k/9k/11k/13k)
 - [ ] `node tools/balance_sim.mjs 60 200` s'exécute et affiche le tableau d'équilibrage
 
+### Passe de recherche de bugs (v1.3.2)
+- [ ] Ville en mode **Auto école** : la voiture s'arrête bien toute seule quand un piéton traverse (régression corrigée)
+- [ ] Après un dépassement en Pilote, la voiture **revient bien à droite**
+- [ ] Redimensionner la fenêtre en Permis A : les guides AV/AR suivent (pas de décalage)
+- [ ] La carte **∞ Survie** n'est plus verrouillée
+- [ ] Quitter le tutoriel en pause → la bannière de tuto ne reste pas affichée sur les autres écrans
+- [ ] `node tests/core.test.mjs && node tests/game.smoke.test.mjs` → OK (aussi en CI)
+
 ## 5. Remonter un bug
 
 Noter : attendu / observé, appareil + navigateur, niveau + difficulté → correction sur la branche, la PR #1 se met à jour.

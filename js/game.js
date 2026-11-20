@@ -121,7 +121,8 @@ export class Game {
     this.roadW = Math.max(240, Math.min(w * 0.74, 460));
     this.roadX = (w - this.roadW) / 2;
     this.wheelY = Math.round(h * 0.78);
-    this.frontAxleY = this.wheelY - 64;
+    const m = MODELS[this.skin ? this.skin.model : 'berline'] || MODELS.berline;
+    this.frontAxleY = this.wheelY - m.bodyH - 16;
   }
 
   start() {
@@ -421,10 +422,8 @@ export class Game {
     }
     for (const c of this.oncoming) c.p += c.v * dt;
     this.oncoming = this.oncoming.filter((c) => this.wheelY + this.distance - c.p < this.h + 260);
-    if (this.mode !== 'pilote') {
-      this.sameDir = [];
-      this.blocker = null;
-    } else {
+    let blocker = null;
+    if (this.mode === 'pilote') {
       this.tSame -= dt;
       if (this.tSame <= 0) {
         this.tSame = 5 + Math.random() * 5;
@@ -442,7 +441,6 @@ export class Game {
       for (const c of this.sameDir) {
         if (!c.overtaken) c.p += c.v * dt;
       }
-      let blocker = null;
       for (const c of this.sameDir) {
         if (c.overtaken) continue;
         const sy = this.wheelY + this.distance - c.p;
@@ -450,6 +448,7 @@ export class Game {
         if (sy >= this.wheelY - BLOCK_RANGE) blocker = c;
       }
       this.blocker = blocker;
+      if (blocker) blocker.grace += dt;
       if (this.lastOvertaken) {
         const sy = this.wheelY + this.distance - this.lastOvertaken.p;
         if (sy > this.wheelY + 180) {
@@ -457,31 +456,28 @@ export class Game {
           this.lastOvertaken = null;
         }
       }
-      const trafficPenalty = blocker && blocker.grace > GRACE_SECONDS;
-      if (trafficPenalty) {
-        blocker.grace += dt;
-        this.slow = Math.max(0, this.slow - dt * 0.45);
-        this.slowCause = 'traffic';
-        if (this.slow <= 0) {
-          if (this.tutorial) {
-            this.slow = 0.3;
-          } else {
-            this.stats.score = this.score;
-            this.finish('traffic');
-            return;
-          }
-        }
-      } else if (this.autoStop) {
-        this.slow = Math.max(0, this.slow - dt * 2.5);
-        this.slowCause = 'pedestrian';
-      } else {
-        if (this.slow < 1) this.slow = Math.min(1, this.slow + dt * 1.5);
-        this.slowCause = null;
-      }
-      if (blocker && !trafficPenalty) blocker.grace += dt;
       this.sameDir = this.sameDir.filter((c) => this.wheelY + this.distance - c.p < this.h + 300);
+    } else {
+      this.sameDir = [];
+      this.blocker = null;
     }
-    if (this.mode !== 'pilote' && this.slow < 1) {
+    const trafficPenalty = blocker && blocker.grace > GRACE_SECONDS;
+    if (trafficPenalty) {
+      this.slow = Math.max(0, this.slow - dt * 0.45);
+      this.slowCause = 'traffic';
+      if (this.slow <= 0) {
+        if (this.tutorial) {
+          this.slow = 0.3;
+        } else {
+          this.stats.score = this.score;
+          this.finish('traffic');
+          return;
+        }
+      }
+    } else if (this.autoStop) {
+      this.slow = Math.max(0, this.slow - dt * 2.5);
+      this.slowCause = 'pedestrian';
+    } else if (this.slow < 1) {
       this.slow = Math.min(1, this.slow + dt * 1.5);
       this.slowCause = null;
     }
