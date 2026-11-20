@@ -80,6 +80,13 @@ body {
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
 }
 
+/* seuls le curseur et le bouton Quitter sont interactifs ; le reste de la
+   bannière laisse passer les taps vers le jeu (phases d'action du tuto) */
+#tut-banner input,
+#tut-banner button {
+  pointer-events: auto;
+}
+
 #tut-dots {
   color: #ffd54a;
   font-size: 14px;
@@ -702,6 +709,8 @@ body {
   accent-color: #ffb020;
   height: 26px;
   cursor: pointer;
+  touch-action: none;
+  pointer-events: auto;
 }
 
 #tut-quit {
