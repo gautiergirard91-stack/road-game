@@ -67,6 +67,8 @@ python3 -m http.server 8080
 - [ ] Boutique : **effets météo** (🌧 pluie / ❄ neige) et **thèmes** (Néon, Coucher de soleil) achetables et appliquables
 - [ ] Menu : 🎵 musique ON/OFF, ♿ accessibilité (fenêtres élargies → PARFAIT plus facile ; symboles sur les lignes en mode daltonien)
 - [ ] CI : onglet « Actions » de la PR → le job `CI / test` est vert
+- [ ] **Pied du menu** : version du jeu affichée (`v1.1.0`) + pastille de statut serveur (🟠 local si Firebase non configuré ; 🟢/🔴 selon la connexion réelle, testée par un ping)
+- [ ] Écran **Succès 🏅 scrollable** (et Classement) sur petit écran
 
 ## 5. Remonter un bug
 

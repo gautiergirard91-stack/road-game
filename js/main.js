@@ -7,6 +7,7 @@ import { watchRewarded } from './ads.js';
 import * as leaderboard from './leaderboard.js';
 import * as cloudsave from './cloudsave.js';
 import { logEvent } from './analytics.js';
+import { VERSION } from './config.js';
 
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => [...document.querySelectorAll(sel)];
@@ -181,11 +182,36 @@ function checkAchievements(stats, level) {
   }
 }
 
+function refreshStatus() {
+  $('#version-label').textContent = 'v' + VERSION;
+  const el = $('#net-status');
+  if (!navigator.onLine) {
+    el.textContent = '🔴 Hors ligne';
+    el.className = 'net-pill off';
+    return;
+  }
+  if (!leaderboard.isOnline()) {
+    el.textContent = '🟠 Local (serveur non configuré)';
+    el.className = 'net-pill local';
+    return;
+  }
+  el.textContent = '🟡 Connexion au serveur…';
+  el.className = 'net-pill local';
+  leaderboard.ping().then((ok) => {
+    el.textContent = ok ? '🟢 En ligne — serveur OK' : '🟠 Serveur injoignable (mode local)';
+    el.className = 'net-pill ' + (ok ? 'on' : 'local');
+  });
+}
+
 function show(id) {
   currentScreen = id;
   $$('.screen').forEach((s) => s.classList.toggle('active', s.id === id));
   $('#hud').classList.toggle('hidden', id !== 'screen-game');
+  if (id === 'screen-menu') refreshStatus();
 }
+
+window.addEventListener('online', refreshStatus);
+window.addEventListener('offline', refreshStatus);
 
 function refreshCoins() {
   $$('.coins-display').forEach((el) => {
@@ -675,6 +701,7 @@ updateMusicBtn();
 setMusicEnabled(save.music && save.sound);
 renderDifficultyPicker();
 $('#optin-lb').checked = !!save.leaderboardOptIn;
+refreshStatus();
 show('screen-menu');
 
 if (leaderboard.isOnline() && save.pseudo) {

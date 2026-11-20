@@ -86,11 +86,53 @@ body {
 }
 
 #screen-levels,
-#screen-shop {
+#screen-shop,
+#screen-achievements,
+#screen-leaderboard {
   background: rgba(10, 14, 32, 0.96);
   justify-content: flex-start;
   overflow-y: auto;
   gap: 10px;
+}
+
+.menu-footer {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+#version-label {
+  color: #5d6890;
+  font-size: 12px;
+}
+
+.net-pill {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #232c4d;
+  color: #dfe6ff;
+}
+
+.net-pill.on {
+  background: rgba(126, 224, 129, 0.15);
+  color: #7ee081;
+  border: 1px solid rgba(126, 224, 129, 0.4);
+}
+
+.net-pill.local {
+  background: rgba(255, 213, 74, 0.12);
+  color: #ffd54a;
+  border: 1px solid rgba(255, 213, 74, 0.35);
+}
+
+.net-pill.off {
+  background: rgba(255, 92, 92, 0.12);
+  color: #ff5c5c;
+  border: 1px solid rgba(255, 92, 92, 0.4);
 }
 
 .overlay {
