@@ -64,6 +64,35 @@ body {
   filter: brightness(1.07);
 }
 
+#tut-banner {
+  position: fixed;
+  top: calc(64px + env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(92vw, 480px);
+  background: rgba(13, 18, 38, 0.92);
+  border: 1px solid #ffd54a;
+  border-radius: 16px;
+  padding: 10px 16px;
+  z-index: 26;
+  pointer-events: none;
+  text-align: center;
+}
+
+#tut-dots {
+  color: #ffd54a;
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+#tut-text {
+  color: #fff;
+  font-size: 14.5px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
 #game-hint {
   position: fixed;
   left: 50%;

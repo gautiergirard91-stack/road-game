@@ -34,4 +34,21 @@
 
 **Règles communes** : jugement PARFAIT ±45 / BIEN ±100 / OK ±160 ms ; combo ×(1 + 0,05·combo, max ×3) ; raté (ligne manquée ou clic vide) = −1 ❤️, 3ᵉ/5ᵉ raté = overlay continuer (pièces ou pub) ; pièces gagnées = score/8 + 3×PARFAIT + bonus complétion + **bonus de premier clear** (250 + 50×n° niveau) la première fois qu'un niveau est terminé.
 
-**Rétention** : 10 succès avec récompenses en pièces, records par niveau, classement filtré par difficulté, sauvegarde cloud (Firebase) si pseudo défini.
+**Rétention** : 13 succès avec récompenses en pièces, records par niveau, classement filtré par difficulté, sauvegarde cloud (Firebase) si pseudo défini.
+
+## 📊 Étude d'équilibrage (simulation)
+
+Outil : `tools/balance_sim.mjs` (200 parties simulées par niveau et par mode, réaction = gaussienne).
+
+```
+node tools/balance_sim.mjs 60 200    # joueur moyen (σ = 60 ms)
+node tools/balance_sim.mjs 95 200    # joueur occasionnel (σ = 95 ms)
+```
+
+Résultats (σ = 60 ms, mode auto) : taux de réussite 98–100 % sur les 15 niveaux, 0,1–0,6 raté moyen par partie, durées 31–51 s, scores 1 577 → 14 713, pièces 836 → 4 727/niveau. Courbe progressive : niveaux 13–15 restent exigeants (98–99 %) sans être bloquants.
+
+Résultats (σ = 95 ms, casual) : niveaux 1–3 ~100 %, puis la difficulté monte franchement (Permis A dès le niveau 3 ~50 %, niveaux 13–15 ~2–4 %) — conforme à un endgame difficile ; les 5 ❤️ de Permis A/Pilote compensent le double tap.
+
+**Économie** : coût total de déblocage des 15 niveaux = **63 950 🪙** ; gains simulés d'un joueur moyen qui termine tout ≈ 46 000 🪙 (parties) + 9 750 🪙 (bonus premier clear) + ~6 000 🪙 (succès) ≈ **62 000 🪙** + replays → l objectifs sont atteignables sans frustration. Formule : `pièces = score/5 + 5×PARFAIT + (terminé ? 150 + 30×n° : 0) + premier clear (250 + 50×n°)`.
+
+**Règles anti-frustration** : 3 ❤️ (auto) / 5 ❤️ (Permis A, Pilote) ; continuer possible au dernier raté (pièces ou pub) ; fenêtre de raté 160 ms ; écart AV/AR ≈ 98 px (~150–290 ms selon la vitesse) pour séparer nettement les deux taps.

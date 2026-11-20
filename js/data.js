@@ -59,10 +59,10 @@ export const LEVELS = [
   { id: 9, name: 'Néon', theme: 'nuit', speed: 470, lines: 44, gapMin: 310, gapMax: 440, w: { dash: 0.35, band: 0.3, chevron: 0.35 }, pDouble: 0.4, cost: 3600 },
   { id: 10, name: 'Neige', theme: 'neige', speed: 450, lines: 44, gapMin: 320, gapMax: 450, w: { dash: 0.4, band: 0.3, chevron: 0.3 }, pDouble: 0.35, cost: 5000 },
   { id: 11, name: 'Tempête', theme: 'neige', speed: 510, lines: 48, gapMin: 300, gapMax: 420, w: { dash: 0.35, band: 0.3, chevron: 0.35 }, pDouble: 0.45, cost: 7000 },
-  { id: 12, name: 'Hyperdrive', theme: 'nuit', speed: 580, lines: 55, gapMin: 280, gapMax: 380, w: { dash: 0.3, band: 0.35, chevron: 0.35 }, pDouble: 0.5, cost: 10000 },
-  { id: 13, name: 'Néon', theme: 'neon', speed: 620, lines: 50, gapMin: 270, gapMax: 360, w: { dash: 0.3, band: 0.35, chevron: 0.35 }, pDouble: 0.5, cost: 12000 },
-  { id: 14, name: 'Golden hour', theme: 'sunset', speed: 600, lines: 50, gapMin: 275, gapMax: 370, w: { dash: 0.3, band: 0.3, chevron: 0.4 }, pDouble: 0.45, cost: 15000 },
-  { id: 15, name: 'Enfer', theme: 'nuit', speed: 660, lines: 55, gapMin: 260, gapMax: 350, w: { dash: 0.25, band: 0.35, chevron: 0.4 }, pDouble: 0.5, cost: 20000 },
+  { id: 12, name: 'Hyperdrive', theme: 'nuit', speed: 580, lines: 55, gapMin: 280, gapMax: 380, w: { dash: 0.3, band: 0.35, chevron: 0.35 }, pDouble: 0.5, cost: 8000 },
+  { id: 13, name: 'Néon', theme: 'neon', speed: 620, lines: 50, gapMin: 270, gapMax: 360, w: { dash: 0.3, band: 0.35, chevron: 0.35 }, pDouble: 0.5, cost: 9000 },
+  { id: 14, name: 'Golden hour', theme: 'sunset', speed: 600, lines: 50, gapMin: 275, gapMax: 370, w: { dash: 0.3, band: 0.3, chevron: 0.4 }, pDouble: 0.45, cost: 11000 },
+  { id: 15, name: 'Enfer', theme: 'nuit', speed: 660, lines: 55, gapMin: 260, gapMax: 350, w: { dash: 0.25, band: 0.35, chevron: 0.4 }, pDouble: 0.5, cost: 13000 },
 ];
 
 export const SKINS = [

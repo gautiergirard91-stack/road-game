@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { judge, pointsFor, buildPattern, coinsForResult, accuracy, avgReaction, continueCost, maxMissesFor, firstClearBonus, mulberry32 } from '../js/core.js';
+import { judge, pointsFor, buildPattern, coinsForResult, accuracy, avgReaction, continueCost, maxMissesFor, firstClearBonus, axleDelta, mulberry32 } from '../js/core.js';
 import { LEVELS, WINDOWS, MAX_MISSES, CONTINUE_BASE_COST, SKINS, EFFECTS, ACHIEVEMENTS } from '../js/data.js';
 
 assert.equal(judge(0), 'perfect');
@@ -88,5 +88,9 @@ assert.ok(SKINS.length >= 10, 'au moins 10 voitures');
 assert.ok(EFFECTS.some((e) => e.id === 'fire'), 'effet feu présent');
 assert.ok(ACHIEVEMENTS.length >= 13, 'au moins 13 succès');
 assert.ok(new Set(LEVELS.map((l) => l.theme)).size >= 7, 'au moins 7 thèmes utilisés par les niveaux');
+
+assert.equal(axleDelta(800, 700, 'rear'), 0, 'essieu arrière : delta nul');
+assert.equal(axleDelta(800, 700, 'front'), 100, 'essieu avant : delta = écart AV/AR (ici 100 px)');
+assert.ok(axleDelta(800, 702, 'front') >= 70, 'écart AV/AR suffisant pour séparer les deux taps (> 70 px)');
 
 console.log('OK - tous les tests passent (' + LEVELS.length + ' niveaux vérifiés)');
