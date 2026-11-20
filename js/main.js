@@ -4,6 +4,7 @@ import * as store from './store.js';
 import { sfx, setEnabled, setMusicEnabled, unlockAudio } from './audio.js';
 import { coinsForResult, accuracy, avgReaction, continueCost, maxMissesFor, firstClearBonus } from './core.js';
 import { watchRewarded } from './ads.js';
+import { Tutorial } from './tutorial.js';
 import * as leaderboard from './leaderboard.js';
 import * as cloudsave from './cloudsave.js';
 import { logEvent } from './analytics.js';
@@ -119,31 +120,54 @@ function pushCloud() {
   if (leaderboard.isOnline() && save.pseudo) cloudsave.save(save.pseudo, store.snapshot());
 }
 
-const TUTORIAL_STEPS = [
-  "👆 Tape l'écran (ou Espace) quand une ligne blanche atteint les roues de ta voiture.",
-  '🎯 Plus c\'est précis, plus tu marques : PARFAIT ±45 ms, BIEN ±100 ms, OK ±160 ms. Les combos multiplient tes points !',
-  '💥 Ligne manquée ou clic dans le vide = −1 ❤️ (3 en Auto école, 5 en Permis A / Pilote). Au dernier raté, tu peux continuer avec des pièces 🪙 ou une pub 🎬.',
-  '🎚️ Difficulté en haut de la liste des niveaux : Auto école (tap partout), Permis A (haut = roues AV, bas = roues AR, chaque ligne se joue 2×), Pilote (swipe ⬅ pour doubler). En ville, laisse passer les piétons 🚶 ! Bonne route !',
-];
-let tutorialStep = 0;
+const TUT_LEVEL = { ...ENDLESS_LEVEL, id: 0, name: 'Tutoriel', speed: 230, gapMin: 540, gapMax: 720, w: { dash: 1 }, pDouble: 0, endless: true };
 
-function showTutorialStep() {
-  $('#tutorial-text').textContent = TUTORIAL_STEPS[tutorialStep];
-  $('#tutorial-next').textContent = tutorialStep === TUTORIAL_STEPS.length - 1 ? "C'est parti !" : 'Suivant →';
-  $('#tutorial-dots').textContent = `${tutorialStep + 1}/${TUTORIAL_STEPS.length}`;
-}
+let tut = null;
 
-function openTutorial() {
-  tutorialStep = 0;
-  showTutorialStep();
-  $('#tutorial-modal').classList.remove('hidden');
-  $('#tutorial-modal').classList.add('active');
-}
-
-function closeTutorial() {
-  $('#tutorial-modal').classList.add('hidden');
-  $('#tutorial-modal').classList.remove('active');
-  store.setTutorialDone();
+function startTutorial() {
+  show('screen-game');
+  $('#pause-overlay').classList.remove('active');
+  $('#tut-banner').classList.remove('hidden');
+  hudLevel.textContent = '👶 Tutoriel';
+  hudScore.textContent = '0';
+  hudCombo.textContent = '';
+  continuesThisRun = 0;
+  updateLives(0);
+  logEvent('tutorial_start', {});
+  game = new Game($('#game'), {
+    level: TUT_LEVEL,
+    skinId: save.skin,
+    mode: 'auto',
+    tutorial: true,
+    windows: effWindows(),
+    access: { colorblind: save.colorblind },
+    effects: save.selectedEffects,
+    audio: { tap: sfx.tap, perfect: sfx.perfect, good: sfx.good, passable: sfx.passable, fail: sfx.fail, win: sfx.win, miss: sfx.miss },
+    onJudge: (e) => {
+      hudScore.textContent = String(e.score);
+      hudCombo.textContent = e.combo >= 2 ? `COMBO x${e.combo}` : '';
+      tut?.onJudge(e);
+    },
+    onMiss: (m) => {
+      updateLives(m);
+      tut?.onMiss();
+    },
+    onThreshold: () => {},
+    onEnd: () => {},
+  });
+  game.start();
+  tut = new Tutorial(game, { text: $('#tut-text'), dots: $('#tut-dots') }, () => {
+    $('#tut-banner').classList.add('hidden');
+    logEvent('tutorial_done', {});
+    toast('🏁 Tutoriel terminé ! +200 🪙');
+    refreshCoins();
+    renderDifficultyPicker();
+    renderLevels();
+    show('screen-levels');
+  });
+  lastT = performance.now();
+  cancelAnimationFrame(rafId);
+  rafId = requestAnimationFrame(loop);
 }
 
 function renderAchievements() {
@@ -392,9 +416,7 @@ function startLevel(level) {
   continuesThisRun = 0;
   updateLives(0);
   logEvent('level_start', { level: level.id, mode: save.difficulty });
-  const tutorialMode = !save.tutorialDone && level.id === 1;
-  let tutorialHits = 0;
-  $('#game-hint').classList.toggle('hidden', !tutorialMode);
+  $('#game-hint').classList.add('hidden');
   game = new Game($('#game'), {
     level,
     skinId: save.skin,
@@ -402,13 +424,11 @@ function startLevel(level) {
     themeOverride: save.themeOverride || undefined,
     windows: effWindows(),
     access: { colorblind: save.colorblind },
-    tutorial: tutorialMode,
     effects: save.selectedEffects,
     audio: { tap: sfx.tap, perfect: sfx.perfect, good: sfx.good, passable: sfx.passable, fail: sfx.fail, win: sfx.win, miss: sfx.miss },
     onJudge: (e) => {
       hudScore.textContent = String(e.score);
       hudCombo.textContent = e.combo >= 2 ? `COMBO x${e.combo}` : '';
-      if (tutorialMode && ++tutorialHits >= 3) $('#game-hint').classList.add('hidden');
     },
     onMiss: (m) => updateLives(m),
     onThreshold: showContinue,
@@ -490,20 +510,17 @@ window.addEventListener('error', (e) => {
 
 $('#btn-play').addEventListener('click', () => {
   sfx.click();
-  if (!save.tutorialDone) openTutorial();
+  if (!save.tutorialDone) {
+    startTutorial();
+    return;
+  }
   renderDifficultyPicker();
   renderLevels();
   show('screen-levels');
 });
 $('#btn-tutorial').addEventListener('click', () => {
   sfx.click();
-  openTutorial();
-});
-$('#tutorial-next').addEventListener('click', () => {
-  sfx.click();
-  tutorialStep++;
-  if (tutorialStep >= TUTORIAL_STEPS.length) closeTutorial();
-  else showTutorialStep();
+  startTutorial();
 });
 $('#btn-achievements').addEventListener('click', () => {
   sfx.click();

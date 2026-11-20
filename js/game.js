@@ -203,6 +203,12 @@ export class Game {
   registerMiss(line, axle) {
     if (line) line.hits[axle] = 'missed';
     const ay = line ? this.lineAxleY(axle) : this.wheelY;
+    if (this.tutorial) {
+      this.popups.push({ text: 'Réessaie !', y: ay - 70, life: 0.8, color: '#9ecbff' });
+      this.audio.tap?.();
+      this.onMiss(0);
+      return;
+    }
     this.stats.misses++;
     this.combo = 0;
     this.popups.push({ text: 'RATÉ', y: ay - 70, life: 0.9, color: '#ff5c5c' });
@@ -448,9 +454,13 @@ export class Game {
         this.slow = Math.max(0, this.slow - dt * 0.45);
         this.slowCause = 'traffic';
         if (this.slow <= 0) {
-          this.stats.score = this.score;
-          this.finish('traffic');
-          return;
+          if (this.tutorial) {
+            this.slow = 0.3;
+          } else {
+            this.stats.score = this.score;
+            this.finish('traffic');
+            return;
+          }
         }
       } else if (this.autoStop) {
         this.slow = Math.max(0, this.slow - dt * 2.5);
@@ -483,8 +493,32 @@ export class Game {
       this.popups.push({ text: `DÉPASSEMENT +${bonus}`, y: this.wheelY - 120, life: 0.9, color: '#54f0ff' });
       this.shake = Math.max(this.shake, 4);
       this.audio.perfect?.();
-      this.onJudge({ result: 'perfect', pts: bonus, combo: this.combo, score: this.score });
+      this.onJudge({ result: 'perfect', pts: bonus, combo: this.combo, score: this.score, overtake: true });
     }
+  }
+
+  spawnLine(type, distAhead) {
+    this.lines.push({
+      type,
+      dist: this.distance + distAhead,
+      axle: 'rear',
+      hits: { front: null, rear: null },
+      state: 'pending',
+      result: null,
+      flash: 0,
+      glow: 0,
+    });
+  }
+
+  forceBlocker() {
+    this.sameDir.push({
+      p: this.distance + 420,
+      v: this.level.speed * 0.55,
+      color: '#4f7ec9',
+      w: 60,
+      overtaken: false,
+      grace: 0,
+    });
   }
 
   resumeWithContinue() {
@@ -587,7 +621,7 @@ export class Game {
     if (this.hasEffect('confetti') && result === 'perfect') this.spawnConfetti();
     this.audio[result]?.();
     if (result === 'perfect' && typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(15);
-    this.onJudge({ result, pts, combo: this.combo, score: this.score });
+    this.onJudge({ result, pts, combo: this.combo, score: this.score, axle });
   }
 
   finish(completedOrReason) {

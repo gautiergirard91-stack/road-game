@@ -79,6 +79,11 @@ python3 -m http.server 8080
 - [ ] Transitions en fondu entre les écrans ; pied de menu : **v1.2.0**
 - [ ] `store/` généré : bannière 1024x500 + 2 captures 1080x1920 (placeholders)
 
+### Tutoriel interactif forcé (v1.3)
+- [ ] **1er lancement** : le bouton Jouer lance le tutoriel interactif (pas la liste des niveaux), panneau d'étapes en haut (1/8…8/8)
+- [ ] Chaque étape attend l'action du joueur : tap ligne → PARFAIT → combo x3 → laisser passer une ligne (pas de perte de ❤️ en tutoriel) → **tap haut (AV) puis bas (AR)** → **swipe ⬅ devant la voiture bleue** → passage piéton à cliquer
+- [ ] Fin : +200 🪙 crédités, retour à la liste des niveaux ; le tutoriel ne se relance plus (bouton 👶 Tutoriel pour le rejouer)
+
 ### Bugfix Permis A mobile + équilibrage
 - [ ] **Permis A sur téléphone** : tap **haut** quand la ligne atteint le guide AV (cyan) → bien enregistré (PARFAIT/BIEN prefixé AV) ; tap **bas** au guide AR → idem (AR) ; les deux ne se valident plus en même temps
 - [ ] Économie : pièces par partie plus généreuses (score/5 + 5×PARFAIT) ; coûts des niveaux 12–15 réduits (8k/9k/11k/13k)
