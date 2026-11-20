@@ -100,6 +100,7 @@ export class Game {
     this.onThreshold = opts.onThreshold || (() => {});
     this.running = false;
     this.paused = false;
+    this.tutHold = false;
     this.resize();
     this.stars = [];
     for (let i = 0; i < 60; i++) {
@@ -152,6 +153,7 @@ export class Game {
     this.time = 0;
     this.running = true;
     this.paused = false;
+    this.tutHold = false;
     this.pendingContinue = false;
     this.pendingStray = 0;
     this.slow = 1;
@@ -227,7 +229,7 @@ export class Game {
   }
 
   update(dt) {
-    if (!this.running || this.paused) return;
+    if (!this.running || this.paused || this.tutHold) return;
     this.time += dt;
     const baseSpeed = this.level.endless
       ? Math.min(this.level.speed + this.distance * 0.02, this.level.speed * 2.4)
@@ -484,7 +486,7 @@ export class Game {
   }
 
   swipeLeft() {
-    if (!this.running || this.paused) return;
+    if (!this.running || this.paused || this.tutHold) return;
     this.pendingStray = 0;
     if (this.mode === 'pilote' && this.blocker && !this.blocker.overtaken) {
       this.blocker.overtaken = true;
@@ -574,7 +576,7 @@ export class Game {
   }
 
   tap(zone = 'rear') {
-    if (!this.running || this.paused) return;
+    if (!this.running || this.paused || this.tutHold) return;
     const axle = this.mode === 'auto' ? 'rear' : zone;
     const speed = this.effSpeed;
     const missPx = (speed * this.windows.passable) / 1000;
@@ -608,7 +610,8 @@ export class Game {
     if (this.slowCause === 'traffic' && this.slow < 1) {
       pts = Math.max(1, Math.round(pts * 0.2));
       label = `RALENTI ${label}`;
-    } else {
+    } else if (result === 'perfect') {
+      // le combo ne monte QUE sur un PARFAIT (le dépassement compte aussi, voir swipeLeft)
       this.combo++;
       this.bestCombo = Math.max(this.bestCombo, this.combo);
     }

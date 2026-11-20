@@ -1,7 +1,8 @@
 const KEY = 'roadtap_save_v1';
 
 const defaults = () => ({
-  coins: 0,
+  wallets: { auto: 0, permisA: 0, pilote: 0 },
+  trophies: {},
   unlockedLevels: [1],
   skins: ['default'],
   skin: 'default',
@@ -27,7 +28,19 @@ let save;
 export function load() {
   try {
     const raw = localStorage.getItem(KEY);
-    save = raw ? { ...defaults(), ...JSON.parse(raw) } : defaults();
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      // migration : l'ancienne save "coins" devient le portefeuille auto
+      if (typeof parsed.coins === 'number' && !parsed.wallets) {
+        parsed.wallets = { auto: parsed.coins, permisA: 0, pilote: 0 };
+        delete parsed.coins;
+      }
+      save = { ...defaults(), ...parsed };
+    } else {
+      save = defaults();
+    }
+    save.wallets = { auto: 0, permisA: 0, pilote: 0, ...(save.wallets || {}) };
+    save.trophies = save.trophies || {};
   } catch {
     save = defaults();
   }
@@ -46,17 +59,30 @@ function persist() {
   }
 }
 
-export function addCoins(n) {
-  save.coins += n;
-  persist();
-  return save.coins;
+export function getWallet(diff) {
+  return save.wallets[diff] || 0;
 }
 
-export function spend(n) {
-  if (save.coins < n) return false;
-  save.coins -= n;
+export function addCoins(diff, n) {
+  const key = save.wallets[diff] !== undefined ? diff : 'auto';
+  save.wallets[key] = (save.wallets[key] || 0) + n;
+  persist();
+  return save.wallets[key];
+}
+
+export function spend(diff, n) {
+  const key = save.wallets[diff] !== undefined ? diff : 'auto';
+  if ((save.wallets[key] || 0) < n) return false;
+  save.wallets[key] -= n;
   persist();
   return true;
+}
+
+export function setTrophy(levelId) {
+  if (!save.trophies[levelId]) {
+    save.trophies[levelId] = true;
+    persist();
+  }
 }
 
 export function unlockLevel(id) {
@@ -67,14 +93,14 @@ export function unlockLevel(id) {
 }
 
 export function buySkin(id, cost) {
-  if (save.skins.includes(id) || !spend(cost)) return false;
+  if (save.skins.includes(id) || !spend('auto', cost)) return false;
   save.skins.push(id);
   persist();
   return true;
 }
 
 export function buyEffect(id, cost) {
-  if (save.effects.includes(id) || !spend(cost)) return false;
+  if (save.effects.includes(id) || !spend('auto', cost)) return false;
   save.effects.push(id);
   if (!save.selectedEffects.includes(id)) save.selectedEffects.push(id);
   persist();
@@ -146,7 +172,7 @@ export function setThemeOverride(id) {
 }
 
 export function buyTheme(id, cost) {
-  if (save.themes.includes(id) || !spend(cost)) return false;
+  if (save.themes.includes(id) || !spend('auto', cost)) return false;
   save.themes.push(id);
   persist();
   return true;
@@ -173,7 +199,8 @@ export function addTotals(t) {
 
 export function snapshot() {
   return {
-    coins: save.coins,
+    wallets: save.wallets,
+    trophies: save.trophies,
     unlockedLevels: save.unlockedLevels,
     skins: save.skins,
     skin: save.skin,
@@ -190,7 +217,11 @@ export function snapshot() {
 
 export function mergeRemote(remote) {
   if (!remote || typeof remote !== 'object') return false;
-  save.coins = Math.max(save.coins, remote.coins || 0);
+  const rw = remote.wallets || (typeof remote.coins === 'number' ? { auto: remote.coins } : {});
+  for (const k of ['auto', 'permisA', 'pilote']) {
+    save.wallets[k] = Math.max(save.wallets[k] || 0, rw[k] || 0);
+  }
+  save.trophies = { ...(remote.trophies || {}), ...save.trophies };
   save.unlockedLevels = [...new Set([...save.unlockedLevels, ...(remote.unlockedLevels || [])])];
   save.skins = [...new Set([...save.skins, ...(remote.skins || [])])];
   save.effects = [...new Set([...save.effects, ...(remote.effects || [])])];

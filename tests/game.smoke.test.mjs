@@ -144,4 +144,25 @@ function step(game, seconds, tapper) {
   game.resize();
 }
 
-console.log('OK - smoke test moteur : 5 scénarios sans crash, mécaniques vérifiées');
+{
+  // v1.3.4 : le combo ne monte QUE sur PARFAIT
+  const { game, events } = makeGame(LEVELS[0], 'auto');
+  game.start();
+  const l1 = game.lines[0];
+  game.distance = l1.dist; // roues pile sur la ligne
+  game.tap('rear');
+  assert.equal(events.judge.at(-1).result, 'perfect');
+  assert.equal(game.combo, 1, 'PARFAIT -> combo 1');
+  const l2 = game.lines.find((l) => l.state === 'pending');
+  game.distance = l2.dist + game.effSpeed * 0.08; // ~80 ms -> BIEN
+  game.tap('rear');
+  assert.equal(events.judge.at(-1).result, 'good');
+  assert.equal(game.combo, 1, 'BIEN ne fait PAS monter le combo');
+  const l3 = game.lines.find((l) => l.state === 'pending');
+  game.distance = l3.dist;
+  game.tap('rear');
+  assert.equal(events.judge.at(-1).result, 'perfect');
+  assert.equal(game.combo, 2, 'PARFAIT -> combo 2');
+}
+
+console.log('OK - smoke test moteur : 6 scénarios sans crash, mécaniques vérifiées');

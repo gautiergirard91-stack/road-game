@@ -2,11 +2,15 @@ import * as store from './store.js';
 import { sfx } from './audio.js';
 
 export class Tutorial {
-  constructor(game, els, onDone) {
+  constructor(game, els, onDone, onQuit) {
     this.game = game;
     this.textEl = els.text;
     this.dotsEl = els.dots;
+    this.readEl = els.read;
+    this.sliderEl = els.slider;
     this.onDone = onDone;
+    this.onQuit = onQuit || (() => {});
+    this.reading = false;
     this.i = 0;
     this.attempts = 0;
     this.overtakes = 0;
@@ -23,7 +27,7 @@ export class Tutorial {
         done: (t, e) => Boolean(e) && (e.result === 'perfect' || t.attempts >= 6),
       },
       {
-        text: "🔥 Enchaîne 3 lignes d'affilée pour déclencher un COMBO x3 !",
+        text: "🔥 Enchaîne 3 lignes d'affilée : le COMBO ne monte que sur PARFAIT (x3 ici) !",
         done: (t, e) => Boolean(e) && e.combo >= 3,
       },
       {
@@ -59,17 +63,58 @@ export class Tutorial {
         done: (t, e) => Boolean(e) && e.type === 'crosswalk',
       },
       {
+        text: "🪙🎓🏁 Chaque difficulté rapporte SA monnaie (🪙 Auto école, 🎓 Permis A, 🏁 Pilote) : les niveaux se débloquent dans l'ordre, avec la monnaie de leur palier. 🥇 Niveau full PARFAIT = médaille + gros bonus !",
+        autoNext: true,
+      },
+      {
         text: '🏁 Tutoriel terminé ! +200 🪙 — à toi de jouer maintenant !',
-        done: () => false,
+        autoNext: true,
       },
     ];
+    if (this.sliderEl) {
+      this.sliderEl.addEventListener('input', () => {
+        if (this.reading && Number(this.sliderEl.value) >= 100) this.endRead();
+      });
+    }
+    if (els.quit) {
+      els.quit.addEventListener('click', () => this.abort());
+    }
     this.show();
+  }
+
+  // Phase de lecture : le jeu est mis EN PAUSE et le joueur doit glisser le
+  // curseur jusqu'au bout (il a lu, il est prêt) pour continuer.
+  beginRead() {
+    this.reading = true;
+    this.game.tutHold = true;
+    if (this.readEl) this.readEl.classList.remove('hidden');
+    if (this.sliderEl) this.sliderEl.value = 0;
+  }
+
+  endRead() {
+    if (!this.reading) return;
+    this.reading = false;
+    this.game.tutHold = false;
+    if (this.readEl) this.readEl.classList.add('hidden');
+    this.stepStart = performance.now();
+    const s = this.steps[this.i];
+    if (s && (s.autoNext || this.i === this.steps.length - 1)) this.next();
+  }
+
+  // Quitter avant la fin : le tutoriel n'est PAS validé (reviendra à la prochaine partie)
+  abort() {
+    if (this.finished) return;
+    this.finished = true;
+    this.game.tutHold = false;
+    if (this.readEl) this.readEl.classList.add('hidden');
+    this.onQuit();
   }
 
   show() {
     const s = this.steps[this.i];
     this.textEl.textContent = s.text;
     this.dotsEl.textContent = `${this.i + 1}/${this.steps.length}`;
+    this.beginRead();
   }
 
   next() {
@@ -81,13 +126,10 @@ export class Tutorial {
     const s = this.steps[this.i];
     if (s.enter) s.enter(this.game, this);
     this.show();
-    if (this.i === this.steps.length - 1) {
-      setTimeout(() => this.finish(), 3000);
-    }
   }
 
   onJudge(e) {
-    if (this.finished) return;
+    if (this.finished || this.reading) return;
     this.attempts++;
     if (e.axle === 'front') this.saw.front = true;
     if (e.axle === 'rear') this.saw.rear = true;
@@ -97,7 +139,7 @@ export class Tutorial {
   }
 
   onMiss() {
-    if (this.finished) return;
+    if (this.finished || this.reading) return;
     const s = this.steps[this.i];
     if (s.missDone && s.missDone(this)) this.next();
   }
@@ -105,7 +147,7 @@ export class Tutorial {
   finish() {
     if (this.finished) return;
     this.finished = true;
-    store.addCoins(200);
+    store.addCoins('auto', 200);
     store.setTutorialDone();
     sfx.win();
     this.onDone();
