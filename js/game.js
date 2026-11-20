@@ -632,7 +632,7 @@ export class Game {
     if (this.hasEffect('confetti') && result === 'perfect') this.spawnConfetti();
     this.audio[result]?.();
     if (result === 'perfect' && typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(15);
-    this.onJudge({ result, pts, combo: this.combo, score: this.score, axle });
+    this.onJudge({ result, pts, combo: this.combo, score: this.score, axle, type: best.type });
   }
 
   finish(completedOrReason) {
