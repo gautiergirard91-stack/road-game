@@ -7,10 +7,12 @@ const RESULT_STYLE = {
   passable: { label: 'OK', color: '#9ecbff' },
 };
 
-const MODELS = {
+export const MODELS = {
   citadine: { w: 56, bodyH: 62, cabW: 0.66, cabH: 34, spoiler: false },
   berline: { w: 70, bodyH: 82, cabW: 0.72, cabH: 40, spoiler: false },
   sport: { w: 75, bodyH: 60, cabW: 0.58, cabH: 27, spoiler: true },
+  suv: { w: 78, bodyH: 86, cabW: 0.78, cabH: 46, spoiler: false },
+  f1: { w: 86, bodyH: 30, cabW: 0.42, cabH: 20, spoiler: true },
 };
 
 const TRAFFIC_COLORS = ['#c94f4f', '#4f7ec9', '#c9b84f', '#7a4fc9', '#4fc9a8', '#b8b8b8', '#e07b39'];
@@ -160,6 +162,7 @@ export class Game {
     this.slowCause = null;
     this.effSpeed = this.level.speed;
     this.carXFrac = CAR_LANE;
+    this.prevCarX = CAR_LANE;
     this.laneTarget = CAR_LANE;
     this.blocker = null;
     this.oncoming = [];
@@ -288,6 +291,7 @@ export class Game {
     this.popups = this.popups.filter((p) => p.life > 0);
     this.shake = Math.max(0, this.shake - dt * 28);
     // changement de voie quasi instantané pendant un dépassement (évite de traverser la voiture doublée)
+    this.prevCarX = this.carXFrac;
     const laneRate = this.laneTarget === ONCOMING_LANE ? 18 : 4;
     this.carXFrac += (this.laneTarget - this.carXFrac) * Math.min(1, dt * laneRate);
     const range = this.h + 240;
@@ -681,6 +685,14 @@ export class Game {
     this.drawParticles();
     this.drawPopups();
     ctx.restore();
+    // effet vignette cinéma : assombrit les bords de l'écran
+    if (this.hasEffect('vignette')) {
+      const g = ctx.createRadialGradient(this.w / 2, this.h / 2, Math.min(this.w, this.h) * 0.45, this.w / 2, this.h / 2, Math.max(this.w, this.h) * 0.78);
+      g.addColorStop(0, 'rgba(0,0,0,0)');
+      g.addColorStop(1, 'rgba(4,7,18,0.45)');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, this.w, this.h);
+    }
   }
 
   drawBackground() {
@@ -853,11 +865,13 @@ export class Game {
           this.drawLineShape(line.type, y, roadX, roadW, false);
           ctx.restore();
         }
-        ctx.strokeStyle = theme.lineEdge;
-        ctx.fillStyle = theme.lineEdge;
+        const rb = this.hasEffect('rainbow');
+        const hue = Math.round((this.time * 160 + y * 0.6) % 360);
+        ctx.strokeStyle = rb ? `hsl(${hue},70%,22%)` : theme.lineEdge;
+        ctx.fillStyle = ctx.strokeStyle;
         this.drawLineShape(line.type, y, roadX, roadW, false, true);
-        ctx.strokeStyle = theme.line;
-        ctx.fillStyle = theme.line;
+        ctx.strokeStyle = rb ? `hsl(${hue},95%,65%)` : theme.line;
+        ctx.fillStyle = ctx.strokeStyle;
         this.drawLineShape(line.type, y, roadX, roadW, false);
         if (this.access.colorblind) {
           const mx = roadX + roadW / 2;
@@ -1034,6 +1048,12 @@ export class Game {
     const tier = skin.cost >= 1200 ? 3 : skin.cost >= 600 ? 2 : 1;
     const bob = Math.sin(this.time * 9) * 1.5;
     const baseY = wheelY + bob;
+    // effet fantôme : silhouette de la position précédente pendant un changement de voie
+    if (this.hasEffect('ghost') && Math.abs((this.prevCarX ?? this.carXFrac) - this.carXFrac) > 0.01) {
+      ctx.fillStyle = 'rgba(180,220,255,0.12)';
+      rr(ctx, roadX + roadW * this.prevCarX - bw / 2, baseY - m.bodyH, bw, m.bodyH + 7, 13);
+      ctx.fill();
+    }
     let bodyColor = skin.color;
     if (skin.rainbow) bodyColor = `hsl(${Math.round((this.time * 240) % 360)},85%,55%)`;
     const isHex = skin.color.startsWith('#');

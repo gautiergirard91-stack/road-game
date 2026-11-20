@@ -5,8 +5,8 @@ Object.defineProperty(globalThis, 'window', {
   configurable: true,
 });
 
-const { Game } = await import('../js/game.js');
-const { LEVELS } = await import('../js/data.js');
+const { Game, MODELS } = await import('../js/game.js');
+const { LEVELS, SKINS } = await import('../js/data.js');
 
 function makeCtx() {
   return new Proxy(
@@ -196,6 +196,11 @@ function step(game, seconds, tapper) {
     }
   }
   assert.ok(stoppedBefore, "à l'arrêt pour le piéton, la voiture est AVANT le passage piéton");
+}
+
+// v1.3.4 : chaque skin a un modèle de voiture existant
+for (const s of SKINS) {
+  assert.ok(MODELS[s.model], `modèle ${s.model} existe pour le skin ${s.id}`);
 }
 
 console.log('OK - smoke test moteur : 8 scénarios sans crash, mécaniques vérifiées');

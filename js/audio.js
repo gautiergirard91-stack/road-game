@@ -88,3 +88,49 @@ export const sfx = {
     [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.18, 'sine', 0.15, i * 0.09));
   },
 };
+
+// --- Packs de sons (boutique, 100 % cosmétiques) ---
+const BASE_SFX = { ...sfx };
+
+const SOUND_PACK_VARIANTS = {
+  arcade: {
+    tap: () => tone(440, 0.06, 'square', 0.12),
+    perfect: () => {
+      tone(660, 0.08, 'square', 0.18);
+      tone(990, 0.12, 'square', 0.16, 0.06);
+    },
+    good: () => tone(520, 0.08, 'square', 0.14),
+    passable: () => tone(392, 0.08, 'square', 0.1),
+    fail: () => tone(180, 0.4, 'square', 0.2, 0, -120),
+    miss: () => tone(200, 0.25, 'square', 0.16, 0, -80),
+    coin: () => {
+      tone(880, 0.06, 'square', 0.08);
+      tone(1320, 0.12, 'square', 0.08, 0.06);
+    },
+    click: () => tone(620, 0.04, 'square', 0.1),
+    win: () => [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.15, 'square', 0.14, i * 0.08)),
+  },
+  synthwave: {
+    tap: () => tone(300, 0.09, 'sawtooth', 0.08, 0, 120),
+    perfect: () => {
+      tone(523, 0.14, 'sawtooth', 0.16, 0, 400);
+      tone(1047, 0.2, 'sine', 0.12, 0.06);
+    },
+    good: () => tone(392, 0.1, 'sawtooth', 0.12, 0, 80),
+    passable: () => tone(330, 0.1, 'triangle', 0.1),
+    fail: () => tone(120, 0.6, 'sawtooth', 0.22, 0, -60),
+    miss: () => tone(160, 0.3, 'sawtooth', 0.15, 0, -50),
+    coin: () => {
+      tone(784, 0.07, 'triangle', 0.1);
+      tone(1568, 0.16, 'triangle', 0.1, 0.07);
+    },
+    click: () => tone(500, 0.05, 'sawtooth', 0.08, 0, 100),
+    win: () => [392, 523, 659, 784, 1047].forEach((f, i) => tone(f, 0.2, 'sawtooth', 0.13, i * 0.07)),
+  },
+};
+
+export function applySoundPack(id) {
+  Object.assign(sfx, BASE_SFX);
+  const v = SOUND_PACK_VARIANTS[id];
+  if (v) Object.assign(sfx, v);
+}

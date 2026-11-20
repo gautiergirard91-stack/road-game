@@ -75,31 +75,68 @@ export const LEVELS = [
 ];
 
 export const SKINS = [
-  { id: 'default', name: 'Berline grise', color: '#9aa3b2', cost: 0, model: 'berline' },
-  { id: 'rouge', name: 'Berline rouge', color: '#e0393e', cost: 200, model: 'berline' },
-  { id: 'bleue', name: 'Citadine bleue', color: '#2f7de1', cost: 200, model: 'citadine' },
-  { id: 'verte', name: 'Berline verte', color: '#2fae5f', cost: 300, model: 'berline' },
-  { id: 'jaune', name: 'Citadine lime', color: '#a8c93a', cost: 400, model: 'citadine' },
-  { id: 'sport', name: 'Sport orange', color: '#ffb020', cost: 600, model: 'sport' },
-  { id: 'or', name: 'Berline or', color: '#f5c542', cost: 1200, model: 'berline', shine: true },
-  { id: 'arc', name: 'Sport arc-en-ciel', color: '#ff5c8a', cost: 2000, model: 'sport', rainbow: true },
-  { id: 'taxi', name: 'Taxi', color: '#f7d117', cost: 800, model: 'citadine' },
-  { id: 'police', name: 'Police', color: '#eef2f7', cost: 3000, model: 'berline' },
+  { id: 'default', name: 'Berline grise', color: '#9aa3b2', cost: 0, currency: 'auto', model: 'berline' },
+  { id: 'rouge', name: 'Berline rouge', color: '#e0393e', cost: 200, currency: 'auto', model: 'berline' },
+  { id: 'bleue', name: 'Citadine bleue', color: '#2f7de1', cost: 200, currency: 'auto', model: 'citadine' },
+  { id: 'verte', name: 'Berline verte', color: '#2fae5f', cost: 300, currency: 'auto', model: 'berline' },
+  { id: 'jaune', name: 'Citadine lime', color: '#a8c93a', cost: 400, currency: 'auto', model: 'citadine' },
+  { id: 'sport', name: 'Sport orange', color: '#ffb020', cost: 600, currency: 'permisA', model: 'sport' },
+  { id: 'taxi', name: 'Taxi', color: '#f7d117', cost: 800, currency: 'permisA', model: 'citadine' },
+  { id: 'suv', name: '4x4 vert', color: '#3f7d4e', cost: 2500, currency: 'permisA', model: 'suv' },
+  { id: 'suvnoir', name: '4x4 noir mat', color: '#23262e', cost: 3200, currency: 'permisA', model: 'suv', shine: true },
+  { id: 'or', name: 'Berline or', color: '#f5c542', cost: 1200, currency: 'pilote', model: 'berline', shine: true },
+  { id: 'arc', name: 'Sport arc-en-ciel', color: '#ff5c8a', cost: 2000, currency: 'pilote', model: 'sport', rainbow: true },
+  { id: 'police', name: 'Police', color: '#eef2f7', cost: 3000, currency: 'pilote', model: 'berline' },
+  { id: 'f1rouge', name: 'F1 rouge', color: '#d21f2b', cost: 5000, currency: 'pilote', model: 'f1' },
+  { id: 'f1noire', name: 'F1 noire', color: '#15171c', cost: 6500, currency: 'pilote', model: 'f1', shine: true },
 ];
 
 export const EFFECTS = [
-  { id: 'trail', name: 'Traînée de particules', desc: 'La voiture laisse une traînée derrière elle.', cost: 400 },
-  { id: 'glow', name: 'Lignes lumineuses', desc: 'Les lignes brillent quand tu les réussis.', cost: 400 },
-  { id: 'shake', name: 'Secousse', desc: "L'écran vibre à chaque PARFAIT.", cost: 600 },
-  { id: 'confetti', name: 'Confettis', desc: 'Des confettis explosent à chaque PARFAIT.', cost: 1000 },
-  { id: 'rain', name: '🌧 Pluie', desc: "Il pleut sur la route (effet météo).", cost: 800 },
-  { id: 'snowfall', name: '❄ Neige qui tombe', desc: 'Des flocons tombent (effet météo).', cost: 800 },
-  { id: 'fire', name: '🔥 Traînée de feu', desc: 'La voiture crache des flammes quand ton combo atteint 10.', cost: 1500 },
+  { id: 'trail', name: 'Traînée de particules', desc: 'La voiture laisse une traînée derrière elle.', cost: 400, currency: 'auto' },
+  { id: 'glow', name: 'Lignes lumineuses', desc: 'Les lignes brillent quand tu les réussis.', cost: 400, currency: 'auto' },
+  { id: 'shake', name: 'Secousse', desc: "L'écran vibre à chaque PARFAIT.", cost: 600, currency: 'auto' },
+  { id: 'confetti', name: 'Confettis', desc: 'Des confettis explosent à chaque PARFAIT.', cost: 1000, currency: 'auto' },
+  { id: 'rain', name: '🌧 Pluie', desc: "Il pleut sur la route (effet météo).", cost: 800, currency: 'permisA' },
+  { id: 'snowfall', name: '❄ Neige qui tombe', desc: 'Des flocons tombent (effet météo).', cost: 800, currency: 'permisA' },
+  { id: 'rainbow', name: '🌈 Lignes arc-en-ciel', desc: 'Les lignes changent de couleur en continu.', cost: 1500, currency: 'permisA' },
+  { id: 'vignette', name: '🎥 Vignette cinéma', desc: "Assombrit les bords de l'écran.", cost: 900, currency: 'permisA' },
+  { id: 'fire', name: '🔥 Traînée de feu', desc: 'La voiture crache des flammes quand ton combo atteint 10.', cost: 1500, currency: 'pilote' },
+  { id: 'ghost', name: '👻 Voiture fantôme', desc: 'Une silhouette fantôme marque les changements de voie.', cost: 2000, currency: 'pilote' },
 ];
 
 export const THEME_SHOP = [
-  { id: 'neon', name: '🌃 Thème Néon', desc: 'Remplace le décor de tous les niveaux par la ville néon.', cost: 2500 },
-  { id: 'sunset', name: '🌇 Thème Coucher de soleil', desc: 'Remplace le décor de tous les niveaux.', cost: 2500 },
+  { id: 'neon', name: '🌃 Thème Néon', desc: 'Remplace le décor de tous les niveaux par la ville néon.', cost: 2500, currency: 'permisA' },
+  { id: 'sunset', name: '🌇 Thème Coucher de soleil', desc: 'Remplace le décor de tous les niveaux.', cost: 2500, currency: 'permisA' },
+];
+
+// Packs : plusieurs cosmétiques à prix réduit, payés dans une seule monnaie
+export const PACKS = [
+  {
+    id: 'pack_debutant', name: '🎁 Pack Débutant', currency: 'auto', cost: 500,
+    desc: 'Berline rouge + lignes lumineuses + secousse (économie de 300 🪙).',
+    items: [
+      { type: 'skin', id: 'rouge' },
+      { type: 'effect', id: 'glow' },
+      { type: 'effect', id: 'shake' },
+    ],
+  },
+  {
+    id: 'pack_sport', name: '🏎️ Pack Sport', currency: 'pilote', cost: 6500,
+    desc: 'Sport orange + F1 rouge + confettis + traînée de feu.',
+    items: [
+      { type: 'skin', id: 'sport' },
+      { type: 'skin', id: 'f1rouge' },
+      { type: 'effect', id: 'confetti' },
+      { type: 'effect', id: 'fire' },
+    ],
+  },
+];
+
+// Packs de sons : remplacent les bruitages du jeu (100 % cosmétiques)
+export const SOUND_PACKS = [
+  { id: 'default', name: '🔊 Sons standard', desc: 'Les sons de base du jeu.', cost: 0, currency: 'auto' },
+  { id: 'arcade', name: '🕹️ Pack Arcade 8-bit', desc: 'Bruitages rétro pour PARFAIT, ratés, pièces…', cost: 1200, currency: 'permisA' },
+  { id: 'synthwave', name: '🌆 Pack Synthwave', desc: 'Sons futuristes avec montées en fréquence.', cost: 2500, currency: 'pilote' },
 ];
 
 export const ENDLESS_LEVEL = {

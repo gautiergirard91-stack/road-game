@@ -1,7 +1,7 @@
-import { LEVELS, THEMES, SKINS, EFFECTS, DIFFICULTIES, CURRENCIES, WINDOWS, ACHIEVEMENTS, THEME_SHOP, ENDLESS_LEVEL } from './data.js';
+import { LEVELS, THEMES, SKINS, EFFECTS, DIFFICULTIES, CURRENCIES, WINDOWS, ACHIEVEMENTS, THEME_SHOP, ENDLESS_LEVEL, PACKS, SOUND_PACKS } from './data.js';
 import { Game } from './game.js';
 import * as store from './store.js';
-import { sfx, setEnabled, setMusicEnabled, unlockAudio } from './audio.js';
+import { sfx, setEnabled, setMusicEnabled, unlockAudio, applySoundPack } from './audio.js';
 import { coinsForResult, accuracy, avgReaction, continueCost, maxMissesFor, firstClearBonus, isPerfectClear, perfectClearBonus } from './core.js';
 import { watchRewarded } from './ads.js';
 import { Tutorial } from './tutorial.js';
@@ -15,6 +15,7 @@ const $$ = (sel) => [...document.querySelectorAll(sel)];
 
 let save = store.load();
 setEnabled(save.sound);
+applySoundPack(save.soundPack || 'default');
 
 let game = null;
 let rafId = null;
@@ -29,7 +30,7 @@ const hudLives = $('#hud-lives');
 
 let continuesThisRun = 0;
 
-const MODEL_LABEL = { berline: 'Berline', sport: 'Sport', citadine: 'Citadine' };
+const MODEL_LABEL = { berline: 'Berline', sport: 'Sport', citadine: 'Citadine', suv: '4x4', f1: 'Formule 1' };
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -353,20 +354,20 @@ function renderShop() {
         <div class="card-title">${s.name}</div>
         <div class="card-sub">${MODEL_LABEL[s.model] || 'Berline'}</div>
       </div>
-      <button class="btn small">${selected ? '✓ Équipée' : owned ? 'Équiper' : `${s.cost} 🪙`}</button>`;
+      <button class="btn small">${selected ? '✓ Équipée' : owned ? 'Équiper' : `${s.cost} ${cur(s.currency || 'auto').icon}`}</button>`;
     card.querySelector('button').addEventListener('click', () => {
       if (selected) return;
       if (owned) {
         store.selectSkin(s.id);
         sfx.click();
-      } else if (store.buySkin(s.id, s.cost)) {
+      } else if (store.buySkin(s.id, s.cost, s.currency || 'auto')) {
         store.selectSkin(s.id);
         sfx.coin();
         logEvent('purchase', { item: `skin:${s.id}`, cost: s.cost });
         toast(`${s.name} achetée et équipée !`);
         pushCloud();
       } else {
-        toast(`Il te manque ${s.cost - store.getWallet('auto')} 🪙`);
+        toast(`Il te manque ${s.cost - store.getWallet(s.currency || 'auto')} ${cur(s.currency || 'auto').icon}`);
         return;
       }
       refreshCoins();
@@ -388,16 +389,16 @@ function renderShop() {
           <div class="card-title">${t.name}</div>
           <div class="card-sub">${t.desc}</div>
         </div>
-        <button class="btn small">${active ? '✓ Activé' : owned ? 'Activer' : `${t.cost} 🪙`}</button>`;
+        <button class="btn small">${active ? '✓ Activé' : owned ? 'Activer' : `${t.cost} ${cur(t.currency || 'auto').icon}`}</button>`;
       card.querySelector('button').addEventListener('click', () => {
         if (!owned) {
-          if (store.buyTheme(t.id, t.cost)) {
+          if (store.buyTheme(t.id, t.cost, t.currency || 'auto')) {
             sfx.coin();
             logEvent('purchase', { item: `theme:${t.id}`, cost: t.cost });
             toast(`${t.name} acheté !`);
             pushCloud();
           } else {
-            toast(`Il te manque ${t.cost - store.getWallet('auto')} 🪙`);
+            toast(`Il te manque ${t.cost - store.getWallet(t.currency || 'auto')} ${cur(t.currency || 'auto').icon}`);
             return;
           }
         } else {
@@ -423,7 +424,7 @@ function renderShop() {
         <div class="card-title">${e.name}</div>
         <div class="card-sub">${e.desc}</div>
       </div>
-      <button class="btn small">${active ? '✓ Activé' : owned ? 'Activer' : `${e.cost} 🪙`}</button>`;
+      <button class="btn small">${active ? '✓ Activé' : owned ? 'Activer' : `${e.cost} ${cur(e.currency || 'auto').icon}`}</button>`;
     card.querySelector('button').addEventListener('click', () => {
       if (active) {
         store.toggleEffect(e.id);
@@ -431,19 +432,96 @@ function renderShop() {
       } else if (owned) {
         store.toggleEffect(e.id);
         sfx.click();
-      } else if (store.buyEffect(e.id, e.cost)) {
+      } else if (store.buyEffect(e.id, e.cost, e.currency || 'auto')) {
         sfx.coin();
         logEvent('purchase', { item: `effect:${e.id}`, cost: e.cost });
         toast(`${e.name} acheté et activé !`);
         pushCloud();
       } else {
-        toast(`Il te manque ${e.cost - store.getWallet('auto')} 🪙`);
+        toast(`Il te manque ${e.cost - store.getWallet(e.currency || 'auto')} ${cur(e.currency || 'auto').icon}`);
         return;
       }
       refreshCoins();
       renderShop();
     });
     fxEl.appendChild(card);
+  }
+  renderPacks();
+  renderSoundPacks();
+}
+
+function renderPacks() {
+  const el = $('#shop-packs');
+  if (!el) return;
+  el.innerHTML = '';
+  for (const p of PACKS) {
+    const owned = save.packs.includes(p.id);
+    const c = cur(p.currency || 'auto');
+    const card = document.createElement('div');
+    card.className = 'card shop-card';
+    card.innerHTML = `
+      <div class="swatch fx">🎁</div>
+      <div class="card-body">
+        <div class="card-title">${p.name}</div>
+        <div class="card-sub">${p.desc}</div>
+      </div>
+      <button class="btn small">${owned ? '✓ Acheté' : `${p.cost} ${c.icon}`}</button>`;
+    card.querySelector('button').addEventListener('click', () => {
+      if (owned) return;
+      if (store.buyPack(p)) {
+        sfx.coin();
+        logEvent('purchase', { item: `pack:${p.id}`, cost: p.cost, currency: p.currency || 'auto' });
+        toast(`${p.name} acheté ! Contenus débloqués 🎉`);
+        pushCloud();
+      } else {
+        toast(`Il te manque ${p.cost - store.getWallet(p.currency || 'auto')} ${c.icon}`);
+        return;
+      }
+      refreshCoins();
+      renderShop();
+    });
+    el.appendChild(card);
+  }
+}
+
+function renderSoundPacks() {
+  const el = $('#shop-sounds');
+  if (!el) return;
+  el.innerHTML = '';
+  for (const sp of SOUND_PACKS) {
+    const owned = save.soundPacks.includes(sp.id);
+    const active = save.soundPack === sp.id;
+    const c = cur(sp.currency || 'auto');
+    const card = document.createElement('div');
+    card.className = 'card shop-card';
+    card.innerHTML = `
+      <div class="swatch fx">🔊</div>
+      <div class="card-body">
+        <div class="card-title">${sp.name}</div>
+        <div class="card-sub">${sp.desc}</div>
+      </div>
+      <button class="btn small">${active ? '✓ Actif' : owned ? 'Activer' : `${sp.cost} ${c.icon}`}</button>`;
+    card.querySelector('button').addEventListener('click', () => {
+      if (active) return;
+      if (owned) {
+        store.selectSoundPack(sp.id);
+        applySoundPack(sp.id);
+        sfx.click();
+      } else if (store.buySoundPack(sp)) {
+        store.selectSoundPack(sp.id);
+        applySoundPack(sp.id);
+        sfx.coin();
+        logEvent('purchase', { item: `soundpack:${sp.id}`, cost: sp.cost, currency: sp.currency || 'auto' });
+        toast(`${sp.name} acheté et activé !`);
+        pushCloud();
+      } else {
+        toast(`Il te manque ${sp.cost - store.getWallet(sp.currency || 'auto')} ${c.icon}`);
+        return;
+      }
+      refreshCoins();
+      renderShop();
+    });
+    el.appendChild(card);
   }
 }
 

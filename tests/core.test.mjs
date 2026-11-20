@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { judge, pointsFor, buildPattern, coinsForResult, accuracy, avgReaction, continueCost, maxMissesFor, firstClearBonus, isPerfectClear, perfectClearBonus, axleDelta, mulberry32 } from '../js/core.js';
-import { LEVELS, WINDOWS, MAX_MISSES, CONTINUE_BASE_COST, SKINS, EFFECTS, ACHIEVEMENTS, CURRENCIES, DIFFICULTIES } from '../js/data.js';
+import { LEVELS, WINDOWS, MAX_MISSES, CONTINUE_BASE_COST, SKINS, EFFECTS, ACHIEVEMENTS, CURRENCIES, DIFFICULTIES, THEME_SHOP, PACKS, SOUND_PACKS } from '../js/data.js';
 
 assert.equal(judge(0), 'perfect');
 assert.equal(judge(-WINDOWS.perfect), 'perfect');
@@ -86,6 +86,21 @@ assert.ok(LEVELS[0].lines <= 10 && LEVELS[0].speed >= 260, 'niveau 1 très court
 
 assert.equal(LEVELS.length, 15, '15 niveaux (12 + 13/14/15)');
 assert.ok(SKINS.length >= 10, 'au moins 10 voitures');
+// --- boutique v1.3.4 : monnaies par article, packs, packs de sons ---
+for (const it of [...SKINS, ...EFFECTS, ...THEME_SHOP, ...PACKS, ...SOUND_PACKS]) {
+  assert.ok(CURRENCIES[it.currency || 'auto'], `article ${it.id} : monnaie valide (${it.currency || 'auto'})`);
+  assert.ok(typeof it.cost === 'number' && it.cost >= 0, `article ${it.id} : coût valide`);
+}
+for (const p of PACKS) {
+  assert.ok(p.items.length >= 2, `pack ${p.id} : au moins 2 contenus`);
+  for (const it of p.items) {
+    if (it.type === 'skin') assert.ok(SKINS.some((s) => s.id === it.id), `pack ${p.id} : skin ${it.id} existe`);
+    if (it.type === 'effect') assert.ok(EFFECTS.some((e) => e.id === it.id), `pack ${p.id} : effet ${it.id} existe`);
+  }
+}
+assert.ok(SOUND_PACKS.some((s) => s.id === 'default' && s.cost === 0), 'pack de sons par défaut présent et gratuit');
+assert.ok(['rainbow', 'vignette', 'ghost'].every((id) => EFFECTS.some((e) => e.id === id)), 'nouveaux effets présents');
+assert.ok(SKINS.some((s) => s.model === 'f1') && SKINS.some((s) => s.model === 'suv'), 'nouveaux modèles F1 et 4x4 présents');
 assert.ok(EFFECTS.some((e) => e.id === 'fire'), 'effet feu présent');
 assert.ok(ACHIEVEMENTS.length >= 13, 'au moins 13 succès');
 assert.ok(new Set(LEVELS.map((l) => l.theme)).size >= 7, 'au moins 7 thèmes utilisés par les niveaux');

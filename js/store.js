@@ -21,6 +21,9 @@ const defaults = () => ({
   achievements: [],
   totals: { runs: 0, perfects: 0, overtakes: 0 },
   themes: [],
+  packs: [],
+  soundPacks: ['default'],
+  soundPack: 'default',
 });
 
 let save;
@@ -92,15 +95,15 @@ export function unlockLevel(id) {
   }
 }
 
-export function buySkin(id, cost) {
-  if (save.skins.includes(id) || !spend('auto', cost)) return false;
+export function buySkin(id, cost, currency = 'auto') {
+  if (save.skins.includes(id) || !spend(currency, cost)) return false;
   save.skins.push(id);
   persist();
   return true;
 }
 
-export function buyEffect(id, cost) {
-  if (save.effects.includes(id) || !spend('auto', cost)) return false;
+export function buyEffect(id, cost, currency = 'auto') {
+  if (save.effects.includes(id) || !spend(currency, cost)) return false;
   save.effects.push(id);
   if (!save.selectedEffects.includes(id)) save.selectedEffects.push(id);
   persist();
@@ -171,8 +174,8 @@ export function setThemeOverride(id) {
   persist();
 }
 
-export function buyTheme(id, cost) {
-  if (save.themes.includes(id) || !spend('auto', cost)) return false;
+export function buyTheme(id, cost, currency = 'auto') {
+  if (save.themes.includes(id) || !spend(currency, cost)) return false;
   save.themes.push(id);
   persist();
   return true;
@@ -181,6 +184,47 @@ export function buyTheme(id, cost) {
 export function setTutorialDone() {
   save.tutorialDone = true;
   persist();
+}
+
+export function grantSkin(id) {
+  if (!save.skins.includes(id)) {
+    save.skins.push(id);
+    persist();
+  }
+}
+
+export function grantEffect(id) {
+  if (!save.effects.includes(id)) {
+    save.effects.push(id);
+    if (!save.selectedEffects.includes(id)) save.selectedEffects.push(id);
+    persist();
+  }
+}
+
+// achat d'un pack : une seule monnaie, contenus débloqués d'un coup
+export function buyPack(pack) {
+  if (save.packs.includes(pack.id) || !spend(pack.currency || 'auto', pack.cost)) return false;
+  for (const it of pack.items || []) {
+    if (it.type === 'skin') grantSkin(it.id);
+    else if (it.type === 'effect') grantEffect(it.id);
+  }
+  save.packs.push(pack.id);
+  persist();
+  return true;
+}
+
+export function buySoundPack(sp) {
+  if (save.soundPacks.includes(sp.id) || !spend(sp.currency || 'auto', sp.cost)) return false;
+  save.soundPacks.push(sp.id);
+  persist();
+  return true;
+}
+
+export function selectSoundPack(id) {
+  if (!save.soundPacks.includes(id)) return false;
+  save.soundPack = id;
+  persist();
+  return true;
 }
 
 export function unlockAchievement(id) {
@@ -212,6 +256,9 @@ export function snapshot() {
     totals: save.totals,
     themeOverride: save.themeOverride,
     themes: save.themes,
+    packs: save.packs,
+    soundPacks: save.soundPacks,
+    soundPack: save.soundPack,
   };
 }
 
@@ -222,6 +269,9 @@ export function mergeRemote(remote) {
     save.wallets[k] = Math.max(save.wallets[k] || 0, rw[k] || 0);
   }
   save.trophies = { ...(remote.trophies || {}), ...save.trophies };
+  save.packs = [...new Set([...save.packs, ...(remote.packs || [])])];
+  save.soundPacks = [...new Set([...save.soundPacks, 'default', ...(remote.soundPacks || [])])];
+  if (remote.soundPack && save.soundPacks.includes(remote.soundPack)) save.soundPack = remote.soundPack;
   save.unlockedLevels = [...new Set([...save.unlockedLevels, ...(remote.unlockedLevels || [])])];
   save.skins = [...new Set([...save.skins, ...(remote.skins || [])])];
   save.effects = [...new Set([...save.effects, ...(remote.effects || [])])];
