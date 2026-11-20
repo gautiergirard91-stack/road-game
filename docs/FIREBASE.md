@@ -41,6 +41,8 @@ Puis activer **Firebase App Check** ou au minimum limiter les écritures (les r�
 
 ## 3. Remplir la config
 
+Projet de production : `realtime-database-5fd49`, instance `realtime-database-5fd49-default-rtdb` (région **europe-west1**, Belgique).
+
 Dans `js/config.js` :
 
 ```js
