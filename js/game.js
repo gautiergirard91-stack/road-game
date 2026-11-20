@@ -137,6 +137,8 @@ export class Game {
       glow: 0,
     }));
     this.axles = this.mode === 'auto' ? ['rear'] : ['front', 'rear'];
+    this.remaining = this.lines.length;
+    this.lastOvertaken = null;
     this.distance = 0;
     this.score = 0;
     this.combo = 0;
@@ -244,7 +246,10 @@ export class Game {
         }
       }
       if (missedNow) {
-        if (this.axles.every((a) => line.hits[a])) line.state = 'resolved';
+        if (this.axles.every((a) => line.hits[a])) {
+          line.state = 'resolved';
+          this.remaining--;
+        }
         return;
       }
     }
@@ -319,6 +324,7 @@ export class Game {
     for (const l of chunk) {
       this.lines.push({ type: l.type, dist: l.dist + offset, axle: l.axle, hits: { front: null, rear: null }, state: 'pending', result: null, flash: 0, glow: 0 });
     }
+    this.remaining += chunk.length;
   }
 
   updateWeather(dt) {
@@ -444,9 +450,12 @@ export class Game {
         if (sy >= this.wheelY - BLOCK_RANGE) blocker = c;
       }
       this.blocker = blocker;
-      if (blocker && blocker.overtaken) {
-        const sy = this.wheelY + this.distance - blocker.p;
-        if (sy > this.wheelY + 180) this.laneTarget = CAR_LANE;
+      if (this.lastOvertaken) {
+        const sy = this.wheelY + this.distance - this.lastOvertaken.p;
+        if (sy > this.wheelY + 180) {
+          this.laneTarget = CAR_LANE;
+          this.lastOvertaken = null;
+        }
       }
       const trafficPenalty = blocker && blocker.grace > GRACE_SECONDS;
       if (trafficPenalty) {
@@ -483,6 +492,7 @@ export class Game {
     this.pendingStray = 0;
     if (this.mode === 'pilote' && this.blocker && !this.blocker.overtaken) {
       this.blocker.overtaken = true;
+      this.lastOvertaken = this.blocker;
       this.laneTarget = ONCOMING_LANE;
       this.stats.overtakes++;
       const bonus = 50 + this.combo * 5;
@@ -593,6 +603,7 @@ export class Game {
     const result = judge(dtMs, this.windows);
     best.hits[axle] = result;
     best.state = this.axles.every((a) => best.hits[a]) ? 'resolved' : 'pending';
+    if (best.state === 'resolved') this.remaining--;
     best.result = result;
     best.flash = 0.3;
     if (this.hasEffect('glow')) best.glow = 0.4;
@@ -1130,6 +1141,26 @@ export class Game {
         ctx.fill();
       }
     }
+    this.drawRemainingBadge(cx, baseY, m);
+  }
+
+  drawRemainingBadge(cx, baseY, m) {
+    const { ctx } = this;
+    const label = this.level.endless ? '∞' : String(Math.max(0, this.remaining));
+    ctx.font = 'bold 15px system-ui, sans-serif';
+    const tw = ctx.measureText(label).width + 18;
+    const px = cx - tw / 2;
+    const py = baseY - m.bodyH - m.cabH - 28;
+    ctx.fillStyle = 'rgba(13,18,38,0.88)';
+    rr(ctx, px, py, tw, 23, 11);
+    ctx.fill();
+    ctx.strokeStyle = '#ffd54a';
+    ctx.lineWidth = 1.5;
+    rr(ctx, px, py, tw, 23, 11);
+    ctx.stroke();
+    ctx.fillStyle = '#ffd54a';
+    ctx.textAlign = 'center';
+    ctx.fillText(label, cx, py + 16);
   }
 
   drawParticles() {

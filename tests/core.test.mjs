@@ -82,6 +82,7 @@ assert.equal(judge(200), null);
 assert.equal(firstClearBonus(LEVELS[0]), 300, 'bonus premier clear niveau 1');
 assert.ok(firstClearBonus(LEVELS[11]) > firstClearBonus(LEVELS[0]), 'bonus croissant avec le niveau');
 assert.ok(LEVELS.slice(0, 3).every((l) => l.theme === 'autoroute' && l.lines <= 20), 'niveaux autoroute raccourcis (parties rapides)');
+assert.ok(LEVELS[0].lines <= 10 && LEVELS[0].speed >= 260, 'niveau 1 très court et un peu plus rapide');
 
 assert.equal(LEVELS.length, 15, '15 niveaux (12 + 13/14/15)');
 assert.ok(SKINS.length >= 10, 'au moins 10 voitures');
