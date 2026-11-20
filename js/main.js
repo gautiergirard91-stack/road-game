@@ -159,7 +159,7 @@ function renderAchievements() {
 }
 
 function checkAchievements(stats, level) {
-  const ctx = { stats, level, totals: store.get().totals, mode: save.difficulty };
+  const ctx = { stats, level, totals: store.get().totals, mode: save.difficulty, best: save.best };
   const newly = [];
   for (const a of ACHIEVEMENTS) {
     if (!save.achievements.includes(a.id)) {
@@ -392,6 +392,9 @@ function startLevel(level) {
   continuesThisRun = 0;
   updateLives(0);
   logEvent('level_start', { level: level.id, mode: save.difficulty });
+  const tutorialMode = !save.tutorialDone && level.id === 1;
+  let tutorialHits = 0;
+  $('#game-hint').classList.toggle('hidden', !tutorialMode);
   game = new Game($('#game'), {
     level,
     skinId: save.skin,
@@ -399,11 +402,13 @@ function startLevel(level) {
     themeOverride: save.themeOverride || undefined,
     windows: effWindows(),
     access: { colorblind: save.colorblind },
+    tutorial: tutorialMode,
     effects: save.selectedEffects,
     audio: { tap: sfx.tap, perfect: sfx.perfect, good: sfx.good, passable: sfx.passable, fail: sfx.fail, win: sfx.win, miss: sfx.miss },
     onJudge: (e) => {
       hudScore.textContent = String(e.score);
       hudCombo.textContent = e.combo >= 2 ? `COMBO x${e.combo}` : '';
+      if (tutorialMode && ++tutorialHits >= 3) $('#game-hint').classList.add('hidden');
     },
     onMiss: (m) => updateLives(m),
     onThreshold: showContinue,
@@ -473,11 +478,15 @@ function loop(t) {
   rafId = requestAnimationFrame(loop);
   const dt = Math.min(0.05, lastT ? (t - lastT) / 1000 : 0);
   lastT = t;
-  if (game && currentScreen === 'screen-game') {
+  if (game && currentScreen === 'screen-game' && !document.hidden) {
     game.update(dt);
     game.render();
   }
 }
+
+window.addEventListener('error', (e) => {
+  logEvent('js_error', { message: String(e.message || '') });
+});
 
 $('#btn-play').addEventListener('click', () => {
   sfx.click();

@@ -70,6 +70,15 @@ python3 -m http.server 8080
 - [ ] **Pied du menu** : version du jeu affichée (`v1.1.0`) + pastille de statut serveur (🟠 local si Firebase non configuré ; 🟢/🔴 selon la connexion réelle, testée par un ping)
 - [ ] Écran **Succès 🏅 scrollable** (et Classement) sur petit écran
 
+### Polish v1.2.0
+- [ ] **15 niveaux** (13 Néon, 14 Golden hour, 15 Enfer) débloquables et jouables
+- [ ] Boutique : 10 voitures (Taxi, Police…), effet **🔥 feu à combo ≥ 10**, thèmes premium
+- [ ] **13+ succès** dans l'écran 🏅
+- [ ] Game feel : la ligne qui approche **pulicke** (halo), lignes de vitesse au-delà de 460 px/s
+- [ ] 1ʳᵉ partie du niveau 1 : 3 premières lignes **surlignées** + astuce « 👆 Tape quand la ligne atteint les roues ! »
+- [ ] Transitions en fondu entre les écrans ; pied de menu : **v1.2.0**
+- [ ] `store/` généré : bannière 1024x500 + 2 captures 1080x1920 (placeholders)
+
 ## 5. Remonter un bug
 
 Noter : attendu / observé, appareil + navigateur, niveau + difficulté → correction sur la branche, la PR #1 se met à jour.

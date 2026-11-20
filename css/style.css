@@ -46,6 +46,49 @@ body {
 
 .screen.active {
   display: flex;
+  animation: screen-in 0.18s ease;
+}
+
+@keyframes screen-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.btn:hover {
+  filter: brightness(1.07);
+}
+
+#game-hint {
+  position: fixed;
+  left: 50%;
+  bottom: 34%;
+  transform: translateX(-50%);
+  background: rgba(13, 18, 38, 0.88);
+  border: 1px solid #ffd54a;
+  color: #ffd54a;
+  font-weight: 700;
+  font-size: 15px;
+  padding: 10px 18px;
+  border-radius: 999px;
+  z-index: 25;
+  pointer-events: none;
+  animation: hint-pulse 0.9s ease-in-out infinite;
+}
+
+@keyframes hint-pulse {
+  0%,
+  100% {
+    transform: translateX(-50%) scale(1);
+  }
+  50% {
+    transform: translateX(-50%) scale(1.06);
+  }
 }
 
 #screen-menu,

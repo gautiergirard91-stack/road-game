@@ -92,6 +92,7 @@ export class Game {
     this.effects = opts.effects || [];
     this.windows = opts.windows || WINDOWS;
     this.access = opts.access || {};
+    this.tutorial = opts.tutorial || false;
     this.audio = opts.audio || {};
     this.onJudge = opts.onJudge || (() => {});
     this.onEnd = opts.onEnd || (() => {});
@@ -490,20 +491,24 @@ export class Game {
   }
 
   spawnTrail() {
+    if (this.particles.length > 220) return;
     const cx = this.roadX + this.roadW * this.carXFrac;
     const cw = (MODELS[this.skin.model] || MODELS.berline).w;
-    for (let i = 0; i < 2; i++) {
+    const onFire = this.hasEffect('fire') && this.combo >= 10;
+    for (let i = 0; i < (onFire ? 3 : 2); i++) {
       this.particles.push({
         x: cx + (Math.random() - 0.5) * cw * 0.7,
         y: this.wheelY + 20 + Math.random() * 8,
-        vx: (Math.random() - 0.5) * 30,
-        vy: 60 + Math.random() * 90,
-        life: 0.5 + Math.random() * 0.3,
+        vx: (Math.random() - 0.5) * (onFire ? 60 : 30),
+        vy: onFire ? 130 + Math.random() * 130 : 60 + Math.random() * 90,
+        life: 0.4 + Math.random() * (onFire ? 0.45 : 0.3),
         max: 0.8,
-        color: this.skin.rainbow
-          ? `hsl(${Math.round((this.time * 300 + Math.random() * 60) % 360)},90%,60%)`
-          : this.skin.color,
-        size: 3 + Math.random() * 4,
+        color: onFire
+          ? (Math.random() < 0.5 ? '#ff7b2f' : '#ffd54a')
+          : this.skin.rainbow
+            ? `hsl(${Math.round((this.time * 300 + Math.random() * 60) % 360)},90%,60%)`
+            : this.skin.color,
+        size: onFire ? 5 + Math.random() * 5 : 3 + Math.random() * 4,
       });
     }
   }
@@ -599,6 +604,7 @@ export class Game {
     }
     this.drawBackground();
     this.drawRoad();
+    this.drawSpeedStreaks();
     this.drawLines();
     this.drawAxleGuides();
     this.drawTraffic();
@@ -740,8 +746,25 @@ export class Game {
     }
   }
 
+  drawSpeedStreaks() {
+    if (!this.effSpeed || this.effSpeed < 460) return;
+    const { ctx } = this;
+    const n = Math.min(10, Math.floor((this.effSpeed - 460) / 60) + 2);
+    ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+    ctx.lineWidth = 2;
+    for (let i = 0; i < n; i++) {
+      const x = this.roadX + 10 + (i % 2) * (this.roadW - 20);
+      const y = ((this.distance * 2.2 + i * 211) % (this.h + 80)) - 40;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x, y + 46);
+      ctx.stroke();
+    }
+  }
+
   drawLines() {
     const { ctx, roadX, roadW, theme } = this;
+    const firstPending = this.lines.find((l) => l.state === 'pending');
     for (const line of this.lines) {
       const y = this.lineY(line, 'rear');
       if (y < -90 || y > this.h + 90) continue;
@@ -796,6 +819,20 @@ export class Game {
             ctx.closePath();
             ctx.fill();
           }
+        }
+        const dRear = y - this.wheelY;
+        const approachPulse = dRear > -30 && dRear < 260 ? 0.22 + 0.3 * Math.abs(Math.sin(this.time * 6)) : 0;
+        const tutorialPulse = this.tutorial && line === firstPending ? 0.4 + 0.4 * Math.abs(Math.sin(this.time * 8)) : 0;
+        const pulse = Math.max(approachPulse, tutorialPulse);
+        if (pulse > 0) {
+          ctx.save();
+          ctx.globalAlpha = pulse;
+          ctx.shadowColor = theme.line;
+          ctx.shadowBlur = 18;
+          ctx.strokeStyle = theme.line;
+          ctx.fillStyle = theme.line;
+          this.drawLineShape(line.type, y, roadX, roadW, false);
+          ctx.restore();
         }
       }
     }
