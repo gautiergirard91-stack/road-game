@@ -53,9 +53,10 @@ export class Tutorial {
         done: (t) => t.overtakes >= 2 && t.game.laneTarget === 0.72 && t.game.carXFrac > 0.68,
       },
       {
-        text: "🚶 En ville : le passage piéton (bandes blanches) est une ligne à cliquer comme les autres — et la voiture s'arrête seule pour laisser passer les piétons. Tape quand il atteint les roues !",
-        enter: (g) => g.spawnLine('crosswalk', 520),
-        done: (t, e) => Boolean(e),
+        text: "🚶 En ville : le passage piéton (bandes blanches) est une ligne à cliquer comme les autres — et la voiture s'arrête seule pour laisser passer les piétons. Tape quand IL atteint les roues !",
+        enter: (g) => g.spawnLine('crosswalk', 640),
+        minTime: 2800,
+        done: (t, e) => Boolean(e) && e.type === 'crosswalk',
       },
       {
         text: '🏁 Tutoriel terminé ! +200 🪙 — à toi de jouer maintenant !',
@@ -92,7 +93,7 @@ export class Tutorial {
     if (e.axle === 'rear') this.saw.rear = true;
     if (e.overtake) this.overtakes++;
     const s = this.steps[this.i];
-    if (s.done && s.done(this, e)) this.next();
+    if (s.done && performance.now() - this.stepStart >= (s.minTime || 0) && s.done(this, e)) this.next();
   }
 
   onMiss() {
