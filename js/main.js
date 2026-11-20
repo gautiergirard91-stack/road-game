@@ -125,8 +125,10 @@ function pushCloud() {
 const TUT_LEVEL = { ...ENDLESS_LEVEL, id: 0, name: 'Tutoriel', speed: 230, gapMin: 540, gapMax: 720, w: { dash: 1 }, pDouble: 0, endless: true };
 
 let tut = null;
+let tutActive = false;
 
 function startTutorial() {
+  tutActive = true;
   show('screen-game');
   $('#pause-overlay').classList.remove('active');
   $('#tut-banner').classList.remove('hidden');
@@ -163,6 +165,8 @@ function startTutorial() {
     game,
     { text: $('#tut-text'), dots: $('#tut-dots'), read: $('#tut-read'), slider: $('#tut-slider'), quit: $('#tut-quit') },
     () => {
+      tutActive = false;
+      tut = null;
       $('#tut-banner').classList.add('hidden');
       logEvent('tutorial_done', {});
       toast('🏁 Tutoriel terminé ! +200 🪙');
@@ -173,8 +177,9 @@ function startTutorial() {
     },
     () => {
       // quitter avant la fin : tutorialDone reste false -> le tutoriel reviendra à la prochaine partie
-      $('#tut-banner').classList.add('hidden');
+      tutActive = false;
       tut = null;
+      $('#tut-banner').classList.add('hidden');
       logEvent('tutorial_aborted', {});
       toast('Tutoriel interrompu — il te sera proposé à ta prochaine partie 👶');
       renderDifficultyPicker();
@@ -248,7 +253,8 @@ function show(id) {
   currentScreen = id;
   $$('.screen').forEach((s) => s.classList.toggle('active', s.id === id));
   $('#hud').classList.toggle('hidden', id !== 'screen-game');
-  $('#tut-banner').classList.toggle('hidden', id !== 'screen-game');
+  // la bannière de tutoriel ne s'affiche que si un tutoriel est réellement actif
+  $('#tut-banner').classList.toggle('hidden', id !== 'screen-game' || !tutActive);
   if (id === 'screen-menu') refreshStatus();
 }
 
