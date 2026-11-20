@@ -56,7 +56,7 @@ export function buildPattern(level, seed, mode = 'auto') {
 }
 
 export function coinsForResult(stats, level, completed) {
-  return Math.round(stats.score / 8) + stats.perfects * 3 + (completed ? 150 + level.id * 30 : 0);
+  return Math.round(stats.score / 5) + stats.perfects * 5 + (completed ? 150 + level.id * 30 : 0);
 }
 
 export function accuracy(stats) {
@@ -75,6 +75,10 @@ export function maxMissesFor(mode) {
 
 export function firstClearBonus(level) {
   return 250 + level.id * 50;
+}
+
+export function axleDelta(wheelY, frontAxleY, axle) {
+  return axle === 'front' ? wheelY - frontAxleY : 0;
 }
 
 export function avgReaction(stats) {

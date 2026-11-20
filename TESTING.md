@@ -79,6 +79,11 @@ python3 -m http.server 8080
 - [ ] Transitions en fondu entre les écrans ; pied de menu : **v1.2.0**
 - [ ] `store/` généré : bannière 1024x500 + 2 captures 1080x1920 (placeholders)
 
+### Bugfix Permis A mobile + équilibrage
+- [ ] **Permis A sur téléphone** : tap **haut** quand la ligne atteint le guide AV (cyan) → bien enregistré (PARFAIT/BIEN prefixé AV) ; tap **bas** au guide AR → idem (AR) ; les deux ne se valident plus en même temps
+- [ ] Économie : pièces par partie plus généreuses (score/5 + 5×PARFAIT) ; coûts des niveaux 12–15 réduits (8k/9k/11k/13k)
+- [ ] `node tools/balance_sim.mjs 60 200` s'exécute et affiche le tableau d'équilibrage
+
 ## 5. Remonter un bug
 
 Noter : attendu / observé, appareil + navigateur, niveau + difficulté → correction sur la branche, la PR #1 se met à jour.
