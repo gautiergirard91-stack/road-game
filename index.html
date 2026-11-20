@@ -43,12 +43,11 @@
     <button class="btn big" id="btn-play">▶ Jouer</button>
     <button class="btn" id="btn-shop">🛒 Boutique</button>
     <button class="btn" id="btn-leaderboard">🏆 Classement</button>
-    <button class="btn secondary" id="btn-help">❓ Comment jouer</button>
+    <button class="btn secondary" id="btn-help">👶 Tutoriel</button>
     <button class="btn secondary" id="btn-sound">🔊 Son : ON</button>
     <button class="btn secondary" id="btn-music">🎵 Musique : ON</button>
     <button class="btn secondary" id="btn-achievements">🏅 Succès</button>
     <button class="btn secondary" id="btn-access">♿ Accessibilité</button>
-    <button class="btn secondary" id="btn-tutorial">👶 Tutoriel</button>
     <div class="menu-footer">
       <span id="version-label"></span>
       <span id="net-status" class="net-pill"></span>
@@ -127,27 +126,11 @@
     </div>
   </div>
 
-  <div id="help-modal" class="screen overlay hidden">
-    <div class="panel">
-      <h2>❓ Comment jouer</h2>
-      <div class="help-text">
-        <p>🚗 Une voiture roule sur la route. Des <b>lignes blanches</b> arrivent vers toi.</p>
-        <p>👆 <b>Touche l'écran</b> (ou appuie sur <b>Espace</b>) au moment précis où les <b>roues</b> sont au même niveau qu'une ligne.</p>
-        <p>🎯 Plus ton timing est précis, plus tu marques de points : <b>PARFAIT</b> (±45 ms), <b>BIEN</b> (±100 ms), <b>OK</b> (±160 ms).</p>
-        <p>🔥 Enchaîne les réussites pour augmenter ton <b>combo</b> et multiplier tes points.</p>
-        <p>💥 Une ligne manquée <b>ou un clic dans le vide</b> = 1 raté (compteur ❤️ en haut). <b>3 ratés</b> en Auto école, <b>5 ratés</b> en Permis A / Pilote. Au dernier raté, tu peux <b>continuer</b> contre des pièces 🪙 ou en regardant une pub 🎬 — sinon, partie terminée !</p>
-        <p>🎚️ <b>Difficulté</b> (en haut de la liste des niveaux) : <b>Auto école</b> = tap n'importe où ; <b>Permis A</b> = chaque ligne doit être touchée <b>deux fois, indépendamment</b> : d'abord par les roues <b>avant</b> (tap moitié <b>haute</b> de l'écran, ligne AV), puis par les roues <b>arrière</b> (tap moitié <b>basse</b>, ligne AR) ; <b>Pilote</b> = en plus, des voitures devant toi : <b>swipe vers la gauche</b> (⬅) pour doubler — c'est <b>ta voiture</b> qui passe à gauche — sinon tu ralentis jusqu'au bouchon ! Pendant le ralentissement, les combos sont coupés et les points sont réduits.</p>
-        <p>🚶 <b>En ville</b>, des <b>passages piétons</b> (bandes blanches) apparaissent : c'est une <b>ligne comme les autres à cliquer</b> quand les roues y sont. Quand un piéton traverse, ta voiture <b>s'arrête toute seule</b> pour le laisser passer, puis repart : une petite pause sans pénalité !</p>
-        <p>🪙 Tes pièces te servent à débloquer de <b>nouveaux niveaux</b> (nouvelles routes, balisages et vitesses), des <b>voitures</b> et des <b>effets visuels</b> dans la boutique.</p>
-      </div>
-      <button class="btn big" id="btn-help-close">C'est parti !</button>
-    </div>
-  </div>
-
   <div id="continue-overlay" class="screen overlay">
     <div class="panel">
-      <h2>💥 3 lignes manquées !</h2>
-      <p class="overlay-sub">Tu peux continuer la partie :</p>
+      <h2 id="continue-title">💥 Ratés !</h2>
+      <p class="overlay-sub">Tu as perdu ! Que veux-tu faire ?</p>
+      <button class="btn big" id="btn-continue-restart">↻ Recommencer le niveau</button>
       <button class="btn big" id="btn-continue-coins">Continuer — 100 🪙</button>
       <button class="btn" id="btn-continue-ad">🎬 Regarder une pub (gratuit)</button>
       <button class="btn secondary" id="btn-continue-quit">Abandonner</button>

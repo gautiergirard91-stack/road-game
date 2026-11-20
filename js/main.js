@@ -106,6 +106,8 @@ function updateLives(m) {
 }
 
 function showContinue() {
+  const max = maxMissesFor(save.difficulty);
+  $('#continue-title').textContent = `💥 ${game ? game.stats.misses : max}/${max} ratés !`;
   $('#btn-continue-coins').textContent = `Continuer — ${continueCost(continuesThisRun)} 🪙`;
   $('#continue-overlay').classList.add('active');
 }
@@ -518,10 +520,6 @@ $('#btn-play').addEventListener('click', () => {
   renderLevels();
   show('screen-levels');
 });
-$('#btn-tutorial').addEventListener('click', () => {
-  sfx.click();
-  startTutorial();
-});
 $('#btn-achievements').addEventListener('click', () => {
   sfx.click();
   renderAchievements();
@@ -599,13 +597,7 @@ $('#btn-shop').addEventListener('click', () => {
 });
 $('#btn-help').addEventListener('click', () => {
   sfx.click();
-  $('#help-modal').classList.remove('hidden');
-  $('#help-modal').classList.add('active');
-});
-$('#btn-help-close').addEventListener('click', () => {
-  sfx.click();
-  $('#help-modal').classList.add('hidden');
-  $('#help-modal').classList.remove('active');
+  startTutorial();
 });
 $('#btn-sound').addEventListener('click', () => {
   store.setSound(!save.sound);
@@ -642,6 +634,12 @@ $('#btn-over-levels').addEventListener('click', () => {
 $('#btn-over-menu').addEventListener('click', () => {
   sfx.click();
   show('screen-menu');
+});
+$('#btn-continue-restart').addEventListener('click', () => {
+  sfx.click();
+  hideContinue();
+  if (game) game.running = false;
+  if (currentLevel) startLevel(currentLevel);
 });
 $('#btn-continue-coins').addEventListener('click', () => {
   const cost = continueCost(continuesThisRun);

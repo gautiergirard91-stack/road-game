@@ -48,7 +48,7 @@ export const THEMES = {
 };
 
 export const LEVELS = [
-  { id: 1, name: 'Premiers tours', theme: 'autoroute', speed: 250, lines: 15, gapMin: 460, gapMax: 700, w: { dash: 1 }, pDouble: 0, cost: 0 },
+  { id: 1, name: 'Premiers tours', theme: 'autoroute', speed: 270, lines: 10, gapMin: 460, gapMax: 700, w: { dash: 1 }, pDouble: 0, cost: 0 },
   { id: 2, name: 'Accélération', theme: 'autoroute', speed: 300, lines: 18, gapMin: 420, gapMax: 620, w: { dash: 1 }, pDouble: 0.15, cost: 150 },
   { id: 3, name: 'Double file', theme: 'autoroute', speed: 340, lines: 20, gapMin: 400, gapMax: 560, w: { dash: 0.7, band: 0.3 }, pDouble: 0.3, cost: 300 },
   { id: 4, name: 'En ville', theme: 'ville', speed: 340, lines: 34, gapMin: 390, gapMax: 560, w: { dash: 0.6, chevron: 0.4 }, pDouble: 0.2, cost: 500, crosswalk: true },

@@ -79,6 +79,13 @@ python3 -m http.server 8080
 - [ ] Transitions en fondu entre les écrans ; pied de menu : **v1.2.0**
 - [ ] `store/` généré : bannière 1024x500 + 2 captures 1080x1920 (placeholders)
 
+### v1.3.1
+- [ ] Menu : le bouton « ❓ Comment jouer » est remplacé par **👶 Tutoriel** (relance le tuto interactif)
+- [ ] Au dernier raté, l'overlay propose dans l'ordre : **↻ Recommencer le niveau** → Continuer (🪙) → Pub 🎬 → Abandonner
+- [ ] Niveau 1 : 10 lignes seulement, un peu plus rapide (270)
+- [ ] **Badge de lignes restantes sur le toit de la voiture** (∞ en Survie)
+- [ ] Tuto : texte plus grand (18 px) ; étape « −1 ❤️ » attend 5 s avant de pouvoir passer ; **2 dépassements obligatoires**, le 2ème attend que la voiture soit **revenue à droite** avant le passage piéton
+
 ### Tutoriel interactif forcé (v1.3)
 - [ ] **1er lancement** : le bouton Jouer lance le tutoriel interactif (pas la liste des niveaux), panneau d'étapes en haut (1/8…8/8)
 - [ ] Chaque étape attend l'action du joueur : tap ligne → PARFAIT → combo x3 → laisser passer une ligne (pas de perte de ❤️ en tutoriel) → **tap haut (AV) puis bas (AR)** → **swipe ⬅ devant la voiture bleue** → passage piéton à cliquer
