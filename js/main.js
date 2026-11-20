@@ -289,9 +289,12 @@ function updateMusicBtn() {
 function renderLevels() {
   const list = $('#levels-list');
   list.innerHTML = '';
+  const allDone = LEVELS.every((lv) => (save.best[lv.id] || 0) > 0);
   for (const l of [ENDLESS_LEVEL, ...LEVELS]) {
-    const locked = !l.endless && l.cost > 0 && !save.unlockedLevels.includes(l.id);
-    const canBuy = !locked || l.id === 1 || save.unlockedLevels.includes(l.id - 1);
+    // Survie ∞ : débloquée seulement quand les 15 niveaux sont terminés au moins une fois
+    const locked = l.endless ? !allDone : l.cost > 0 && !save.unlockedLevels.includes(l.id);
+    // achat du niveau N autorisé seulement si le niveau N-1 a été terminé au moins une fois
+    const canBuy = !locked || l.id === 1 || (save.best[l.id - 1] || 0) > 0;
     const c = cur(l.diff || 'auto');
     const best = save.best[l.id];
     const medal = save.trophies[l.id] ? ' 🥇' : '';
@@ -304,12 +307,16 @@ function renderLevels() {
         <div class="card-sub">${THEMES[l.theme].name} · ${l.endless ? 'vitesse croissante' : `vitesse ${l.speed} · ${l.lines} lignes`}</div>
         <div class="card-best">${best ? `🏆 Record : ${best}` : ''}</div>
       </div>
-      <button class="btn small">${locked ? (canBuy ? `🔒 ${l.cost} ${c.icon}` : '🔒 niveau précédent') : '▶ Jouer'}</button>`;
+      <button class="btn small">${locked ? (l.endless ? '🔒 15 niveaux à finir' : canBuy ? `🔒 ${l.cost} ${c.icon}` : `🔒 finis le niveau ${l.id - 1}`) : '▶ Jouer'}</button>`;
     card.querySelector('button').addEventListener('click', () => {
       sfx.click();
       if (locked) {
+        if (l.endless) {
+          toast('Termine les 15 niveaux (au moins une fois chacun) pour débloquer la Survie ∞ !');
+          return;
+        }
         if (!canBuy) {
-          toast(`Débloque d'abord le niveau ${l.id - 1} !`);
+          toast(`Termine d'abord le niveau ${l.id - 1} au moins une fois !`);
           return;
         }
         if (store.spend(l.diff || 'auto', l.cost)) {

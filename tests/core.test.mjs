@@ -79,7 +79,7 @@ assert.equal(judge(60), 'good', 'fenêtres standard : 60 ms = BIEN');
 assert.equal(judge(200, wide), 'passable');
 assert.equal(judge(200), null);
 
-assert.equal(firstClearBonus(LEVELS[0]), 300, 'bonus premier clear niveau 1');
+assert.equal(firstClearBonus(LEVELS[0]), 180, 'bonus premier clear niveau 1');
 assert.ok(firstClearBonus(LEVELS[11]) > firstClearBonus(LEVELS[0]), 'bonus croissant avec le niveau');
 assert.ok(LEVELS.slice(0, 3).every((l) => l.theme === 'autoroute' && l.lines <= 20), 'niveaux autoroute raccourcis (parties rapides)');
 assert.ok(LEVELS[0].lines <= 10 && LEVELS[0].speed >= 260, 'niveau 1 très court et un peu plus rapide');
@@ -100,11 +100,11 @@ assert.ok(isPerfectClear(pcStats), 'full parfait détecté');
 assert.ok(!isPerfectClear({ ...pcStats, goods: 1 }), 'un BIEN casse le full parfait');
 assert.ok(!isPerfectClear({ ...pcStats, misses: 1 }), 'un raté casse le full parfait');
 assert.ok(!isPerfectClear({ ...pcStats, perfects: 0 }), 'sans PARFAIT, pas de full parfait');
-assert.equal(perfectClearBonus(LEVELS[0]), 600, 'bonus full parfait niveau 1');
+assert.equal(perfectClearBonus(LEVELS[0]), 360, 'bonus full parfait niveau 1');
 {
-  const base = Math.round(pcStats.score / 5) + pcStats.perfects * 5;
+  const base = Math.round(pcStats.score / 8) + pcStats.perfects * 3;
   assert.equal(coinsForResult(pcStats, LEVELS[0], false), base, 'pas de bonus full parfait si niveau non terminé');
-  assert.equal(coinsForResult(pcStats, LEVELS[0], true), base + 150 + LEVELS[0].id * 30 + perfectClearBonus(LEVELS[0]), 'full parfait terminé = gros bonus de pièces');
+  assert.equal(coinsForResult(pcStats, LEVELS[0], true), base + 100 + LEVELS[0].id * 20 + perfectClearBonus(LEVELS[0]), 'full parfait terminé = gros bonus de pièces');
   assert.ok(coinsForResult(pcStats, LEVELS[14], true) > coinsForResult({ ...pcStats, goods: 1 }, LEVELS[14], true), 'le full parfait rapporte nettement plus');
 }
 for (const d of DIFFICULTIES) {

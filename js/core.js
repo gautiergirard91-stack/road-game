@@ -60,12 +60,13 @@ export function isPerfectClear(stats) {
 }
 
 export function perfectClearBonus(level) {
-  return 500 + level.id * 100;
+  return 300 + level.id * 60;
 }
 
 export function coinsForResult(stats, level, completed) {
   const perfectBonus = completed && isPerfectClear(stats) ? perfectClearBonus(level) : 0;
-  return Math.round(stats.score / 5) + stats.perfects * 5 + (completed ? 150 + level.id * 30 : 0) + perfectBonus;
+  // gains volontairement sobres (anti-farm) : score/8 + 3×PARFAIT + complétion
+  return Math.round(stats.score / 8) + stats.perfects * 3 + (completed ? 100 + level.id * 20 : 0) + perfectBonus;
 }
 
 export function accuracy(stats) {
@@ -83,7 +84,7 @@ export function maxMissesFor(mode) {
 }
 
 export function firstClearBonus(level) {
-  return 250 + level.id * 50;
+  return 150 + level.id * 30;
 }
 
 export function axleDelta(wheelY, frontAxleY, axle) {

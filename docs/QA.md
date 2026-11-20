@@ -29,3 +29,11 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] **Combo** : BIEN/OK ne montent pas le combo, PARFAIT si, raté = 0
 - [ ] **Cloud** : `wallets` + `trophies` synchronisés (2 appareils, même pseudo)
 - [ ] CI verte + `CACHE` sw bumpé + aucune erreur console
+
+## Checklist v1.3.4 (progression/économie)
+
+- [ ] **Survie ∞ verrouillée** au début (« 🔒 15 niveaux à finir ») ; débloquée quand les 15 niveaux ont un record > 0
+- [ ] **Niveau N achetable seulement si le niveau N-1 terminé au moins 1 fois** (« 🔒 finis le niveau N-1 ») ; achat toujours débité dans la monnaie du palier du niveau
+- [ ] **Gains réduits** : vérifier à l'écran de fin `+X monnaie` plus faible qu'avant (score/8 + 3×PARFAIT + 100+20×n° si terminé)
+- [ ] Full PARFAIT = 🥇 + bonus 300+60×n° ; premier clear = 150+30×n°
+- [ ] CI verte
