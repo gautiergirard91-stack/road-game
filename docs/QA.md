@@ -147,6 +147,24 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] Record de temps `⏱` affiché sur la carte du niveau ; `bestTime` + `speedrun` persistés et synchro cloud ; pas d'envoi au classement global en speedrun
 - [ ] CI verte + CACHE sw bumpé (roadtap-v27) + VERSION 1.3.19
 
+## Checklist v1.3.20 (fix slider du tutoriel sur mobile)
+
+- [ ] Le `touchmove` global ne fait plus `preventDefault` quand le doigt est sur un contrôle (`input/button/…`) → le drag natif du slider n'est plus coupé
+- [ ] Fallback pointer dans tutorial.js : pointerdown/move sur `#tut-slider` calcule la valeur depuis la position X (atteint 100 % à droite, débloque l'étape)
+- [ ] Toucher le slider ne déclenche plus de tap dans le jeu (`closest('button, input, …')`)
+- [ ] `#tut-read` centré dans la bannière ; slider bien large sur 390 px
+- [ ] PC : le slider fonctionne toujours à la souris ; tuto complet jouable jusqu'au bout
+- [ ] CI verte + CACHE sw bumpé (roadtap-v28) + VERSION 1.3.20
+
+## Checklist v1.3.21 (option zones gauche/droite)
+
+- [ ] Accessibilité (♿) : case « 🔄 Zones gauche/droite » — gauche = roues AV, droite = roues AR (au lieu de haut/bas), persistée + synchro cloud
+- [ ] En partie Permis A/Pilote avec l'option ON : tap à gauche de l'écran = AV, à droite = AR ; le swipe ⬅ (dépassement) fonctionne toujours
+- [ ] Clavier : ← = AV et → = AR quand l'option est ON (↑ reste AV)
+- [ ] Le texte du tutoriel (étape Permis A) s'adapte à l'option
+- [ ] Option OFF = comportement haut/bas inchangé
+- [ ] CI verte + CACHE sw bumpé (roadtap-v29) + VERSION 1.3.21
+
 ## Note bloqueurs de pub (Google Sign-In)
 
 - uBlock Origin / Privacy Badger bloquent `accounts.google.com` (popup GIS) et `identitytoolkit.googleapis.com` (échange du jeton) → erreurs « popup bloquée » / CORS. **Mettre `roadtap.uk` en liste blanche** dans les deux extensions + autoriser les popups pour le site. Le bouton affiche alors « Continuer en tant que … » quand le navigateur est déjà connecté à un compte Google.

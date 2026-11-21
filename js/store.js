@@ -14,6 +14,7 @@ const defaults = () => ({
   best: {},
   bestTime: {}, // v1.3.19 : meilleurs temps (ms) du mode speedrun, par niveau
   speedrun: false,
+  horizontalZones: false, // v1.3.21 : zones gauche/droite (gauche=AV, droite=AR) au lieu de haut/bas
   sound: true,
   difficulty: 'auto',
   pseudo: '',
@@ -125,6 +126,12 @@ export function isCleared(levelId) {
 // v1.3.19 : mode speedrun (toggle, se cale sur la difficulté Pilote)
 export function setSpeedrun(on) {
   save.speedrun = Boolean(on);
+  persist();
+}
+
+// v1.3.21 : zones de tap horizontales (gauche = roues AV, droite = roues AR)
+export function setHorizontalZones(on) {
+  save.horizontalZones = Boolean(on);
   persist();
 }
 
@@ -357,6 +364,7 @@ export function snapshot() {
     best: save.best,
     bestTime: save.bestTime,
     speedrun: save.speedrun,
+    horizontalZones: save.horizontalZones,
     difficulty: save.difficulty,
     achievements: save.achievements,
     totals: save.totals,
@@ -412,6 +420,7 @@ export function mergeRemote(remote) {
     if (cur === undefined || v < cur) save.bestTime[k] = v;
   }
   if (remote.speedrun === true) save.speedrun = true;
+  if (remote.horizontalZones === true) save.horizontalZones = true;
   save.totals = {
     runs: Math.max(save.totals.runs, remote.totals?.runs || 0),
     perfects: Math.max(save.totals.perfects, remote.totals?.perfects || 0),

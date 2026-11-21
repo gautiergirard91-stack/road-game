@@ -875,6 +875,7 @@ $('#btn-access').addEventListener('click', () => {
   sfx.click();
   $('#opt-widewindows').checked = !!save.wideWindows;
   $('#opt-colorblind').checked = !!save.colorblind;
+  $('#opt-zones-h').checked = !!save.horizontalZones;
   $('#access-modal').classList.remove('hidden');
   $('#access-modal').classList.add('active');
 });
@@ -890,6 +891,10 @@ $('#opt-widewindows').addEventListener('change', (e) => {
 $('#opt-colorblind').addEventListener('change', (e) => {
   store.setColorblind(e.target.checked);
   toast(e.target.checked ? 'Symboles ajoutés sur les lignes (mode daltonien)' : 'Mode standard');
+});
+$('#opt-zones-h').addEventListener('change', (e) => {
+  store.setHorizontalZones(e.target.checked);
+  toast(e.target.checked ? '🔄 Zones gauche/droite : gauche = roues AV, droite = roues AR' : 'Zones haut/bas rétablies (haut = AV, bas = AR)');
 });
 $('#btn-music').addEventListener('click', () => {
   store.setMusic(!save.music);
@@ -1119,8 +1124,15 @@ window.addEventListener('pointerdown', (e) => {
   pointerLast = pointerStart;
   swipeFired = false;
   if (!canPlayNow()) return;
-  if (e.target.closest('button')) return;
-  const zone = e.clientY < window.innerHeight / 2 ? 'front' : 'rear';
+  if (e.target.closest('button, input, select, textarea, a, label')) return; // ne pas taper le jeu quand on touche un contrôle
+  // v1.3.21 : option zones gauche/droite (gauche = AV, droite = AR) au lieu de haut/bas
+  const zone = save.horizontalZones
+    ? e.clientX < window.innerWidth / 2
+      ? 'front'
+      : 'rear'
+    : e.clientY < window.innerHeight / 2
+      ? 'front'
+      : 'rear';
   game.tap(zone);
 });
 
@@ -1155,6 +1167,15 @@ window.addEventListener('keydown', (e) => {
     e.preventDefault();
     if (canPlay) game.tap('front');
   }
+  // v1.3.21 : clavier en mode zones gauche/droite
+  if (save.horizontalZones && e.code === 'ArrowLeft') {
+    e.preventDefault();
+    if (canPlay) game.tap('front');
+  }
+  if (save.horizontalZones && e.code === 'ArrowRight') {
+    e.preventDefault();
+    if (canPlay) game.tap('rear');
+  }
   if (e.code === 'ArrowLeft') {
     e.preventDefault();
     if (canPlay) game.swipeLeft();
@@ -1172,7 +1193,11 @@ document.addEventListener('visibilitychange', () => {
 });
 
 document.addEventListener('touchmove', (e) => {
-  if (currentScreen === 'screen-game') e.preventDefault();
+  if (currentScreen !== 'screen-game') return;
+  // v1.3.20 : ne JAMAIS empêcher le touchmove des contrôles (sinon le curseur du tuto
+  // est coupé sur mobile et n'atteint pas 100 %)
+  if (e.target.closest && e.target.closest('input, button, select, textarea, a, label')) return;
+  e.preventDefault();
 }, { passive: false });
 
 refreshCoins();
