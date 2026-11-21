@@ -547,12 +547,21 @@ body {
 }
 
 #difficulty-picker,
-#lb-filter {
+#lb-filter,
+#lb-level-filter {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   width: 100%;
   max-width: 560px;
   flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* filtre par niveau : 17 boutons répartis sur ~3 lignes (6 par ligne) */
+#lb-level-filter .diff-btn {
+  flex: 1 1 15%;
+  font-size: 12px;
+  padding: 8px 4px;
 }
 
 .diff-btn {
