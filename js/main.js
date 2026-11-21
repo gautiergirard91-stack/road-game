@@ -938,14 +938,7 @@ document.querySelectorAll('#shop-tabs .shop-tab').forEach((b) => {
     showShopPage(b.dataset.cat);
   });
 });
-$('#btn-shop-prev').addEventListener('click', () => {
-  sfx.click();
-  showShopPage(SHOP_CATS[(SHOP_CATS.indexOf(shopCat) + SHOP_CATS.length - 1) % SHOP_CATS.length]);
-});
-$('#btn-shop-next').addEventListener('click', () => {
-  sfx.click();
-  showShopPage(SHOP_CATS[(SHOP_CATS.indexOf(shopCat) + 1) % SHOP_CATS.length]);
-});
+
 $('#btn-pause').addEventListener('click', () => togglePause());
 $('#btn-resume').addEventListener('click', () => togglePause(false));
 $('#btn-quit').addEventListener('click', () => {

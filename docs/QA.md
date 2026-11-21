@@ -78,13 +78,13 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] Classement : les scores envoyés apparaissent bien sous `/scores/<mode>` dans Firebase
 - [ ] CI verte + CACHE sw bumpé (roadtap-v17) + VERSION 1.3.9
 
-## Checklist v1.3.10 (boutique paginée par catégorie)
+## Checklist v1.3.11 (boutique : boutons texte par catégorie, sans flèches)
 
-- [ ] Barre d'onglets 🚗 ✨ 🎨 🎁 🔊 en haut de la boutique (sticky) + flèches ◀ ▶ pour changer de page
-- [ ] Une seule catégorie visible à la fois ; l'onglet actif est surligné ; la page remonte en haut au changement
+- [ ] Onglets texte « 🚗 Voitures / ✨ Effets / 🎨 Thèmes / 🎁 Packs / 🔊 Sons » en haut de la boutique (sticky), **plus de flèches ◀ ▶**
+- [ ] Une seule catégorie visible à la fois ; le bouton actif est surligné ; la page remonte en haut au changement
+- [ ] Mobile 390 px : les 5 boutons tiennent (retour à la ligne autorisé si besoin)
 - [ ] Achat/équipement depuis n'importe quelle page → re-render OK, on reste sur la même catégorie
-- [ ] Mobile : les 5 onglets tiennent sur une ligne (390 px)
-- [ ] CI verte + CACHE sw bumpé (roadtap-v18) + VERSION 1.3.10
+- [ ] CI verte + CACHE sw bumpé (roadtap-v19) + VERSION 1.3.11
 
 ## Note bloqueurs de pub (Google Sign-In)
 
