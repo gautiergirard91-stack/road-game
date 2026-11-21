@@ -19,6 +19,10 @@ export class Tutorial {
     this.saw = { front: false, rear: false };
     this.stepStart = performance.now();
     this.finished = false;
+    // v1.3.21 : le texte du tuto s'adapte aux zones (haut/bas ou gauche/droite)
+    const zonesTxt = store.get().horizontalZones
+      ? "Tap à GAUCHE de l'écran = roues AV, tap à DROITE = roues AR"
+      : "Tap en HAUT de l'écran = roues AV, tap en BAS = roues AR";
     this.steps = [
       {
         text: "👆 Bienvenue ! Tape l'écran (ou Espace) quand la ligne blanche atteint les roues de la voiture.",
@@ -37,7 +41,7 @@ export class Tutorial {
         missStep: true,
       },
       {
-        text: "🎚️ Permis A : chaque ligne se joue 2 fois, indépendamment ! Tap en HAUT de l'écran = roues AV, tap en BAS = roues AR. Fais les deux sur une même ligne.",
+        text: `🎚️ Permis A : chaque ligne se joue 2 fois, indépendamment ! ${zonesTxt}. Fais les deux sur une même ligne.",
         enter: (g) => {
           g.mode = 'permisA';
           g.axles = ['front', 'rear'];
@@ -78,6 +82,28 @@ export class Tutorial {
     if (this.sliderEl) {
       this.sliderEl.addEventListener('input', () => {
         if (this.reading && Number(this.sliderEl.value) >= 100) this.endRead();
+      });
+      // v1.3.20 : drag tactile fiable — on calcule la valeur depuis la position du doigt
+      // (le drag natif du <input type=range> est coupé sur mobile par le preventDefault global)
+      const dragTo = (e) => {
+        const r = this.sliderEl.getBoundingClientRect();
+        const f = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
+        this.sliderEl.value = String(Math.round(f * 100));
+        this.sliderEl.dispatchEvent(new Event('input', { bubbles: true }));
+      };
+      this.sliderEl.addEventListener('pointerdown', (e) => {
+        if (!this.reading) return;
+        e.preventDefault(); // on prend le contrôle du drag (touch-action:none déjà en CSS)
+        try {
+          this.sliderEl.setPointerCapture(e.pointerId);
+        } catch {
+          /* ignore */
+        }
+        dragTo(e);
+      });
+      this.sliderEl.addEventListener('pointermove', (e) => {
+        if (!this.reading || !(e.buttons & 1)) return;
+        dragTo(e);
       });
     }
     if (els.quit) {

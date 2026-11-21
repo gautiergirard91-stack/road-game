@@ -784,7 +784,7 @@ canvas.swatch.snd-preview {
   flex-direction: column;
   gap: 4px;
   width: min(340px, 80vw);
-  margin-top: 6px;
+  margin: 6px auto 0;
 }
 
 #tut-read-label {
