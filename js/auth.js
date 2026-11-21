@@ -65,8 +65,10 @@ async function exchangeGoogleToken(googleIdToken) {
   };
 }
 
+let gsiInitialized = false;
+
 // Rend le bouton officiel Google dans `container` ; la promesse est résolue avec la session
-// { uid, idToken, refreshToken, email } au clic, ou null si annulé/erreur.
+// { uid, idToken, refreshToken, email } au choix du compte, ou null si annulé/erreur.
 export async function renderGoogleButton(container) {
   if (!isGoogleAuthConfigured() || !container) return Promise.resolve(null);
   await loadGsi();
@@ -79,22 +81,34 @@ export async function renderGoogleButton(container) {
       }
     };
     try {
-      window.google.accounts.id.initialize({
-        client_id: FIREBASE_OAUTH_CLIENT_ID,
-        callback: async (resp) => {
-          if (!resp || !resp.credential) return done(null);
-          try {
-            done(await exchangeGoogleToken(resp.credential));
-          } catch (err) {
-            console.error('[auth] échange du jeton échoué:', err);
+      if (!gsiInitialized) {
+        gsiInitialized = true;
+        window.google.accounts.id.initialize({
+          client_id: FIREBASE_OAUTH_CLIENT_ID,
+          callback: async (resp) => {
+            if (!resp || !resp.credential) return done(null);
+            try {
+              done(await exchangeGoogleToken(resp.credential));
+            } catch (err) {
+              console.error('[auth] échange du jeton échoué:', err);
+              done(null);
+            }
+          },
+          error_callback: (err) => {
+            console.error('[gis] erreur:', err);
             done(null);
-          }
-        },
-      });
-      window.google.accounts.id.renderButton(container, { theme: 'filled_blue', size: 'large', text: 'continue_with', width: 260 });
-      // sécurité : si le callback ne vient jamais (bouton non cliqué), ne bloque pas
-      setTimeout(() => done(null), 120000);
-    } catch {
+          },
+          cancel_on_tap_outside: true,
+          auto_select: false,
+        });
+      }
+      if (!container.dataset.rendered) {
+        container.dataset.rendered = '1';
+        window.google.accounts.id.renderButton(container, { theme: 'filled_blue', size: 'large', text: 'continue_with', width: 260 });
+      }
+      // PAS de timeout : on attend vraiment le choix du compte dans la popup
+    } catch (err) {
+      console.error('[auth] renderButton:', err);
       done(null);
     }
   });
