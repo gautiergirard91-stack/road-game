@@ -15,6 +15,7 @@ for (const f of jsFiles) {
     if (!ids.has(m[1])) { console.log(`❌ ${f}: $('#${m[1]}') sans élément dans index.html`); problems++; }
   }
   for (const m of src.matchAll(/getElementById\('([\w-]+)'\)/g)) {
+    if (m[1] === 'fatal-error') continue; // créé dynamiquement par le gestionnaire d'erreur global (v1.3.24)
     if (!ids.has(m[1])) { console.log(`❌ ${f}: getElementById('${m[1]}') sans élément`); problems++; }
   }
   for (const m of src.matchAll(/querySelector\('#([\w-]+)/g)) {

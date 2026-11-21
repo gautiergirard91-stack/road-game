@@ -180,6 +180,14 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] Mode hors-ligne : recharger roadtap.uk sans réseau → le jeu se lance (menu jouable)
 - [ ] CI verte (tests + audit) + CACHE sw bumpé (roadtap-v31) + VERSION 1.3.23
 
+## Checklist v1.3.24 (page morte / clics inactifs — anti mélange de versions)
+
+- [ ] **SW** : le code (js/css/html/manifest) est servi **network-first** (cache en repli hors-ligne) → plus de mélange « nouveau HTML + vieux JS » ; `clients.claim()` actif
+- [ ] **main.js** : les 37 listeners passent par `on(id, …)` null-safe ; cases à cocher protégées ; gestionnaire `window.onerror` qui affiche l'erreur en bas de l'écran (`#fatal-error`)
+- [ ] **Reset dur côté testeur** : F12 → Application → Service Workers → Unregister + Clear site data, puis Ctrl+Shift+R → la v1.3.24 charge proprement, tous les clics répondent
+- [ ] Hors-ligne après ça : le jeu se lance toujours depuis le cache
+- [ ] CI verte (tests + audit) + CACHE sw bumpé (roadtap-v32) + VERSION 1.3.24
+
 ## Note bloqueurs de pub (Google Sign-In)
 
 - uBlock Origin / Privacy Badger bloquent `accounts.google.com` (popup GIS) et `identitytoolkit.googleapis.com` (échange du jeton) → erreurs « popup bloquée » / CORS. **Mettre `roadtap.uk` en liste blanche** dans les deux extensions + autoriser les popups pour le site. Le bouton affiche alors « Continuer en tant que … » quand le navigateur est déjà connecté à un compte Google.
