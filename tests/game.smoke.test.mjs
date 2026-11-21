@@ -6,7 +6,7 @@ Object.defineProperty(globalThis, 'window', {
 });
 
 const { Game, MODELS, CAR_STYLES, renderCarPreview, renderEffectPreview, renderThemePreview, renderPackPreview, renderSoundPreview } = await import('../js/game.js');
-const { LEVELS, SKINS, EFFECTS, THEME_SHOP, PACKS, SOUND_PACKS } = await import('../js/data.js');
+const { LEVELS, ENDLESS_LEVEL, SKINS, EFFECTS, THEME_SHOP, PACKS, SOUND_PACKS } = await import('../js/data.js');
 
 function makeCtx() {
   return new Proxy(
@@ -252,5 +252,8 @@ for (const e of EFFECTS) {
 for (const t of THEME_SHOP) renderThemePreview(fakeCanvas(), t.id);
 for (const p of PACKS) renderPackPreview(fakeCanvas(), p);
 for (const sp of SOUND_PACKS) renderSoundPreview(fakeCanvas(), sp);
+
+// v1.3.18 : aperçu de chaque niveau (taille carte 52×52) dans la liste des niveaux
+for (const l of [...LEVELS, ENDLESS_LEVEL]) renderThemePreview(fakeCanvas(), l.theme, 52, 52);
 
 console.log('OK - smoke test moteur : 9 scénarios sans crash, mécaniques vérifiées');

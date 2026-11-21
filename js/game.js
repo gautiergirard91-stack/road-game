@@ -500,10 +500,10 @@ export function renderEffectPreview(canvas, fx) {
   }
 }
 
-function previewSetup(canvas) {
+function previewSetup(canvas, w = 56, h = 64) {
   const dpr = Math.min((typeof window !== 'undefined' && window.devicePixelRatio) || 1, 2);
-  const cssW = 56;
-  const cssH = 64;
+  const cssW = w;
+  const cssH = h;
   canvas.width = Math.round(cssW * dpr);
   canvas.height = Math.round(cssH * dpr);
   canvas.style.width = cssW + 'px';
@@ -514,9 +514,9 @@ function previewSetup(canvas) {
 }
 
 // v1.3.17 : aperçu d'un thème de route (mini route avec les VRAIES couleurs du thème)
-export function renderThemePreview(canvas, themeId) {
+export function renderThemePreview(canvas, themeId, w, h) {
   const t = THEMES[themeId] || THEMES.autoroute;
-  const { ctx, cssW, cssH } = previewSetup(canvas);
+  const { ctx, cssW, cssH } = previewSetup(canvas, w, h);
   const horizon = cssH * 0.42;
   const sky = ctx.createLinearGradient(0, 0, 0, horizon);
   sky.addColorStop(0, t.skyTop);

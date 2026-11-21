@@ -132,6 +132,12 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] `cleared` persisté + synchro cloud (snapshot/mergeRemote)
 - [ ] CI verte + CACHE sw bumpé (roadtap-v25) + VERSION 1.3.17
 
+## Checklist v1.3.18 (aperçu canvas aussi sur les cartes des NIVEAUX)
+
+- [ ] Écran des niveaux : chaque carte affiche un **mini canvas 52×52** du thème du niveau (vraies couleurs : autoroute/ville/désert/neige/nuit/néon/sunset) à la place du dégradé CSS ; Survie ∞ aussi
+- [ ] La bordure/bouton « ▶ Jouer » / cadenas restent alignés (carte de même hauteur)
+- [ ] CI verte + CACHE sw bumpé (roadtap-v26) + VERSION 1.3.18
+
 ## Note bloqueurs de pub (Google Sign-In)
 
 - uBlock Origin / Privacy Badger bloquent `accounts.google.com` (popup GIS) et `identitytoolkit.googleapis.com` (échange du jeton) → erreurs « popup bloquée » / CORS. **Mettre `roadtap.uk` en liste blanche** dans les deux extensions + autoriser les popups pour le site. Le bouton affiche alors « Continuer en tant que … » quand le navigateur est déjà connecté à un compte Google.
