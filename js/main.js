@@ -1,5 +1,5 @@
 import { LEVELS, THEMES, SKINS, EFFECTS, DIFFICULTIES, CURRENCIES, WINDOWS, ACHIEVEMENTS, THEME_SHOP, ENDLESS_LEVEL, PACKS, SOUND_PACKS } from './data.js';
-import { Game, CAR_STYLE_LABEL, renderCarPreview, renderEffectPreview } from './game.js';
+import { Game, CAR_STYLE_LABEL, renderCarPreview, renderEffectPreview, renderThemePreview, renderPackPreview, renderSoundPreview } from './game.js';
 import * as store from './store.js';
 import { sfx, setEnabled, setMusicEnabled, unlockAudio, applySoundPack } from './audio.js';
 import { coinsForResult, accuracy, avgReaction, continueCost, maxMissesFor, firstClearBonus, isPerfectClear, perfectClearBonus, dailyChallenge, weeklyQuests } from './core.js';
@@ -381,12 +381,12 @@ async function renderChallenges() {
 function renderLevels() {
   const list = $('#levels-list');
   list.innerHTML = '';
-  const allDone = LEVELS.every((lv) => (save.best[lv.id] || 0) > 0);
+  const allDone = LEVELS.every((lv) => store.isCleared(lv.id));
   for (const l of [ENDLESS_LEVEL, ...LEVELS]) {
     // Survie ∞ : débloquée seulement quand les 15 niveaux sont terminés au moins une fois
     const locked = l.endless ? !allDone : l.cost > 0 && !save.unlockedLevels.includes(l.id);
-    // achat du niveau N autorisé seulement si le niveau N-1 a été terminé au moins une fois
-    const canBuy = !locked || l.id === 1 || (save.best[l.id - 1] || 0) > 0;
+    // v1.3.17 : achat du niveau N autorisé seulement si le niveau N-1 a été TERMINÉ EN ENTIER
+    const canBuy = !locked || l.id === 1 || store.isCleared(l.id - 1);
     const c = cur(l.diff || 'auto');
     const best = save.best[l.id];
     const medal = save.trophies[l.id] ? ' 🥇' : '';
@@ -399,7 +399,7 @@ function renderLevels() {
         <div class="card-sub">${THEMES[l.theme].name} · ${l.endless ? 'vitesse croissante' : `vitesse ${l.speed} · ${l.lines} lignes`}</div>
         <div class="card-best">${best ? `🏆 Record : ${best}` : ''}</div>
       </div>
-      <button class="btn small">${locked ? (l.endless ? '🔒 15 niveaux à finir' : canBuy ? `🔒 ${l.cost} ${c.icon}` : `🔒 finis le niveau ${l.id - 1}`) : '▶ Jouer'}</button>`;
+      <button class="btn small">${locked ? (l.endless ? '🔒 15 niveaux à finir' : canBuy ? `🔒 ${l.cost} ${c.icon}` : `🔒 termine le niveau ${l.id - 1} en entier`) : '▶ Jouer'}</button>`;
     card.querySelector('button').addEventListener('click', () => {
       sfx.click();
       if (locked) {
@@ -408,18 +408,18 @@ function renderLevels() {
           return;
         }
         if (!canBuy) {
-          toast(`Termine d'abord le niveau ${l.id - 1} au moins une fois !`);
+          toast(`Termine d'abord le niveau ${l.id - 1} en entier !`);
           return;
         }
         if (store.spend(l.diff || 'auto', l.cost)) {
           store.unlockLevel(l.id);
           sfx.coin();
           logEvent('purchase', { item: `level:${l.id}`, cost: l.cost, currency: l.diff || 'auto' });
-          toast(`Niveau ${l.id} débloqué !`);
+          // v1.3.17 : on débloque SANS lancer la partie (le bouton passe à "▶ Jouer")
+          toast(`Niveau ${l.id} débloqué ! Clique sur ▶ Jouer pour lancer la partie.`);
           pushCloud();
           refreshCoins();
           renderLevels();
-          startLevel(l);
         } else {
           toast(`Il te manque ${l.cost - store.getWallet(l.diff || 'auto')} ${c.icon} (${c.name})`);
         }
@@ -489,7 +489,7 @@ function renderShop() {
       const card = document.createElement('div');
       card.className = 'card shop-card';
       card.innerHTML = `
-        <div class="swatch fx">🎨</div>
+        <canvas class="swatch th-preview" aria-label="Aperçu ${t.name}"></canvas>
         <div class="card-body">
           <div class="card-title">${t.name}</div>
           <div class="card-sub">${t.desc}</div>
@@ -513,6 +513,7 @@ function renderShop() {
         refreshCoins();
         renderShop();
       });
+      renderThemePreview(card.querySelector('canvas.th-preview'), t.id);
       thEl.appendChild(card);
     }
   }
@@ -566,7 +567,7 @@ function renderPacks() {
     const card = document.createElement('div');
     card.className = 'card shop-card';
     card.innerHTML = `
-      <div class="swatch fx">🎁</div>
+      <canvas class="swatch pk-preview" aria-label="Aperçu ${p.name}"></canvas>
       <div class="card-body">
         <div class="card-title">${p.name}</div>
         <div class="card-sub">${p.desc}</div>
@@ -586,6 +587,7 @@ function renderPacks() {
       refreshCoins();
       renderShop();
     });
+    renderPackPreview(card.querySelector('canvas.pk-preview'), p);
     el.appendChild(card);
   }
 }
@@ -601,7 +603,7 @@ function renderSoundPacks() {
     const card = document.createElement('div');
     card.className = 'card shop-card';
     card.innerHTML = `
-      <div class="swatch fx">🔊</div>
+      <canvas class="swatch snd-preview" aria-label="Aperçu ${sp.name}"></canvas>
       <div class="card-body">
         <div class="card-title">${sp.name}</div>
         <div class="card-sub">${sp.desc}</div>
@@ -627,6 +629,7 @@ function renderSoundPacks() {
       refreshCoins();
       renderShop();
     });
+    renderSoundPreview(card.querySelector('canvas.snd-preview'), sp);
     el.appendChild(card);
   }
 }
@@ -670,6 +673,8 @@ function onGameEnd(stats, level) {
   const firstClear = !!stats.completed && !save.best[level.id];
   const isRecord = store.setBest(level.id, stats.score);
   store.addTotals({ runs: 1, perfects: stats.perfects, overtakes: stats.overtakes || 0 });
+  // v1.3.17 : niveau "terminé" = partie complétée en entier (débloque l'achat du suivant)
+  if (stats.completed) store.markCleared(level.id);
   checkAchievements(stats, level);
   logEvent('game_over', { score: stats.score, level: level.id, mode: save.difficulty, completed: !!stats.completed, reason: stats.reason });
   if (save.pseudo && save.leaderboardOptIn) {

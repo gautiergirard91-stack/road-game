@@ -124,6 +124,14 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] Aperçus re-rendus à chaque renderShop()
 - [ ] CI verte + CACHE sw bumpé (roadtap-v24) + VERSION 1.3.16
 
+## Checklist v1.3.17 (aperçus boutique partout + déblocage des niveaux corrigé)
+
+- [ ] Boutique : les 5 catégories ont un aperçu canvas (🚗 voiture, ✨ effet **sans voiture**, 🎨 mini-route aux vraies couleurs du thème, 🎁 cadeau, 🔊 haut-parleur + ondes)
+- [ ] **Bug niveau 1** : cliquer sur « 🔒 payer » débloque le niveau SANS lancer la partie (bouton passe à « ▶ Jouer »)
+- [ ] **Bug niveau 2** : acheter le niveau N exige d'avoir TERMINÉ EN ENTIER le niveau N-1 (`cleared`, pas juste un score) ; Survie ∞ exige les 15 niveaux terminés
+- [ ] `cleared` persisté + synchro cloud (snapshot/mergeRemote)
+- [ ] CI verte + CACHE sw bumpé (roadtap-v25) + VERSION 1.3.17
+
 ## Note bloqueurs de pub (Google Sign-In)
 
 - uBlock Origin / Privacy Badger bloquent `accounts.google.com` (popup GIS) et `identitytoolkit.googleapis.com` (échange du jeton) → erreurs « popup bloquée » / CORS. **Mettre `roadtap.uk` en liste blanche** dans les deux extensions + autoriser les popups pour le site. Le bouton affiche alors « Continuer en tant que … » quand le navigateur est déjà connecté à un compte Google.

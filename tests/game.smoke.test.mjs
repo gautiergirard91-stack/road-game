@@ -5,8 +5,8 @@ Object.defineProperty(globalThis, 'window', {
   configurable: true,
 });
 
-const { Game, MODELS, CAR_STYLES, renderCarPreview, renderEffectPreview } = await import('../js/game.js');
-const { LEVELS, SKINS, EFFECTS } = await import('../js/data.js');
+const { Game, MODELS, CAR_STYLES, renderCarPreview, renderEffectPreview, renderThemePreview, renderPackPreview, renderSoundPreview } = await import('../js/game.js');
+const { LEVELS, SKINS, EFFECTS, THEME_SHOP, PACKS, SOUND_PACKS } = await import('../js/data.js');
 
 function makeCtx() {
   return new Proxy(
@@ -241,9 +241,16 @@ for (const [id, mm] of Object.entries(MODELS)) {
 // v1.3.15 : au moins 10 modèles de voiture
 assert.ok(Object.keys(MODELS).length >= 10, `au moins 10 modèles (reçu ${Object.keys(MODELS).length})`);
 
-// v1.3.16 : l'aperçu boutique de chaque effet se rend sans erreur
+const fakeCanvas = () => ({ getContext: () => makeCtx(), style: {}, width: 0, height: 0 });
+
+// v1.3.16 : l'aperçu boutique de chaque effet se rend sans erreur (SANS voiture dans l'aperçu, v1.3.17)
 for (const e of EFFECTS) {
-  renderEffectPreview({ getContext: () => makeCtx(), style: {}, width: 0, height: 0 }, e);
+  renderEffectPreview(fakeCanvas(), e);
 }
+
+// v1.3.17 : aperçus des thèmes, packs et packs de sons
+for (const t of THEME_SHOP) renderThemePreview(fakeCanvas(), t.id);
+for (const p of PACKS) renderPackPreview(fakeCanvas(), p);
+for (const sp of SOUND_PACKS) renderSoundPreview(fakeCanvas(), sp);
 
 console.log('OK - smoke test moteur : 9 scénarios sans crash, mécaniques vérifiées');
