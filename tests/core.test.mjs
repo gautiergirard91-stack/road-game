@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
-import { judge, pointsFor, buildPattern, coinsForResult, accuracy, avgReaction, continueCost, maxMissesFor, firstClearBonus, isPerfectClear, perfectClearBonus, axleDelta, mulberry32 } from '../js/core.js';
-import { LEVELS, WINDOWS, MAX_MISSES, CONTINUE_BASE_COST, SKINS, EFFECTS, ACHIEVEMENTS, CURRENCIES, DIFFICULTIES } from '../js/data.js';
+import { judge, pointsFor, buildPattern, coinsForResult, accuracy, avgReaction, continueCost, maxMissesFor, firstClearBonus, isPerfectClear, perfectClearBonus, axleDelta, mulberry32, dayKey, weekKey, dailyChallenge, weeklyQuests } from '../js/core.js';
+import { LEVELS, WINDOWS, MAX_MISSES, CONTINUE_BASE_COST, SKINS, EFFECTS, ACHIEVEMENTS, CURRENCIES, DIFFICULTIES, THEME_SHOP, PACKS, SOUND_PACKS } from '../js/data.js';
 
 assert.equal(judge(0), 'perfect');
 assert.equal(judge(-WINDOWS.perfect), 'perfect');
@@ -79,13 +79,28 @@ assert.equal(judge(60), 'good', 'fenêtres standard : 60 ms = BIEN');
 assert.equal(judge(200, wide), 'passable');
 assert.equal(judge(200), null);
 
-assert.equal(firstClearBonus(LEVELS[0]), 300, 'bonus premier clear niveau 1');
+assert.equal(firstClearBonus(LEVELS[0]), 180, 'bonus premier clear niveau 1');
 assert.ok(firstClearBonus(LEVELS[11]) > firstClearBonus(LEVELS[0]), 'bonus croissant avec le niveau');
 assert.ok(LEVELS.slice(0, 3).every((l) => l.theme === 'autoroute' && l.lines <= 20), 'niveaux autoroute raccourcis (parties rapides)');
 assert.ok(LEVELS[0].lines <= 10 && LEVELS[0].speed >= 260, 'niveau 1 très court et un peu plus rapide');
 
 assert.equal(LEVELS.length, 15, '15 niveaux (12 + 13/14/15)');
 assert.ok(SKINS.length >= 10, 'au moins 10 voitures');
+// --- boutique v1.3.4 : monnaies par article, packs, packs de sons ---
+for (const it of [...SKINS, ...EFFECTS, ...THEME_SHOP, ...PACKS, ...SOUND_PACKS]) {
+  assert.ok(CURRENCIES[it.currency || 'auto'], `article ${it.id} : monnaie valide (${it.currency || 'auto'})`);
+  assert.ok(typeof it.cost === 'number' && it.cost >= 0, `article ${it.id} : coût valide`);
+}
+for (const p of PACKS) {
+  assert.ok(p.items.length >= 2, `pack ${p.id} : au moins 2 contenus`);
+  for (const it of p.items) {
+    if (it.type === 'skin') assert.ok(SKINS.some((s) => s.id === it.id), `pack ${p.id} : skin ${it.id} existe`);
+    if (it.type === 'effect') assert.ok(EFFECTS.some((e) => e.id === it.id), `pack ${p.id} : effet ${it.id} existe`);
+  }
+}
+assert.ok(SOUND_PACKS.some((s) => s.id === 'default' && s.cost === 0), 'pack de sons par défaut présent et gratuit');
+assert.ok(['rainbow', 'vignette', 'ghost'].every((id) => EFFECTS.some((e) => e.id === id)), 'nouveaux effets présents');
+assert.ok(SKINS.some((s) => s.model === 'f1') && SKINS.some((s) => s.model === 'suv'), 'nouveaux modèles F1 et 4x4 présents');
 assert.ok(EFFECTS.some((e) => e.id === 'fire'), 'effet feu présent');
 assert.ok(ACHIEVEMENTS.length >= 13, 'au moins 13 succès');
 assert.ok(new Set(LEVELS.map((l) => l.theme)).size >= 7, 'au moins 7 thèmes utilisés par les niveaux');
@@ -100,11 +115,11 @@ assert.ok(isPerfectClear(pcStats), 'full parfait détecté');
 assert.ok(!isPerfectClear({ ...pcStats, goods: 1 }), 'un BIEN casse le full parfait');
 assert.ok(!isPerfectClear({ ...pcStats, misses: 1 }), 'un raté casse le full parfait');
 assert.ok(!isPerfectClear({ ...pcStats, perfects: 0 }), 'sans PARFAIT, pas de full parfait');
-assert.equal(perfectClearBonus(LEVELS[0]), 600, 'bonus full parfait niveau 1');
+assert.equal(perfectClearBonus(LEVELS[0]), 360, 'bonus full parfait niveau 1');
 {
-  const base = Math.round(pcStats.score / 5) + pcStats.perfects * 5;
+  const base = Math.round(pcStats.score / 8) + pcStats.perfects * 3;
   assert.equal(coinsForResult(pcStats, LEVELS[0], false), base, 'pas de bonus full parfait si niveau non terminé');
-  assert.equal(coinsForResult(pcStats, LEVELS[0], true), base + 150 + LEVELS[0].id * 30 + perfectClearBonus(LEVELS[0]), 'full parfait terminé = gros bonus de pièces');
+  assert.equal(coinsForResult(pcStats, LEVELS[0], true), base + 100 + LEVELS[0].id * 20 + perfectClearBonus(LEVELS[0]), 'full parfait terminé = gros bonus de pièces');
   assert.ok(coinsForResult(pcStats, LEVELS[14], true) > coinsForResult({ ...pcStats, goods: 1 }, LEVELS[14], true), 'le full parfait rapporte nettement plus');
 }
 for (const d of DIFFICULTIES) {
@@ -118,6 +133,25 @@ for (const l of LEVELS) {
   assert.ok(trophyAch, 'succès collectionneur présent');
   assert.ok(trophyAch.test({ trophies: Object.fromEntries(LEVELS.map((l) => [l.id, true])) }), 'toutes les médailles = succès débloqué');
   assert.ok(!trophyAch.test({ trophies: { 1: true } }), '1 médaille insuffisante');
+}
+
+// --- v1.3.5 : défis du jour & quêtes hebdo (rétention) ---
+{
+  const d1 = new Date(2026, 10, 24); // mardi 24 nov 2026
+  assert.equal(dayKey(d1), '2026-11-24');
+  assert.equal(weekKey(d1), '2026-11-23', 'semaine commençant le lundi');
+  const c1 = dailyChallenge(d1);
+  assert.deepEqual(dailyChallenge(d1), c1, 'défi du jour déterministe (même jour = même défi)');
+  assert.notDeepEqual(dailyChallenge(new Date(2026, 10, 25)), c1, 'défi différent le lendemain');
+  assert.ok(['auto', 'permisA', 'pilote'].includes(c1.mode), 'mode valide');
+  assert.ok(LEVELS.some((l) => l.id === c1.levelId), 'niveau valide');
+  assert.ok(c1.target > 0 && c1.reward > 0 && c1.label.length > 3, 'cible/récompense/label OK');
+  if (c1.kind === 'overtakes') assert.equal(c1.mode, 'pilote', 'dépassements = mode Pilote forcé');
+  const q = weeklyQuests(d1);
+  assert.equal(q.length, 3, '3 quêtes hebdo');
+  assert.equal(new Set(q.map((x) => x.kind)).size, 3, '3 quêtes de types distincts');
+  assert.ok(q.every((x) => x.target > 0 && x.reward > 0), 'cibles/récompenses > 0');
+  assert.deepEqual(weeklyQuests(d1), q, 'quêtes déterministes pour une même semaine');
 }
 
 console.log('OK - tous les tests passent (' + LEVELS.length + ' niveaux vérifiés)');

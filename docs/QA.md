@@ -29,3 +29,27 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] **Combo** : BIEN/OK ne montent pas le combo, PARFAIT si, raté = 0
 - [ ] **Cloud** : `wallets` + `trophies` synchronisés (2 appareils, même pseudo)
 - [ ] CI verte + `CACHE` sw bumpé + aucune erreur console
+
+## Checklist v1.3.4 (progression/économie)
+
+- [ ] **Survie ∞ verrouillée** au début (« 🔒 15 niveaux à finir ») ; débloquée quand les 15 niveaux ont un record > 0
+- [ ] **Niveau N achetable seulement si le niveau N-1 terminé au moins 1 fois** (« 🔒 finis le niveau N-1 ») ; achat toujours débité dans la monnaie du palier du niveau
+- [ ] **Gains réduits** : vérifier à l'écran de fin `+X monnaie` plus faible qu'avant (score/8 + 3×PARFAIT + 100+20×n° si terminé)
+- [ ] Full PARFAIT = 🥇 + bonus 300+60×n° ; premier clear = 150+30×n°
+- [ ] CI verte
+
+## Checklist v1.3.5 (défis & rétention)
+
+- [ ] **Écran 🎯 Défis** : série de connexion affichée ; défi du jour identique pour tous (tester 2 jours différents) ; quêtes hebdo avec barres de progression
+- [ ] Finir une partie correspondant au défi du jour → toast + récompense dans la monnaie du mode + score envoyé au classement du défi (Firebase, nœud `challenges` — **mettre à jour les règles RTDB avec celles de docs/FIREBASE.md**)
+- [ ] Quêtes : la progression monte après chaque partie ; quête terminée = +🪙 et ✅
+- [ ] Streak : fermer/rouvrir le même jour = rien ; lendemain = +1 jour et +N 🪙 (max x7) ; trou > 1 jour = remise à 1
+- [ ] CI verte + CACHE sw bumpé
+
+## Checklist v1.3.6 (classement par niveau + Google Sign-In)
+
+- [ ] Classement : second filtre « par niveau » (Tous + 1..15 + ∞) qui combine avec le filtre difficulté ; les anciens scores (sans levelId) sont matchés par nom de niveau
+- [ ] Pseudo modal : bouton Google rendu si clés configurées ; clic → compte lié (uid + email affiché) → sauvegarde cloud keyed par uid ; rechargement → session restaurée silencieusement (refreshToken local)
+- [ ] « Se délier » → retour au pseudo local ; le refreshToken n'apparaît JAMAIS dans le snapshot cloud (vérifier dans Firebase `players/<uid>`)
+- [ ] Règles RTDB mises à jour (nœud players : `auth.uid == $id`) ; domaines autorisés : roadtap.uk + github.io
+- [ ] CI verte + CACHE sw bumpé

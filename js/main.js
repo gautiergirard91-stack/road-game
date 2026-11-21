@@ -1,12 +1,13 @@
-import { LEVELS, THEMES, SKINS, EFFECTS, DIFFICULTIES, CURRENCIES, WINDOWS, ACHIEVEMENTS, THEME_SHOP, ENDLESS_LEVEL } from './data.js';
+import { LEVELS, THEMES, SKINS, EFFECTS, DIFFICULTIES, CURRENCIES, WINDOWS, ACHIEVEMENTS, THEME_SHOP, ENDLESS_LEVEL, PACKS, SOUND_PACKS } from './data.js';
 import { Game } from './game.js';
 import * as store from './store.js';
-import { sfx, setEnabled, setMusicEnabled, unlockAudio } from './audio.js';
-import { coinsForResult, accuracy, avgReaction, continueCost, maxMissesFor, firstClearBonus, isPerfectClear, perfectClearBonus } from './core.js';
+import { sfx, setEnabled, setMusicEnabled, unlockAudio, applySoundPack } from './audio.js';
+import { coinsForResult, accuracy, avgReaction, continueCost, maxMissesFor, firstClearBonus, isPerfectClear, perfectClearBonus, dailyChallenge, weeklyQuests } from './core.js';
 import { watchRewarded } from './ads.js';
 import { Tutorial } from './tutorial.js';
 import * as leaderboard from './leaderboard.js';
 import * as cloudsave from './cloudsave.js';
+import { renderGoogleButton, restoreGoogleSession, setAuthToken, getAuthToken, signOutGoogle, isGoogleAuthConfigured } from './auth.js';
 import { logEvent } from './analytics.js';
 import { VERSION } from './config.js';
 
@@ -15,6 +16,11 @@ const $$ = (sel) => [...document.querySelectorAll(sel)];
 
 let save = store.load();
 setEnabled(save.sound);
+applySoundPack(save.soundPack || 'default');
+const loginBonus = store.touchLogin();
+if (loginBonus.reward > 0) {
+  setTimeout(() => toast(`🔥 ${loginBonus.streak} jour${loginBonus.streak > 1 ? 's' : ''} de suite ! +${loginBonus.reward} 🪙`), 800);
+}
 
 let game = null;
 let rafId = null;
@@ -29,7 +35,7 @@ const hudLives = $('#hud-lives');
 
 let continuesThisRun = 0;
 
-const MODEL_LABEL = { berline: 'Berline', sport: 'Sport', citadine: 'Citadine' };
+const MODEL_LABEL = { berline: 'Berline', sport: 'Sport', citadine: 'Citadine', suv: '4x4', f1: 'Formule 1' };
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -54,6 +60,30 @@ function renderDifficultyPicker() {
 }
 
 let lbFilter = 'all';
+let lbLevelFilter = 'all';
+
+function renderLbLevelFilter() {
+  const el = $('#lb-level-filter');
+  if (!el) return;
+  el.innerHTML = '';
+  const opts = [
+    { id: 'all', name: 'Tous niveaux' },
+    ...LEVELS.map((l) => ({ id: String(l.id), name: `${l.id}. ${l.name}` })),
+    { id: String(ENDLESS_LEVEL.id), name: '∞ Survie' },
+  ];
+  for (const o of opts) {
+    const b = document.createElement('button');
+    b.className = 'btn small diff-btn' + (lbLevelFilter === o.id ? ' active' : '');
+    b.textContent = o.name;
+    b.addEventListener('click', () => {
+      lbLevelFilter = o.id;
+      sfx.click();
+      renderLbLevelFilter();
+      renderLeaderboard();
+    });
+    el.appendChild(b);
+  }
+}
 
 function renderLbFilter() {
   const el = $('#lb-filter');
@@ -82,7 +112,7 @@ async function renderLeaderboard() {
   list.innerHTML = '<div class="card-sub">Chargement…</div>';
   let top = [];
   try {
-    top = await leaderboard.getTop(lbFilter);
+    top = await leaderboard.getTop(lbFilter, lbLevelFilter);
   } catch {
     top = [];
   }
@@ -118,15 +148,20 @@ function hideContinue() {
 
 const effWindows = () => (save.wideWindows ? { perfect: 70, good: 150, passable: 240 } : WINDOWS);
 
+// sauvegarde cloud keyed par uid Google si lié, sinon par pseudo
+const accountKey = () => save.uid || save.pseudo;
+
 function pushCloud() {
-  if (leaderboard.isOnline() && save.pseudo) cloudsave.save(save.pseudo, store.snapshot());
+  if (leaderboard.isOnline() && accountKey()) cloudsave.save(accountKey(), store.snapshot(), getAuthToken());
 }
 
 const TUT_LEVEL = { ...ENDLESS_LEVEL, id: 0, name: 'Tutoriel', speed: 230, gapMin: 540, gapMax: 720, w: { dash: 1 }, pDouble: 0, endless: true };
 
 let tut = null;
+let tutActive = false;
 
 function startTutorial() {
+  tutActive = true;
   show('screen-game');
   $('#pause-overlay').classList.remove('active');
   $('#tut-banner').classList.remove('hidden');
@@ -163,6 +198,8 @@ function startTutorial() {
     game,
     { text: $('#tut-text'), dots: $('#tut-dots'), read: $('#tut-read'), slider: $('#tut-slider'), quit: $('#tut-quit') },
     () => {
+      tutActive = false;
+      tut = null;
       $('#tut-banner').classList.add('hidden');
       logEvent('tutorial_done', {});
       toast('🏁 Tutoriel terminé ! +200 🪙');
@@ -173,8 +210,9 @@ function startTutorial() {
     },
     () => {
       // quitter avant la fin : tutorialDone reste false -> le tutoriel reviendra à la prochaine partie
-      $('#tut-banner').classList.add('hidden');
+      tutActive = false;
       tut = null;
+      $('#tut-banner').classList.add('hidden');
       logEvent('tutorial_aborted', {});
       toast('Tutoriel interrompu — il te sera proposé à ta prochaine partie 👶');
       renderDifficultyPicker();
@@ -248,7 +286,8 @@ function show(id) {
   currentScreen = id;
   $$('.screen').forEach((s) => s.classList.toggle('active', s.id === id));
   $('#hud').classList.toggle('hidden', id !== 'screen-game');
-  $('#tut-banner').classList.toggle('hidden', id !== 'screen-game');
+  // la bannière de tutoriel ne s'affiche que si un tutoriel est réellement actif
+  $('#tut-banner').classList.toggle('hidden', id !== 'screen-game' || !tutActive);
   if (id === 'screen-menu') refreshStatus();
 }
 
@@ -280,12 +319,74 @@ function updateMusicBtn() {
   $('#btn-music').textContent = save.music ? '🎵 Musique : ON' : '🎵 Musique : OFF';
 }
 
+async function renderChallenges() {
+  const dc = dailyChallenge();
+  const done = store.isChallengeDone(dc.id);
+  const modeName = (DIFFICULTIES.find((d) => d.id === dc.mode) || {}).name || dc.mode;
+  $('#challenge-streak').innerHTML = `
+    <div class="card-body">
+      <div class="card-title">🔥 Série de connexion : <b>${save.streak} jour${save.streak > 1 ? 's' : ''}</b></div>
+      <div class="card-sub">Reviens chaque jour : jusqu'à +${7 * 25} 🪙 par jour (série plafonnée à 7).</div>
+    </div>`;
+  const dEl = $('#challenge-daily');
+  dEl.innerHTML = '';
+  const dCard = document.createElement('div');
+  dCard.className = 'card';
+  dCard.innerHTML = `
+    <div class="card-body">
+      <div class="card-title">${done ? '✅ Défi du jour terminé !' : '🎯 ' + dc.label}</div>
+      <div class="card-sub">Niveau ${dc.levelId} · ${modeName} · récompense +${dc.reward} ${cur(dc.mode).icon}</div>
+    </div>
+    <button class="btn small">${done ? '✓' : '▶ Niveaux'}</button>`;
+  dCard.querySelector('button').addEventListener('click', () => {
+    if (done) return;
+    sfx.click();
+    store.setDifficulty(dc.mode);
+    renderDifficultyPicker();
+    renderLevels();
+    show('screen-levels');
+    toast(`Défi du jour : niveau ${dc.levelId} en ${modeName} — ${dc.label} !`);
+  });
+  dEl.appendChild(dCard);
+  const qEl = $('#challenge-quests');
+  qEl.innerHTML = '';
+  for (const q of weeklyQuests()) {
+    const qDone = !!save.quests.done[q.id];
+    const prog = Math.min(save.quests.progress[q.kind] || 0, q.target);
+    const row = document.createElement('div');
+    row.className = 'card lb-row' + (qDone ? ' ach-done' : '');
+    row.innerHTML = `<div class="card-body"><div class="card-title">${qDone ? '✅' : '🎯'} ${q.label}</div><div class="card-sub">${prog}/${q.target} · +${q.reward} 🪙</div><div class="quest-bar"><div style="width:${Math.round((100 * prog) / q.target)}%"></div></div></div>`;
+    qEl.appendChild(row);
+  }
+  const lbEl = $('#challenge-lb');
+  lbEl.innerHTML = '<div class="card-sub">Chargement…</div>';
+  try {
+    const top = await leaderboard.getChallengeTop(dc.id);
+    lbEl.innerHTML = '';
+    if (!top.length) {
+      lbEl.innerHTML = '<div class="card-sub">Aucun score pour aujourd\'hui — sois le premier !</div>';
+    } else {
+      top.forEach((e, i) => {
+        const row = document.createElement('div');
+        row.className = 'card lb-row';
+        row.innerHTML = `<span class="lb-rank">${i + 1}</span><span class="lb-name">${escapeHtml(e.pseudo || 'Anonyme')}</span><span class="lb-score">${e.score}</span>`;
+        lbEl.appendChild(row);
+      });
+    }
+  } catch {
+    lbEl.innerHTML = '<div class="card-sub">Classement indisponible (hors ligne).</div>';
+  }
+}
+
 function renderLevels() {
   const list = $('#levels-list');
   list.innerHTML = '';
+  const allDone = LEVELS.every((lv) => (save.best[lv.id] || 0) > 0);
   for (const l of [ENDLESS_LEVEL, ...LEVELS]) {
-    const locked = !l.endless && l.cost > 0 && !save.unlockedLevels.includes(l.id);
-    const canBuy = !locked || l.id === 1 || save.unlockedLevels.includes(l.id - 1);
+    // Survie ∞ : débloquée seulement quand les 15 niveaux sont terminés au moins une fois
+    const locked = l.endless ? !allDone : l.cost > 0 && !save.unlockedLevels.includes(l.id);
+    // achat du niveau N autorisé seulement si le niveau N-1 a été terminé au moins une fois
+    const canBuy = !locked || l.id === 1 || (save.best[l.id - 1] || 0) > 0;
     const c = cur(l.diff || 'auto');
     const best = save.best[l.id];
     const medal = save.trophies[l.id] ? ' 🥇' : '';
@@ -298,12 +399,16 @@ function renderLevels() {
         <div class="card-sub">${THEMES[l.theme].name} · ${l.endless ? 'vitesse croissante' : `vitesse ${l.speed} · ${l.lines} lignes`}</div>
         <div class="card-best">${best ? `🏆 Record : ${best}` : ''}</div>
       </div>
-      <button class="btn small">${locked ? (canBuy ? `🔒 ${l.cost} ${c.icon}` : '🔒 niveau précédent') : '▶ Jouer'}</button>`;
+      <button class="btn small">${locked ? (l.endless ? '🔒 15 niveaux à finir' : canBuy ? `🔒 ${l.cost} ${c.icon}` : `🔒 finis le niveau ${l.id - 1}`) : '▶ Jouer'}</button>`;
     card.querySelector('button').addEventListener('click', () => {
       sfx.click();
       if (locked) {
+        if (l.endless) {
+          toast('Termine les 15 niveaux (au moins une fois chacun) pour débloquer la Survie ∞ !');
+          return;
+        }
         if (!canBuy) {
-          toast(`Débloque d'abord le niveau ${l.id - 1} !`);
+          toast(`Termine d'abord le niveau ${l.id - 1} au moins une fois !`);
           return;
         }
         if (store.spend(l.diff || 'auto', l.cost)) {
@@ -340,20 +445,20 @@ function renderShop() {
         <div class="card-title">${s.name}</div>
         <div class="card-sub">${MODEL_LABEL[s.model] || 'Berline'}</div>
       </div>
-      <button class="btn small">${selected ? '✓ Équipée' : owned ? 'Équiper' : `${s.cost} 🪙`}</button>`;
+      <button class="btn small">${selected ? '✓ Équipée' : owned ? 'Équiper' : `${s.cost} ${cur(s.currency || 'auto').icon}`}</button>`;
     card.querySelector('button').addEventListener('click', () => {
       if (selected) return;
       if (owned) {
         store.selectSkin(s.id);
         sfx.click();
-      } else if (store.buySkin(s.id, s.cost)) {
+      } else if (store.buySkin(s.id, s.cost, s.currency || 'auto')) {
         store.selectSkin(s.id);
         sfx.coin();
         logEvent('purchase', { item: `skin:${s.id}`, cost: s.cost });
         toast(`${s.name} achetée et équipée !`);
         pushCloud();
       } else {
-        toast(`Il te manque ${s.cost - store.getWallet('auto')} 🪙`);
+        toast(`Il te manque ${s.cost - store.getWallet(s.currency || 'auto')} ${cur(s.currency || 'auto').icon}`);
         return;
       }
       refreshCoins();
@@ -375,16 +480,16 @@ function renderShop() {
           <div class="card-title">${t.name}</div>
           <div class="card-sub">${t.desc}</div>
         </div>
-        <button class="btn small">${active ? '✓ Activé' : owned ? 'Activer' : `${t.cost} 🪙`}</button>`;
+        <button class="btn small">${active ? '✓ Activé' : owned ? 'Activer' : `${t.cost} ${cur(t.currency || 'auto').icon}`}</button>`;
       card.querySelector('button').addEventListener('click', () => {
         if (!owned) {
-          if (store.buyTheme(t.id, t.cost)) {
+          if (store.buyTheme(t.id, t.cost, t.currency || 'auto')) {
             sfx.coin();
             logEvent('purchase', { item: `theme:${t.id}`, cost: t.cost });
             toast(`${t.name} acheté !`);
             pushCloud();
           } else {
-            toast(`Il te manque ${t.cost - store.getWallet('auto')} 🪙`);
+            toast(`Il te manque ${t.cost - store.getWallet(t.currency || 'auto')} ${cur(t.currency || 'auto').icon}`);
             return;
           }
         } else {
@@ -410,7 +515,7 @@ function renderShop() {
         <div class="card-title">${e.name}</div>
         <div class="card-sub">${e.desc}</div>
       </div>
-      <button class="btn small">${active ? '✓ Activé' : owned ? 'Activer' : `${e.cost} 🪙`}</button>`;
+      <button class="btn small">${active ? '✓ Activé' : owned ? 'Activer' : `${e.cost} ${cur(e.currency || 'auto').icon}`}</button>`;
     card.querySelector('button').addEventListener('click', () => {
       if (active) {
         store.toggleEffect(e.id);
@@ -418,19 +523,96 @@ function renderShop() {
       } else if (owned) {
         store.toggleEffect(e.id);
         sfx.click();
-      } else if (store.buyEffect(e.id, e.cost)) {
+      } else if (store.buyEffect(e.id, e.cost, e.currency || 'auto')) {
         sfx.coin();
         logEvent('purchase', { item: `effect:${e.id}`, cost: e.cost });
         toast(`${e.name} acheté et activé !`);
         pushCloud();
       } else {
-        toast(`Il te manque ${e.cost - store.getWallet('auto')} 🪙`);
+        toast(`Il te manque ${e.cost - store.getWallet(e.currency || 'auto')} ${cur(e.currency || 'auto').icon}`);
         return;
       }
       refreshCoins();
       renderShop();
     });
     fxEl.appendChild(card);
+  }
+  renderPacks();
+  renderSoundPacks();
+}
+
+function renderPacks() {
+  const el = $('#shop-packs');
+  if (!el) return;
+  el.innerHTML = '';
+  for (const p of PACKS) {
+    const owned = save.packs.includes(p.id);
+    const c = cur(p.currency || 'auto');
+    const card = document.createElement('div');
+    card.className = 'card shop-card';
+    card.innerHTML = `
+      <div class="swatch fx">🎁</div>
+      <div class="card-body">
+        <div class="card-title">${p.name}</div>
+        <div class="card-sub">${p.desc}</div>
+      </div>
+      <button class="btn small">${owned ? '✓ Acheté' : `${p.cost} ${c.icon}`}</button>`;
+    card.querySelector('button').addEventListener('click', () => {
+      if (owned) return;
+      if (store.buyPack(p)) {
+        sfx.coin();
+        logEvent('purchase', { item: `pack:${p.id}`, cost: p.cost, currency: p.currency || 'auto' });
+        toast(`${p.name} acheté ! Contenus débloqués 🎉`);
+        pushCloud();
+      } else {
+        toast(`Il te manque ${p.cost - store.getWallet(p.currency || 'auto')} ${c.icon}`);
+        return;
+      }
+      refreshCoins();
+      renderShop();
+    });
+    el.appendChild(card);
+  }
+}
+
+function renderSoundPacks() {
+  const el = $('#shop-sounds');
+  if (!el) return;
+  el.innerHTML = '';
+  for (const sp of SOUND_PACKS) {
+    const owned = save.soundPacks.includes(sp.id);
+    const active = save.soundPack === sp.id;
+    const c = cur(sp.currency || 'auto');
+    const card = document.createElement('div');
+    card.className = 'card shop-card';
+    card.innerHTML = `
+      <div class="swatch fx">🔊</div>
+      <div class="card-body">
+        <div class="card-title">${sp.name}</div>
+        <div class="card-sub">${sp.desc}</div>
+      </div>
+      <button class="btn small">${active ? '✓ Actif' : owned ? 'Activer' : `${sp.cost} ${c.icon}`}</button>`;
+    card.querySelector('button').addEventListener('click', () => {
+      if (active) return;
+      if (owned) {
+        store.selectSoundPack(sp.id);
+        applySoundPack(sp.id);
+        sfx.click();
+      } else if (store.buySoundPack(sp)) {
+        store.selectSoundPack(sp.id);
+        applySoundPack(sp.id);
+        sfx.coin();
+        logEvent('purchase', { item: `soundpack:${sp.id}`, cost: sp.cost, currency: sp.currency || 'auto' });
+        toast(`${sp.name} acheté et activé !`);
+        pushCloud();
+      } else {
+        toast(`Il te manque ${sp.cost - store.getWallet(sp.currency || 'auto')} ${c.icon}`);
+        return;
+      }
+      refreshCoins();
+      renderShop();
+    });
+    el.appendChild(card);
   }
 }
 
@@ -477,7 +659,7 @@ function onGameEnd(stats, level) {
   logEvent('game_over', { score: stats.score, level: level.id, mode: save.difficulty, completed: !!stats.completed, reason: stats.reason });
   if (save.pseudo && save.leaderboardOptIn) {
     leaderboard
-      .submitScore({ pseudo: save.pseudo, score: stats.score, level: level.name, mode: save.difficulty, date: Date.now() })
+      .submitScore({ pseudo: save.pseudo, score: stats.score, level: level.name, levelId: level.id, mode: save.difficulty, date: Date.now() })
       .catch(() => {});
   }
   pushCloud();
@@ -494,6 +676,39 @@ function onGameEnd(stats, level) {
     sfx.coin();
   }
   $('#hud-coins').textContent = `${cur(save.difficulty).icon} ${store.getWallet(save.difficulty)}`;
+  // défi du jour (même défi pour tous, dérivé de la date)
+  const dc = dailyChallenge();
+  if (!store.isChallengeDone(dc.id) && save.difficulty === dc.mode && level.id === dc.levelId) {
+    let ok = false;
+    if (dc.kind === 'score') ok = stats.score >= dc.target;
+    else if (dc.kind === 'perfects') ok = stats.perfects >= dc.target;
+    else if (dc.kind === 'combo') ok = stats.bestCombo >= dc.target;
+    else if (dc.kind === 'overtakes') ok = (stats.overtakes || 0) >= dc.target;
+    else if (dc.kind === 'complete') ok = !!stats.completed;
+    if (ok) {
+      store.markChallengeDone(dc.id);
+      store.addCoins(dc.mode, dc.reward);
+      refreshCoins();
+      toast(`🎯 Défi du jour réussi : « ${dc.label} » → +${dc.reward} ${cur(dc.mode).icon}`);
+      if (save.pseudo && save.leaderboardOptIn) {
+        leaderboard.submitChallengeScore(dc.id, { pseudo: save.pseudo, score: stats.score, mode: dc.mode, date: Date.now() }).catch(() => {});
+      }
+      pushCloud();
+    }
+  }
+  // quêtes de la semaine (progression cumulée)
+  const doneQuests = store.addQuestProgress({
+    runs: 1,
+    perfects: stats.perfects,
+    overtakes: stats.overtakes || 0,
+    score: stats.score,
+    complete: stats.completed ? 1 : 0,
+  });
+  for (const q of doneQuests) {
+    store.addCoins('auto', q.reward);
+    refreshCoins();
+    toast(`✅ Quête terminée : « ${q.label} » → +${q.reward} 🪙`);
+  }
   const reason = stats.reason;
   $('#over-title').textContent = stats.completed
     ? '🏁 Niveau terminé !'
@@ -538,6 +753,7 @@ function loop(t) {
     game.update(dt);
     game.render();
   }
+  if (tut && currentScreen === 'screen-game') tut.tick();
 }
 
 window.addEventListener('error', (e) => {
@@ -592,19 +808,72 @@ $('#btn-music').addEventListener('click', () => {
 $('#btn-leaderboard').addEventListener('click', () => {
   sfx.click();
   renderLbFilter();
+  renderLbLevelFilter();
   renderLeaderboard();
   show('screen-leaderboard');
+});
+$('#btn-challenges').addEventListener('click', () => {
+  sfx.click();
+  renderChallenges();
+  show('screen-challenges');
+});
+$('#btn-challenges-back').addEventListener('click', () => {
+  sfx.click();
+  show('screen-menu');
 });
 $('#btn-leaderboard-back').addEventListener('click', () => {
   sfx.click();
   show('screen-menu');
 });
+function updateGoogleStatus() {
+  const el = $('#google-status');
+  const out = $('#btn-google-out');
+  if (el) {
+    el.textContent = save.uid
+      ? `🔗 Compte Google lié : ${save.googleEmail || save.uid}`
+      : isGoogleAuthConfigured()
+        ? 'Connecte-toi avec Google : ta progression sera synchronisée sur tous tes appareils.'
+        : 'Google Sign-In non configuré (clés dans js/config.js — voir docs/FIREBASE.md §5).';
+  }
+  if (out) out.classList.toggle('hidden', !save.uid);
+}
+
 $('#btn-pseudo').addEventListener('click', () => {
   sfx.click();
   $('#pseudo-input').value = save.pseudo;
+  updateGoogleStatus();
+  const gsi = $('#gsi-btn');
+  if (gsi && isGoogleAuthConfigured() && !save.uid) {
+    gsi.innerHTML = '';
+    renderGoogleButton(gsi)
+      .then((sess) => {
+        if (sess && sess.uid) {
+          setAuthToken(sess.idToken);
+          store.setGoogleAccount(sess.uid, sess.email, sess.refreshToken);
+          gsi.innerHTML = ''; // le bouton Google disparaît une fois lié
+          sfx.coin();
+          toast(`🔗 Compte Google lié : ${sess.email || sess.uid}`);
+          updateGoogleStatus();
+          pushCloud();
+        } else {
+          toast('❌ Connexion Google annulée ou refusée — réessaie (détail dans la console F12)');
+        }
+      })
+      .catch((err) => {
+        console.error('[auth] sign-in error:', err);
+        toast('❌ Connexion Google impossible : ' + (err && err.message ? err.message : 'erreur inconnue'));
+      });
+  }
   $('#pseudo-modal').classList.remove('hidden');
   $('#pseudo-modal').classList.add('active');
   setTimeout(() => $('#pseudo-input').focus(), 50);
+});
+$('#btn-google-out').addEventListener('click', () => {
+  signOutGoogle();
+  store.clearGoogleAccount();
+  sfx.click();
+  updateGoogleStatus();
+  toast('Compte Google délié — la sauvegarde repasse sur ton pseudo.');
 });
 $('#btn-pseudo-cancel').addEventListener('click', () => {
   sfx.click();
@@ -792,8 +1061,26 @@ $('#optin-lb').checked = !!save.leaderboardOptIn;
 refreshStatus();
 show('screen-menu');
 
-if (leaderboard.isOnline() && save.pseudo) {
-  cloudsave.load(save.pseudo).then((remote) => {
+// restauration silencieuse de la session Google au démarrage
+if (save.uid && save.googleRefresh) {
+  restoreGoogleSession(save.googleRefresh).then((sess) => {
+    if (sess) {
+      setAuthToken(sess.idToken);
+      store.setGoogleAccount(sess.uid, sess.email || save.googleEmail, sess.refreshToken);
+    }
+    if (leaderboard.isOnline() && accountKey()) {
+      cloudsave.load(accountKey(), getAuthToken()).then((remote) => {
+        if (remote && store.mergeRemote(remote)) {
+          refreshCoins();
+          renderLevels();
+          renderShop();
+          toast('☁️ Progression synchronisée avec le cloud');
+        }
+      });
+    }
+  });
+} else if (leaderboard.isOnline() && accountKey()) {
+  cloudsave.load(accountKey(), getAuthToken()).then((remote) => {
     if (remote && store.mergeRemote(remote)) {
       refreshCoins();
       renderLevels();

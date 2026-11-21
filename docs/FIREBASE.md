@@ -24,14 +24,20 @@ En production, remplacer les règles de test par :
       }
     },
     "players": {
-      "$pseudo": {
+      "$id": {
         ".read": true,
-        ".write": "auth == null && newData.exists()"
+        ".write": "(auth == null && newData.exists()) || (auth != null && auth.uid == $id)"
       }
     },
     "analytics": {
       ".read": false,
       ".write": true
+    },
+    "challenges": {
+      "$day": {
+        ".read": true,
+        ".write": "newData.exists() && newData.hasChildren(['pseudo','score','mode','date']) && newData.child('score').val() <= 1000000 && newData.child('pseudo').val().length <= 16"
+      }
     }
   }
 }
@@ -59,4 +65,28 @@ export const FIREBASE_DB_SECRET = '';
 
 - `/scores/<mode>` : `{ pseudo, score, level, mode, date }` — public en lecture.
 - `/players/<pseudo>` : snapshot du profil (pièces, achats, records, succès) — lisible publiquement, modifiable uniquement via l'app.
+- `/challenges/<dayKey>` : `{ pseudo, score, mode, date }` — classement du défi du jour (écriture validée, lecture publique).
 - `/analytics/<event>` : événements agrégés (level_start, game_over, purchase, ad_watched, continue_purchased) — écriture seule.
+
+## 5. Connexion avec un compte Google (sauvegarde cloud liée à un vrai compte)
+
+Difficulté : **modérée** — aucun SDK ajouté : on utilise le bouton officiel **Google Identity Services** + l'API REST Firebase (`identitytoolkit` / `securetoken`), voir `js/auth.js`.
+
+1. Console Firebase → **Authentication → Get started → Sign-in method → Google → Activer**. Copier le **Web client ID** (bloc « Web SDK configuration »).
+2. **Project settings → Général** → copier la **Web API key**.
+3. **Deux listes de domaines à remplir** (sinon erreur 400 `origin_mismatch` au clic sur le bouton Google) :
+   - Firebase : Authentication → **Settings → Authorized domains** → ajouter `roadtap.uk` et `gautiergirard91-stack.github.io` ;
+   - **Google Cloud Console** (console.cloud.google.com, même projet) → **API & Services → Credentials** → clic sur le client OAuth `…apps.googleusercontent.com` → **Authorized JavaScript origins** → ajouter `https://roadtap.uk`, `https://gautiergirard91-stack.github.io` (et `http://localhost:8080` pour les tests locaux). Les redirect URIs ne sont pas nécessaires (flux ID-token). Propagation : quelques minutes.
+4. Remplir `FIREBASE_WEB_API_KEY` et `FIREBASE_OAUTH_CLIENT_ID` dans `js/config.js` (clés publiques, commitables).
+5. Règles RTDB : le nœud `players` accepte désormais `(auth != null && auth.uid == $id)` (voir §2) — la sauvegarde cloud est keyed par **uid** quand Google est lié, sinon par pseudo (rétrocompatible).
+
+Données reçues de Google : **uid, email, displayName** (dans le jeton). Le `refreshToken` reste en `localStorage` uniquement et n'est **jamais** envoyé à la base de données. Voir `PRIVACY.md`.
+
+## 6. Facturation : rester à 0 €
+
+- Les crédits d'essai (≈ 269 €) ne sont pas une facture ; la facturation à l'usage ne démarre qu'au-delà des quotas gratuits.
+- **Gratuit à notre échelle** : RTDB (1 Gio stocké, 10 Gio/mois), Firebase Auth Google (quota mensuel gratuit), credentials OAuth (gratuits).
+- **Verrouiller** : Cloud Console → Billing → Budgets & alerts → budget à **1 €** avec alerte e-mail (50 %/100 %).
+- Option : repasser le projet en plan **Spark** (Firebase → Project settings → Usage and billing → Modify plan) — RTDB + Auth continuent gratuitement.
+- Supprimer tout projet Cloud parasite créé par erreur (sélecteur de projet → Shut down) — ne JAMAIS arrêter `realtime-database-5fd49`.
+- L'édition des origines OAuth se fait dans le projet Cloud **lié à `realtime-database-5fd49`** (n° 804737015370), pas dans un autre projet.

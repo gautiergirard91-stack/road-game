@@ -80,6 +80,13 @@ body {
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
 }
 
+/* seuls le curseur et le bouton Quitter sont interactifs ; le reste de la
+   bannière laisse passer les taps vers le jeu (phases d'action du tuto) */
+#tut-banner input,
+#tut-banner button {
+  pointer-events: auto;
+}
+
 #tut-dots {
   color: #ffd54a;
   font-size: 14px;
@@ -161,7 +168,8 @@ body {
 #screen-levels,
 #screen-shop,
 #screen-achievements,
-#screen-leaderboard {
+#screen-leaderboard,
+#screen-challenges {
   background: rgba(10, 14, 32, 0.96);
   justify-content: flex-start;
   overflow-y: auto;
@@ -539,12 +547,21 @@ body {
 }
 
 #difficulty-picker,
-#lb-filter {
+#lb-filter,
+#lb-level-filter {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   width: 100%;
   max-width: 560px;
   flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* filtre par niveau : 17 boutons répartis sur ~3 lignes (6 par ligne) */
+#lb-level-filter .diff-btn {
+  flex: 1 1 15%;
+  font-size: 12px;
+  padding: 8px 4px;
 }
 
 .diff-btn {
@@ -702,6 +719,8 @@ body {
   accent-color: #ffb020;
   height: 26px;
   cursor: pointer;
+  touch-action: none;
+  pointer-events: auto;
 }
 
 #tut-quit {
@@ -709,4 +728,19 @@ body {
   min-width: 0;
   padding: 6px 14px;
   font-size: 13px;
+}
+
+/* --- v1.3.5 : écran Défis --- */
+.quest-bar {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 6px;
+}
+
+.quest-bar > div {
+  height: 100%;
+  background: linear-gradient(90deg, #ffd54a, #ffb020);
+  border-radius: 999px;
 }

@@ -1,4 +1,4 @@
-import { WINDOWS, CONTINUE_BASE_COST } from './data.js';
+import { WINDOWS, CONTINUE_BASE_COST, LEVELS } from './data.js';
 
 export function mulberry32(seed) {
   let a = seed >>> 0;
@@ -60,12 +60,13 @@ export function isPerfectClear(stats) {
 }
 
 export function perfectClearBonus(level) {
-  return 500 + level.id * 100;
+  return 300 + level.id * 60;
 }
 
 export function coinsForResult(stats, level, completed) {
   const perfectBonus = completed && isPerfectClear(stats) ? perfectClearBonus(level) : 0;
-  return Math.round(stats.score / 5) + stats.perfects * 5 + (completed ? 150 + level.id * 30 : 0) + perfectBonus;
+  // gains volontairement sobres (anti-farm) : score/8 + 3×PARFAIT + complétion
+  return Math.round(stats.score / 8) + stats.perfects * 3 + (completed ? 100 + level.id * 20 : 0) + perfectBonus;
 }
 
 export function accuracy(stats) {
@@ -83,7 +84,7 @@ export function maxMissesFor(mode) {
 }
 
 export function firstClearBonus(level) {
-  return 250 + level.id * 50;
+  return 150 + level.id * 30;
 }
 
 export function axleDelta(wheelY, frontAxleY, axle) {
@@ -93,4 +94,67 @@ export function axleDelta(wheelY, frontAxleY, axle) {
 export function avgReaction(stats) {
   if (!stats.reactions.length) return null;
   return Math.round(stats.reactions.reduce((a, b) => a + b, 0) / stats.reactions.length);
+}
+
+// --- Défis & quêtes (rétention) ---
+
+export function hashString(s) {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+export function dayKey(d = new Date()) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+export function weekKey(d = new Date()) {
+  const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); // lundi de la semaine
+  return dayKey(x);
+}
+
+const CHALLENGE_KINDS = [
+  { id: 'score', label: (t) => `Marquer ${t} points`, min: 300, step: 150 },
+  { id: 'perfects', label: (t) => `${t} PARFAIT dans la partie`, min: 5, step: 3 },
+  { id: 'combo', label: (t) => `Atteindre un combo x${t}`, min: 5, step: 2 },
+  { id: 'overtakes', label: (t) => `${t} dépassement(s)`, min: 1, step: 1 },
+  { id: 'complete', label: () => 'Terminer le niveau', min: 1, step: 1 },
+];
+
+// Défi du jour : identique pour tous les joueurs (dérivé de la date), avec son classement Firebase
+export function dailyChallenge(d = new Date()) {
+  const key = dayKey(d);
+  const rand = mulberry32(hashString('dc:' + key));
+  const kind = CHALLENGE_KINDS[Math.floor(rand() * CHALLENGE_KINDS.length)];
+  const mode = kind.id === 'overtakes' ? 'pilote' : ['auto', 'permisA', 'pilote'][Math.floor(rand() * 3)];
+  const level = LEVELS[Math.floor(rand() * LEVELS.length)];
+  const target = kind.min + Math.floor(rand() * 3) * kind.step;
+  const reward = 100 + level.id * 10 + target * (kind.id === 'score' ? 1 : 5);
+  return { id: key, mode, levelId: level.id, kind: kind.id, target, label: kind.label(target), reward };
+}
+
+const QUEST_KINDS = [
+  { id: 'runs', label: (t) => `Jouer ${t} parties`, min: 3, step: 2, reward: (t) => 50 + t * 10 },
+  { id: 'perfects', label: (t) => `${t} PARFAIT cumulés`, min: 10, step: 10, reward: (t) => 80 + t * 5 },
+  { id: 'overtakes', label: (t) => `${t} dépassements`, min: 3, step: 2, reward: (t) => 60 + t * 10 },
+  { id: 'score', label: (t) => `${t} points cumulés`, min: 1000, step: 500, reward: (t) => Math.round(100 + t / 10) },
+  { id: 'complete', label: (t) => `Terminer ${t} niveau(x)`, min: 1, step: 1, reward: (t) => 120 + t * 40 },
+];
+
+// 3 quêtes hebdo, identiques pour tous (dérivées de la semaine courante)
+export function weeklyQuests(d = new Date()) {
+  const wk = weekKey(d);
+  const rand = mulberry32(hashString('wq:' + wk));
+  const pool = [...QUEST_KINDS];
+  const out = [];
+  while (out.length < 3 && pool.length) {
+    const k = pool.splice(Math.floor(rand() * pool.length), 1)[0];
+    const target = k.min + Math.floor(rand() * 3) * k.step;
+    out.push({ id: `${wk}:${k.id}`, kind: k.id, target, label: k.label(target), reward: Math.round(k.reward(target)) });
+  }
+  return out;
 }

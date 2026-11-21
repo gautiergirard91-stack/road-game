@@ -47,6 +47,7 @@
     <button class="btn big" id="btn-play">▶ Jouer</button>
     <button class="btn" id="btn-shop">🛒 Boutique</button>
     <button class="btn" id="btn-leaderboard">🏆 Classement</button>
+    <button class="btn" id="btn-challenges">🎯 Défis</button>
     <button class="btn secondary" id="btn-help">👶 Tutoriel</button>
     <button class="btn secondary" id="btn-sound">🔊 Son : ON</button>
     <button class="btn secondary" id="btn-music">🎵 Musique : ON</button>
@@ -91,7 +92,24 @@
     </div>
     <div class="picker-label">Filtrer par difficulté</div>
     <div id="lb-filter"></div>
+    <div class="picker-label">Filtrer par niveau</div>
+    <div id="lb-level-filter"></div>
     <div id="leaderboard-list" class="cards"></div>
+  </section>
+
+  <section id="screen-challenges" class="screen">
+    <header class="topbar">
+      <button class="btn back" id="btn-challenges-back">←</button>
+      <h2>🎯 Défis</h2>
+      <div class="coins-display">🪙 0</div>
+    </header>
+    <div id="challenge-streak" class="card"></div>
+    <h3 class="shop-section-title">Défi du jour</h3>
+    <div id="challenge-daily" class="cards"></div>
+    <h3 class="shop-section-title">Quêtes de la semaine</h3>
+    <div id="challenge-quests" class="cards"></div>
+    <h3 class="shop-section-title">🏆 Classement du défi du jour</h3>
+    <div id="challenge-lb" class="cards"></div>
   </section>
 
   <section id="screen-shop" class="screen">
@@ -106,6 +124,10 @@
     <div id="shop-effects" class="cards"></div>
     <h3 class="shop-section-title">🎨 Thèmes de route</h3>
     <div id="shop-themes" class="cards"></div>
+    <h3 class="shop-section-title">🎁 Packs</h3>
+    <div id="shop-packs" class="cards"></div>
+    <h3 class="shop-section-title">🔊 Packs de sons</h3>
+    <div id="shop-sounds" class="cards"></div>
   </section>
 
   <section id="screen-over" class="screen">
@@ -164,6 +186,9 @@
       <h2>✏️ Ton pseudo</h2>
       <input id="pseudo-input" maxlength="16" placeholder="Ex. Speedy" autocomplete="off">
       <button class="btn big" id="btn-pseudo-save">Enregistrer</button>
+      <div id="gsi-btn"></div>
+      <p id="google-status" class="card-sub"></p>
+      <button class="btn secondary hidden" id="btn-google-out">🔓 Se délier du compte Google</button>
       <button class="btn secondary" id="btn-pseudo-cancel">Annuler</button>
     </div>
   </div>
