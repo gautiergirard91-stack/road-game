@@ -108,3 +108,11 @@ Données reçues de Google : **uid, email, displayName** (dans le jeton). Le `re
 - Option : repasser le projet en plan **Spark** (Firebase → Project settings → Usage and billing → Modify plan) — RTDB + Auth continuent gratuitement.
 - Supprimer tout projet Cloud parasite créé par erreur (sélecteur de projet → Shut down) — ne JAMAIS arrêter `realtime-database-5fd49`.
 - L'édition des origines OAuth se fait dans le projet Cloud **lié à `realtime-database-5fd49`** (n° 804737015370), pas dans un autre projet.
+
+## 7. Sécurité de la clé API web (alerte GitHub « public leak »)
+
+La clé `FIREBASE_WEB_API_KEY` (`AIzaSy…`) dans `js/config.js` est **publique by design** (elle identifie le projet, elle n'ouvre aucun accès — l'autorisation passe par les règles RTDB + App Check). GitHub Secret Scanning la signale quand même : c'est un faux positif connu.
+
+- Le dépôt contient `.github/secret_scanning.yml` (`paths-ignore: ["js/config.js"]`) pour fermer l'alerte automatiquement ; fermer l'alerte déjà ouverte en **False positive** avec un lien vers `docs/SECURITY.md`.
+- **Restreindre la clé quand même** (vrai verrou anti-abus) : Cloud Console (projet 804737015370) → API & Services → Credentials → clé `AIzaSy…` → API restrictions = API Firebase uniquement (Realtime Database, Identity Toolkit, Secure Token) + **HTTP referrers** : `https://roadtap.uk/*`, `https://gautiergirard91-stack.github.io/*`, `http://localhost:*/*` (ajouter `android-app://uk.roadtap.game` pour la future TWA).
+- Ne JAMAIS commiter : `FIREBASE_DB_SECRET` (vide), compte de service (`private_key`), tokens. L'audit CI (section 10 de `tools/audit.mjs`) bloque tout vrai secret. Voir `docs/SECURITY.md`.
