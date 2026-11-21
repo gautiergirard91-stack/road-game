@@ -209,3 +209,12 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] CI verte (core + smoke + tutorial + **break** + audit avec parse ESM) + CACHE sw bumpé (roadtap-v35) + VERSION 1.3.27
 - [ ] Reset dur côté testeur (Unregister SW + Clear site data) puis Ctrl+Shift+R : vérifier que la v1.3.27 charge et que tous les écrans répondent
 - [ ] Rétro + roadmap à jour : `docs/RETROSPECTIVE.md`, `docs/ROADMAP.md`
+
+## Checklist v1.3.28 (fix CI YAML + zones gauche/droite + effets jamais auto-activés + diagnostic écriture LB)
+
+- [ ] **CI verte** : le `name:` du step break.test dans `.github/workflows/ci.yml` est quoté (un `": "` non quoté casse tout le workflow = 0 jobs) ; `tools/audit.mjs` v1.3.28 bloque désormais ce cas (section 9)
+- [ ] **Zones gauche/droite** : option activée → tap gauche = AV, droite = AR (tactile ET clavier ←/→) ; au clavier, ← ne fait PLUS swipe en même temps (swipe = ↓ ou S en mode horizontal) ; libellé de l'option précise « utile en Permis A / Pilote »
+- [ ] **Effets** : acheter un effet ou un pack ne l'active PLUS automatiquement (bouton « Activer » après achat) ; la secousse n'est plus « activée par défaut »
+- [ ] **Classement** : si les envois sont refusés, la ligne de statut affiche aussi « ⚠ écriture HTTP 403 … » même après une lecture OK ; si la base est vide, vérifier que les testeurs ont pseudo + opt-in (cause n°0, docs/FIREBASE.md §2bis)
+- [ ] `node tests/break.test.mjs` : 64 assertions (mapping zones, keyToAction, effets non auto-activés, writeError persistante)
+- [ ] CI verte (core + smoke + tutorial + break + audit) + CACHE sw bumpé (roadtap-v36) + VERSION 1.3.28

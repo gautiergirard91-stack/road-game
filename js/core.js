@@ -105,6 +105,30 @@ export function axleDelta(wheelY, frontAxleY, axle) {
   return axle === 'front' ? wheelY - frontAxleY : 0;
 }
 
+// v1.3.28 : mapping zone de tap, pur et testable.
+// horizontal = option "zones gauche/droite" (gauche = AV, droite = AR), sinon haut/bas.
+export function zoneFromPoint(x, y, w, h, horizontal) {
+  if (!Number.isFinite(x) || !Number.isFinite(y) || !(w > 0) || !(h > 0)) return 'rear';
+  return horizontal ? (x < w / 2 ? 'front' : 'rear') : y < h / 2 ? 'front' : 'rear';
+}
+
+// v1.3.28 : touche clavier -> UNE SEULE action ('front' | 'rear' | 'swipe' | null).
+// Avant, avec les zones horizontales ON, ArrowLeft faisait tap AV **et** swipe en même temps.
+// En mode horizontal, le swipe passe sur ArrowDown / KeyS (le swipe tactile reste sur le geste).
+export function keyToAction(code, horizontal) {
+  if (horizontal) {
+    if (code === 'ArrowLeft') return 'front';
+    if (code === 'ArrowRight') return 'rear';
+    if (code === 'ArrowDown' || code === 'KeyS') return 'swipe';
+    if (code === 'Space' || code === 'Enter') return 'rear';
+    return null;
+  }
+  if (code === 'ArrowUp') return 'front';
+  if (code === 'Space' || code === 'ArrowDown' || code === 'Enter') return 'rear';
+  if (code === 'ArrowLeft') return 'swipe';
+  return null;
+}
+
 export function avgReaction(stats) {
   if (!stats.reactions.length) return null;
   return Math.round(stats.reactions.reduce((a, b) => a + b, 0) / stats.reactions.length);

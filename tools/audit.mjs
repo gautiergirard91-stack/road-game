@@ -102,5 +102,54 @@ for (const f of parseFiles) {
   }
 }
 
+// 9) workflows GitHub : un `name:` non quoté contenant ": " casse tout le workflow
+//    (v1.3.28 : la CI est devenue rouge à cause d'un name avec ": " — plus de jobs lancés)
+const wfDir = path.join(root, '.github', 'workflows');
+if (fs.existsSync(wfDir)) {
+  for (const f of fs.readdirSync(wfDir).filter((f) => f.endsWith('.yml') || f.endsWith('.yaml'))) {
+    const src = fs.readFileSync(path.join(wfDir, f), 'utf8');
+    for (const [i, line] of src.split('\n').entries()) {
+      const m = line.match(/^\s*-\s*name:\s*(.+?)\s*$/);
+      if (!m) continue;
+      const v = m[1];
+      const quoted = (v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"));
+      if (!quoted && /:\s/.test(v)) {
+        console.log(`❌ .github/workflows/${f}:${i + 1}: name non quoté contenant ": " -> workflow invalide (${v.slice(0, 60)}...)`);
+        problems++;
+      }
+    }
+  }
+}
+
+// 10) vrais secrets jamais commités — la clé web Firebase (AIzaSy…) dans js/config.js est
+//     PUBLIQUE BY DESIGN (docs/SECURITY.md, .github/secret_scanning.yml) ; tout le reste échoue.
+{
+  const codeFiles = [
+    ...jsFiles.map((f) => 'js/' + f),
+    'sw.js',
+    ...fs.readdirSync(path.join(root, 'tests')).filter((f) => f.endsWith('.mjs')).map((f) => 'tests/' + f),
+    ...fs.readdirSync(path.join(root, 'tools')).filter((f) => f.endsWith('.mjs') && f !== 'audit.mjs').map((f) => 'tools/' + f),
+  ];
+  const wf = path.join(root, '.github', 'workflows');
+  if (fs.existsSync(wf)) for (const f of fs.readdirSync(wf)) codeFiles.push('.github/workflows/' + f);
+  const keyRe = /AIzaSy[\w-]{30,}/g;
+  const secretRes = [/-----BEGIN [A-Z ]*PRIVATE KEY-----/, /"private_key"\s*:/, /"type"\s*:\s*"service_account"/];
+  for (const f of codeFiles) {
+    const src = fs.readFileSync(path.join(root, f), 'utf8');
+    for (const m of src.matchAll(keyRe)) {
+      if (f !== 'js/config.js') {
+        console.log(`❌ ${f}: clé API Google hors js/config.js (${m[0].slice(0, 10)}…)`);
+        problems++;
+      }
+    }
+    for (const re of secretRes) {
+      if (re.test(src)) {
+        console.log(`❌ ${f}: VRAI SECRET détecté (${re.source.slice(0, 40)}…) — ne jamais commiter ça`);
+        problems++;
+      }
+    }
+  }
+}
+
 console.log(problems === 0 ? '✅ AUDIT STATIQUE: aucun problème trouvé' : `❌ ${problems} problème(s) trouvé(s)`);
 process.exit(problems === 0 ? 0 : 1);
