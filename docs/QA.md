@@ -138,6 +138,15 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] La bordure/bouton « ▶ Jouer » / cadenas restent alignés (carte de même hauteur)
 - [ ] CI verte + CACHE sw bumpé (roadtap-v26) + VERSION 1.3.18
 
+## Checklist v1.3.19 (mode ⏱ Speedrun)
+
+- [ ] Écran Niveaux : sélecteur **Mode de jeu** (🏁 Standard / ⏱ Speedrun) ; activer Speedrun force la difficulté **Pilote** ; changer de difficulté en speedrun désactive le mode
+- [ ] En partie speedrun : le HUD affiche le **chrono** (m:ss.cc) à la place du score ; chaque PARFAIT (et dépassement) ajoute +30 de vitesse (plafond +80 %), popup « ⚡ VITESSE PERDUE ! » et remise à zéro sur un raté
+- [ ] Fin de niveau **terminé** en speedrun : écran de fin avec le temps + **compte à rebours 10 s** (barre + chiffre) qui lance automatiquement le niveau suivant ; boutons « ▶ Continuer maintenant », « Niveaux » (annule le compte à rebours), « Menu »
+- [ ] Niveau 15 terminé en speedrun → « 🏁 Speedrun terminé » (pas de compte à rebours) ; niveau raté → écran normal sans compte à rebours
+- [ ] Record de temps `⏱` affiché sur la carte du niveau ; `bestTime` + `speedrun` persistés et synchro cloud ; pas d'envoi au classement global en speedrun
+- [ ] CI verte + CACHE sw bumpé (roadtap-v27) + VERSION 1.3.19
+
 ## Note bloqueurs de pub (Google Sign-In)
 
 - uBlock Origin / Privacy Badger bloquent `accounts.google.com` (popup GIS) et `identitytoolkit.googleapis.com` (échange du jeton) → erreurs « popup bloquée » / CORS. **Mettre `roadtap.uk` en liste blanche** dans les deux extensions + autoriser les popups pour le site. Le bouton affiche alors « Continuer en tant que … » quand le navigateur est déjà connecté à un compte Google.

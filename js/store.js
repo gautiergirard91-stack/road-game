@@ -12,6 +12,8 @@ const defaults = () => ({
   effects: [],
   selectedEffects: [],
   best: {},
+  bestTime: {}, // v1.3.19 : meilleurs temps (ms) du mode speedrun, par niveau
+  speedrun: false,
   sound: true,
   difficulty: 'auto',
   pseudo: '',
@@ -56,6 +58,7 @@ export function load() {
     save.wallets = { auto: 0, permisA: 0, pilote: 0, ...(save.wallets || {}) };
     save.trophies = save.trophies || {};
     save.cleared = save.cleared || {};
+    save.bestTime = save.bestTime || {};
   } catch {
     save = defaults();
   }
@@ -117,6 +120,23 @@ export function markCleared(levelId) {
 
 export function isCleared(levelId) {
   return Boolean(save.cleared[levelId]);
+}
+
+// v1.3.19 : mode speedrun (toggle, se cale sur la difficulté Pilote)
+export function setSpeedrun(on) {
+  save.speedrun = Boolean(on);
+  persist();
+}
+
+// v1.3.19 : record de temps (ms) — retourne true si nouveau record
+export function setBestTime(levelId, ms) {
+  const prev = save.bestTime[levelId];
+  if (prev === undefined || ms < prev) {
+    save.bestTime[levelId] = ms;
+    persist();
+    return true;
+  }
+  return false;
 }
 
 export function buySkin(id, cost, currency = 'auto') {
@@ -335,6 +355,8 @@ export function snapshot() {
     effects: save.effects,
     selectedEffects: save.selectedEffects,
     best: save.best,
+    bestTime: save.bestTime,
+    speedrun: save.speedrun,
     difficulty: save.difficulty,
     achievements: save.achievements,
     totals: save.totals,
@@ -385,6 +407,11 @@ export function mergeRemote(remote) {
   for (const [k, v] of Object.entries(remote.best || {})) {
     save.best[k] = Math.max(save.best[k] || 0, v);
   }
+  for (const [k, v] of Object.entries(remote.bestTime || {})) {
+    const cur = save.bestTime[k];
+    if (cur === undefined || v < cur) save.bestTime[k] = v;
+  }
+  if (remote.speedrun === true) save.speedrun = true;
   save.totals = {
     runs: Math.max(save.totals.runs, remote.totals?.runs || 0),
     perfects: Math.max(save.totals.perfects, remote.totals?.perfects || 0),
