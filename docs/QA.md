@@ -78,6 +78,14 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] Classement : les scores envoyés apparaissent bien sous `/scores/<mode>` dans Firebase
 - [ ] CI verte + CACHE sw bumpé (roadtap-v17) + VERSION 1.3.9
 
+## Checklist v1.3.10 (boutique paginée par catégorie)
+
+- [ ] Barre d'onglets 🚗 ✨ 🎨 🎁 🔊 en haut de la boutique (sticky) + flèches ◀ ▶ pour changer de page
+- [ ] Une seule catégorie visible à la fois ; l'onglet actif est surligné ; la page remonte en haut au changement
+- [ ] Achat/équipement depuis n'importe quelle page → re-render OK, on reste sur la même catégorie
+- [ ] Mobile : les 5 onglets tiennent sur une ligne (390 px)
+- [ ] CI verte + CACHE sw bumpé (roadtap-v18) + VERSION 1.3.10
+
 ## Note bloqueurs de pub (Google Sign-In)
 
 - uBlock Origin / Privacy Badger bloquent `accounts.google.com` (popup GIS) et `identitytoolkit.googleapis.com` (échange du jeton) → erreurs « popup bloquée » / CORS. **Mettre `roadtap.uk` en liste blanche** dans les deux extensions + autoriser les popups pour le site. Le bouton affiche alors « Continuer en tant que … » quand le navigateur est déjà connecté à un compte Google.

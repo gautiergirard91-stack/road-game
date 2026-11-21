@@ -118,16 +118,37 @@
       <h2>Boutique</h2>
       <div class="coins-display">🪙 0</div>
     </header>
-    <h3 class="shop-section-title">🚗 Voitures</h3>
-    <div id="shop-skins" class="cards"></div>
-    <h3 class="shop-section-title">✨ Effets visuels & météo</h3>
-    <div id="shop-effects" class="cards"></div>
-    <h3 class="shop-section-title">🎨 Thèmes de route</h3>
-    <div id="shop-themes" class="cards"></div>
-    <h3 class="shop-section-title">🎁 Packs</h3>
-    <div id="shop-packs" class="cards"></div>
-    <h3 class="shop-section-title">🔊 Packs de sons</h3>
-    <div id="shop-sounds" class="cards"></div>
+    <nav id="shop-nav" class="shop-nav">
+      <button class="btn small nav-arrow" id="btn-shop-prev" title="Catégorie précédente" aria-label="Catégorie précédente">◀</button>
+      <div id="shop-tabs">
+        <button class="shop-tab active" data-cat="skins" title="Voitures" aria-label="Voitures">🚗</button>
+        <button class="shop-tab" data-cat="effects" title="Effets visuels & météo" aria-label="Effets visuels et météo">✨</button>
+        <button class="shop-tab" data-cat="themes" title="Thèmes de route" aria-label="Thèmes de route">🎨</button>
+        <button class="shop-tab" data-cat="packs" title="Packs" aria-label="Packs">🎁</button>
+        <button class="shop-tab" data-cat="sounds" title="Packs de sons" aria-label="Packs de sons">🔊</button>
+      </div>
+      <button class="btn small nav-arrow" id="btn-shop-next" title="Catégorie suivante" aria-label="Catégorie suivante">▶</button>
+    </nav>
+    <div class="shop-page active" data-cat="skins">
+      <h3 class="shop-section-title">🚗 Voitures</h3>
+      <div id="shop-skins" class="cards"></div>
+    </div>
+    <div class="shop-page" data-cat="effects">
+      <h3 class="shop-section-title">✨ Effets visuels & météo</h3>
+      <div id="shop-effects" class="cards"></div>
+    </div>
+    <div class="shop-page" data-cat="themes">
+      <h3 class="shop-section-title">🎨 Thèmes de route</h3>
+      <div id="shop-themes" class="cards"></div>
+    </div>
+    <div class="shop-page" data-cat="packs">
+      <h3 class="shop-section-title">🎁 Packs</h3>
+      <div id="shop-packs" class="cards"></div>
+    </div>
+    <div class="shop-page" data-cat="sounds">
+      <h3 class="shop-section-title">🔊 Packs de sons</h3>
+      <div id="shop-sounds" class="cards"></div>
+    </div>
   </section>
 
   <section id="screen-over" class="screen">

@@ -431,6 +431,19 @@ function renderLevels() {
   }
 }
 
+// v1.3.10 : boutique paginée — une catégorie par page
+const SHOP_CATS = ['skins', 'effects', 'themes', 'packs', 'sounds'];
+let shopCat = 'skins';
+
+function showShopPage(cat) {
+  if (!SHOP_CATS.includes(cat)) cat = 'skins';
+  shopCat = cat;
+  document.querySelectorAll('#shop-tabs .shop-tab').forEach((b) => b.classList.toggle('active', b.dataset.cat === cat));
+  document.querySelectorAll('#screen-shop .shop-page').forEach((p) => p.classList.toggle('active', p.dataset.cat === cat));
+  const sc = $('#screen-shop');
+  if (sc) sc.scrollTop = 0;
+}
+
 function renderShop() {
   const skinsEl = $('#shop-skins');
   skinsEl.innerHTML = '';
@@ -897,6 +910,7 @@ $('#optin-lb').addEventListener('change', (e) => {
 $('#btn-shop').addEventListener('click', () => {
   sfx.click();
   renderShop();
+  showShopPage(shopCat);
   show('screen-shop');
 });
 $('#btn-help').addEventListener('click', () => {
@@ -917,6 +931,20 @@ $('#btn-levels-back').addEventListener('click', () => {
 $('#btn-shop-back').addEventListener('click', () => {
   sfx.click();
   show('screen-menu');
+});
+document.querySelectorAll('#shop-tabs .shop-tab').forEach((b) => {
+  b.addEventListener('click', () => {
+    sfx.click();
+    showShopPage(b.dataset.cat);
+  });
+});
+$('#btn-shop-prev').addEventListener('click', () => {
+  sfx.click();
+  showShopPage(SHOP_CATS[(SHOP_CATS.indexOf(shopCat) + SHOP_CATS.length - 1) % SHOP_CATS.length]);
+});
+$('#btn-shop-next').addEventListener('click', () => {
+  sfx.click();
+  showShopPage(SHOP_CATS[(SHOP_CATS.indexOf(shopCat) + 1) % SHOP_CATS.length]);
 });
 $('#btn-pause').addEventListener('click', () => togglePause());
 $('#btn-resume').addEventListener('click', () => togglePause(false));
