@@ -110,6 +110,13 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] Aperçu boutique : canvas 56×64 (portrait), voiture top-down bien cadrée
 - [ ] CI verte + CACHE sw bumpé (roadtap-v22) + VERSION 1.3.14
 
+## Checklist v1.3.15 (8 nouveaux modèles de voiture top-down)
+
+- [ ] 13 modèles au total : + Camion, Fourgon (caisse `box`), Décapotable, Kart (cockpit ouvert `open`), Limousine (150 px), 2CV, Monster truck (grosses roues), Supercar (becquet) — tous en vue de dessus
+- [ ] 8 nouveaux skins boutique avec prix/monnaies cohérents ; labels affichés sur les cartes ; aperçus canvas OK
+- [ ] Jouer avec chaque nouveau modèle : caisse/cockpit/grosses roues bien rendus dans les 7 styles
+- [ ] CI verte + CACHE sw bumpé (roadtap-v23) + VERSION 1.3.15
+
 ## Note bloqueurs de pub (Google Sign-In)
 
 - uBlock Origin / Privacy Badger bloquent `accounts.google.com` (popup GIS) et `identitytoolkit.googleapis.com` (échange du jeton) → erreurs « popup bloquée » / CORS. **Mettre `roadtap.uk` en liste blanche** dans les deux extensions + autoriser les popups pour le site. Le bouton affiche alors « Continuer en tant que … » quand le navigateur est déjà connecté à un compte Google.
