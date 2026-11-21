@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { judge, pointsFor, buildPattern, coinsForResult, accuracy, avgReaction, continueCost, maxMissesFor, firstClearBonus, isPerfectClear, perfectClearBonus, axleDelta, mulberry32, dayKey, weekKey, dailyChallenge, weeklyQuests } from '../js/core.js';
+import { judge, pointsFor, buildPattern, coinsForResult, accuracy, avgReaction, continueCost, maxMissesFor, firstClearBonus, isPerfectClear, perfectClearBonus, axleDelta, mulberry32, dayKey, weekKey, dailyChallenge, weeklyQuests, fmtTime } from '../js/core.js';
 import { LEVELS, WINDOWS, MAX_MISSES, CONTINUE_BASE_COST, SKINS, EFFECTS, ACHIEVEMENTS, CURRENCIES, DIFFICULTIES, THEME_SHOP, PACKS, SOUND_PACKS } from '../js/data.js';
 
 assert.equal(judge(0), 'perfect');
@@ -51,6 +51,11 @@ assert.equal(MAX_MISSES, 3, '3 vies avant game over');
 assert.equal(continueCost(0), CONTINUE_BASE_COST);
 assert.equal(continueCost(1), CONTINUE_BASE_COST * 2, 'coût doublé à chaque continue');
 assert.equal(continueCost(2), CONTINUE_BASE_COST * 4);
+
+// v1.3.19 : fmtTime (chrono speedrun)
+assert.equal(fmtTime(0), '0:00.00');
+assert.equal(fmtTime(75.5), '1:15.50');
+assert.equal(fmtTime(9.999), '0:10.00');
 
 const models = new Set(SKINS.map((s) => s.model));
 assert.ok(models.has('berline') && models.has('sport') && models.has('citadine'), 'les 3 modèles de voiture sont présents');

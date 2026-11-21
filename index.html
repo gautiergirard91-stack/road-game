@@ -76,6 +76,11 @@
     </header>
     <div class="picker-label">Difficulté</div>
     <div id="difficulty-picker"></div>
+    <div class="picker-label">Mode de jeu</div>
+    <div id="mode-picker">
+      <button class="btn small diff-btn" id="btn-mode-normal">🏁 Standard</button>
+      <button class="btn small diff-btn" id="btn-mode-speedrun" title="Complète le niveau le plus vite possible. Chaque PARFAIT accélère, un raté remet la vitesse à zéro. Se joue en difficulté Pilote.">⏱ Speedrun</button>
+    </div>
     <div id="levels-list" class="cards"></div>
   </section>
 
@@ -158,6 +163,11 @@
       <div class="score-label">points</div>
       <div id="over-stats" class="stats-grid"></div>
       <div id="over-coins" class="coins-earned"></div>
+      <div id="over-next" class="hidden">
+        <div class="over-next-label">⏭ Niveau suivant dans <b id="over-count">10</b> s</div>
+        <div class="countdown-bar"><div id="over-count-bar"></div></div>
+        <button class="btn big" id="btn-over-next">▶ Continuer maintenant</button>
+      </div>
       <button class="btn big" id="btn-retry">↻ Rejouer</button>
       <button class="btn" id="btn-over-levels">Niveaux</button>
       <button class="btn secondary" id="btn-over-menu">Menu</button>

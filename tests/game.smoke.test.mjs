@@ -238,6 +238,28 @@ for (const [id, mm] of Object.entries(MODELS)) {
   assert.ok(mm.bodyH > mm.w, `modèle ${id} en vue de dessus (bodyH ${mm.bodyH} > w ${mm.w})`);
 }
 
+{
+  // v1.3.19 : speedrun — cale sur Pilote, PARFAIT = +vitesse, raté = vitesse perdue, chrono actif
+  const { game, events } = makeGame(LEVELS[0], 'pilote', { speedrun: true });
+  game.start();
+  assert.equal(game.mode, 'pilote', 'speedrun se cale sur le mode pilote');
+  assert.equal(game.bonusSpeed, 0, 'pas de bonus au départ');
+  const l1 = game.lines[0];
+  game.distance = l1.dist;
+  game.tap('rear');
+  assert.equal(events.judge.at(-1).result, 'perfect');
+  assert.ok(game.bonusSpeed > 0, 'PARFAIT -> bonus de vitesse accumulé');
+  game.update(1 / 60);
+  assert.ok(game.effSpeed > game.level.speed, 'effSpeed > vitesse de base après un PARFAIT');
+  const e0 = game.elapsed;
+  for (let i = 0; i < 30; i++) game.update(1 / 60);
+  assert.ok(game.elapsed > e0 + 0.4, 'le chrono speedrun tourne');
+  game.registerMiss(null, 'rear');
+  assert.equal(game.bonusSpeed, 0, 'raté -> TOUTE la vitesse perdue');
+  game.update(1 / 60);
+  assert.ok(Math.abs(game.effSpeed - game.level.speed * game.slow) < 1e-6, 'effSpeed retombe sur la vitesse de base');
+}
+
 // v1.3.15 : au moins 10 modèles de voiture
 assert.ok(Object.keys(MODELS).length >= 10, `au moins 10 modèles (reçu ${Object.keys(MODELS).length})`);
 

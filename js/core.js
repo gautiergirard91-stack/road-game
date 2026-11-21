@@ -98,6 +98,13 @@ export function avgReaction(stats) {
 
 // --- Défis & quêtes (rétention) ---
 
+// v1.3.19 : formatage du chrono speedrun -> "m:ss.cc"
+export function fmtTime(sec) {
+  const m = Math.floor(sec / 60);
+  const s = sec - m * 60;
+  return `${m}:${s.toFixed(2).padStart(5, '0')}`;
+}
+
 export function hashString(s) {
   let h = 2166136261;
   for (let i = 0; i < s.length; i++) {

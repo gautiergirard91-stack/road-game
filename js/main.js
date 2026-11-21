@@ -2,7 +2,7 @@ import { LEVELS, THEMES, SKINS, EFFECTS, DIFFICULTIES, CURRENCIES, WINDOWS, ACHI
 import { Game, CAR_STYLE_LABEL, renderCarPreview, renderEffectPreview, renderThemePreview, renderPackPreview, renderSoundPreview } from './game.js';
 import * as store from './store.js';
 import { sfx, setEnabled, setMusicEnabled, unlockAudio, applySoundPack } from './audio.js';
-import { coinsForResult, accuracy, avgReaction, continueCost, maxMissesFor, firstClearBonus, isPerfectClear, perfectClearBonus, dailyChallenge, weeklyQuests } from './core.js';
+import { coinsForResult, accuracy, avgReaction, continueCost, maxMissesFor, firstClearBonus, isPerfectClear, perfectClearBonus, dailyChallenge, weeklyQuests, fmtTime } from './core.js';
 import { watchRewarded } from './ads.js';
 import { Tutorial } from './tutorial.js';
 import * as leaderboard from './leaderboard.js';
@@ -51,12 +51,27 @@ function renderDifficultyPicker() {
     b.textContent = d.name;
     b.title = d.desc;
     b.addEventListener('click', () => {
+      if (save.speedrun && d.id !== 'pilote') {
+        store.setSpeedrun(false);
+        renderModePicker();
+        toast('Mode Speedrun désactivé (il se cale sur la difficulté Pilote)');
+      }
       store.setDifficulty(d.id);
       sfx.click();
       renderDifficultyPicker();
     });
     el.appendChild(b);
   }
+  renderModePicker();
+}
+
+// v1.3.19 : sélecteur de mode (Standard / Speedrun)
+function renderModePicker() {
+  const normal = $('#btn-mode-normal');
+  const sr = $('#btn-mode-speedrun');
+  if (!normal || !sr) return;
+  normal.classList.toggle('active', !save.speedrun);
+  sr.classList.toggle('active', !!save.speedrun);
 }
 
 let lbFilter = 'all';
@@ -389,6 +404,7 @@ function renderLevels() {
     const canBuy = !locked || l.id === 1 || store.isCleared(l.id - 1);
     const c = cur(l.diff || 'auto');
     const best = save.best[l.id];
+    const bt = save.bestTime[l.id]; // v1.3.19 : record speedrun
     const medal = save.trophies[l.id] ? ' 🥇' : '';
     const card = document.createElement('div');
     card.className = 'card';
@@ -397,7 +413,7 @@ function renderLevels() {
       <div class="card-body">
         <div class="card-title">${l.endless ? '∞' : l.id}. ${l.name}${medal}</div>
         <div class="card-sub">${THEMES[l.theme].name} · ${l.endless ? 'vitesse croissante' : `vitesse ${l.speed} · ${l.lines} lignes`}</div>
-        <div class="card-best">${best ? `🏆 Record : ${best}` : ''}</div>
+        <div class="card-best">${best ? `🏆 Record : ${best}` : ''}${bt ? `${best ? ' · ' : ''}⏱ ${fmtTime(bt / 1000)}` : ''}</div>
       </div>
       <button class="btn small">${locked ? (l.endless ? '🔒 15 niveaux à finir' : canBuy ? `🔒 ${l.cost} ${c.icon}` : `🔒 termine le niveau ${l.id - 1} en entier`) : '▶ Jouer'}</button>`;
     card.querySelector('button').addEventListener('click', () => {
@@ -641,7 +657,7 @@ function startLevel(level) {
   show('screen-game');
   $('#pause-overlay').classList.remove('active');
   hudLevel.textContent = `${level.id}. ${level.name}`;
-  hudScore.textContent = '0';
+  hudScore.textContent = save.speedrun ? '0:00.00' : '0';
   hudCombo.textContent = '';
   continuesThisRun = 0;
   updateLives(0);
@@ -650,14 +666,15 @@ function startLevel(level) {
   game = new Game($('#game'), {
     level,
     skinId: save.skin,
-    mode: save.difficulty,
+    mode: save.speedrun ? 'pilote' : save.difficulty,
+    speedrun: save.speedrun, // v1.3.19 : mode speedrun (chrono + vitesse bonus)
     themeOverride: save.themeOverride || undefined,
     windows: effWindows(),
     access: { colorblind: save.colorblind },
     effects: save.selectedEffects,
     audio: { tap: sfx.tap, perfect: sfx.perfect, good: sfx.good, passable: sfx.passable, fail: sfx.fail, win: sfx.win, miss: sfx.miss },
     onJudge: (e) => {
-      hudScore.textContent = String(e.score);
+      hudScore.textContent = save.speedrun && game ? fmtTime(game.elapsed) : String(e.score);
       hudCombo.textContent = e.combo >= 2 ? `COMBO x${e.combo}` : '';
     },
     onMiss: (m) => updateLives(m),
@@ -670,16 +687,51 @@ function startLevel(level) {
   rafId = requestAnimationFrame(loop);
 }
 
+// v1.3.19 : speedrun — compte à rebours de 10 s avant le niveau suivant
+let nextTimer = null;
+function cancelNextCountdown() {
+  if (nextTimer) {
+    clearInterval(nextTimer);
+    nextTimer = null;
+  }
+  const el = $('#over-next');
+  if (el) el.classList.add('hidden');
+}
+function startNextCountdown(nextLevel) {
+  cancelNextCountdown();
+  const el = $('#over-next');
+  if (!el || !nextLevel) return;
+  el.classList.remove('hidden');
+  let left = 10;
+  const countEl = $('#over-count');
+  const barEl = $('#over-count-bar');
+  if (countEl) countEl.textContent = '10';
+  if (barEl) barEl.style.width = '100%';
+  nextTimer = setInterval(() => {
+    left -= 0.1;
+    const s = Math.max(0, left);
+    if (countEl) countEl.textContent = String(Math.ceil(s));
+    if (barEl) barEl.style.width = `${(s / 10) * 100}%`;
+    if (s <= 0) {
+      cancelNextCountdown();
+      startLevel(nextLevel);
+    }
+  }, 100);
+}
+
 function onGameEnd(stats, level) {
   hideContinue();
+  const sr = Boolean(game && game.speedrun); // v1.3.19 : mode speedrun actif sur cette partie
   const firstClear = !!stats.completed && !save.best[level.id];
   const isRecord = store.setBest(level.id, stats.score);
+  const isTimeRecord = sr && stats.completed ? store.setBestTime(level.id, stats.timeMs || 0) : false;
   store.addTotals({ runs: 1, perfects: stats.perfects, overtakes: stats.overtakes || 0 });
   // v1.3.17 : niveau "terminé" = partie complétée en entier (débloque l'achat du suivant)
   if (stats.completed) store.markCleared(level.id);
   checkAchievements(stats, level);
   logEvent('game_over', { score: stats.score, level: level.id, mode: save.difficulty, completed: !!stats.completed, reason: stats.reason });
-  if (save.pseudo && save.leaderboardOptIn) {
+  if (!sr && save.pseudo && save.leaderboardOptIn) {
+    // v1.3.19 : en speedrun le score est un temps -> pas de classement global (record local bestTime)
     leaderboard
       .submitScore({ pseudo: save.pseudo, score: stats.score, level: level.name, levelId: level.id, mode: save.difficulty, date: Date.now() })
       .catch(() => {});
@@ -732,14 +784,23 @@ function onGameEnd(stats, level) {
     toast(`✅ Quête terminée : « ${q.label} » → +${q.reward} 🪙`);
   }
   const reason = stats.reason;
-  $('#over-title').textContent = stats.completed
-    ? '🏁 Niveau terminé !'
-    : reason === 'traffic'
-      ? '🚦 Bloqué dans les bouchons !'
-      : '💥 3 ratés !';
-  $('#over-record').classList.toggle('hidden', !isRecord);
+  $('#over-title').textContent = sr && stats.completed
+    ? `⏱ ${fmtTime((stats.timeMs || 0) / 1000)} — Niveau terminé !`
+    : stats.completed
+      ? '🏁 Niveau terminé !'
+      : reason === 'traffic'
+        ? '🚦 Bloqué dans les bouchons !'
+        : '💥 3 ratés !';
+  $('#over-record').classList.toggle('hidden', !isRecord && !isTimeRecord);
   $('#over-trophy').classList.toggle('hidden', !perfectClear);
-  $('#over-score').textContent = stats.score;
+  const scoreLabel = document.querySelector('#screen-over .score-label');
+  if (sr) {
+    $('#over-score').textContent = fmtTime((stats.timeMs || 0) / 1000);
+    if (scoreLabel) scoreLabel.textContent = 'temps (speedrun ⏱)';
+  } else {
+    $('#over-score').textContent = stats.score;
+    if (scoreLabel) scoreLabel.textContent = 'points';
+  }
   const avg = avgReaction(stats);
   $('#over-stats').innerHTML = `
     <div><b>${stats.perfects}</b><span>Parfaits</span></div>
@@ -758,6 +819,14 @@ function onGameEnd(stats, level) {
   setTimeout(() => {
     refreshCoins();
     show('screen-over');
+    // v1.3.19 : speedrun + niveau terminé -> compte à rebours 10 s vers le niveau suivant
+    if (sr && stats.completed) {
+      const next = LEVELS.find((l) => l.id === level.id + 1);
+      if (next) startNextCountdown(next);
+      else $('#over-title').textContent = '🏁 Speedrun terminé — bravo !';
+    } else {
+      cancelNextCountdown();
+    }
   }, 650);
 }
 
@@ -774,6 +843,7 @@ function loop(t) {
   if (game && currentScreen === 'screen-game' && !document.hidden) {
     game.update(dt);
     game.render();
+    if (game.speedrun) hudScore.textContent = fmtTime(game.elapsed); // v1.3.19 : le HUD affiche le chrono
   }
   if (tut && currentScreen === 'screen-game') tut.tick();
 }
@@ -922,6 +992,19 @@ $('#btn-shop').addEventListener('click', () => {
   showShopPage(shopCat);
   show('screen-shop');
 });
+$('#btn-mode-normal').addEventListener('click', () => {
+  store.setSpeedrun(false);
+  sfx.click();
+  renderModePicker();
+});
+$('#btn-mode-speedrun').addEventListener('click', () => {
+  store.setSpeedrun(true);
+  store.setDifficulty('pilote'); // v1.3.19 : le speedrun se cale sur Pilote
+  sfx.click();
+  renderModePicker();
+  renderDifficultyPicker();
+  toast('⏱ Mode Speedrun : termine le niveau le plus vite possible ! (difficulté Pilote)');
+});
 $('#btn-help').addEventListener('click', () => {
   sfx.click();
   startTutorial();
@@ -958,16 +1041,25 @@ $('#btn-quit').addEventListener('click', () => {
 });
 $('#btn-retry').addEventListener('click', () => {
   sfx.click();
+  cancelNextCountdown();
   if (currentLevel) startLevel(currentLevel);
 });
 $('#btn-over-levels').addEventListener('click', () => {
   sfx.click();
+  cancelNextCountdown(); // v1.3.19 : on quitte sans attendre le compte à rebours
   renderLevels();
   show('screen-levels');
 });
 $('#btn-over-menu').addEventListener('click', () => {
   sfx.click();
+  cancelNextCountdown();
   show('screen-menu');
+});
+$('#btn-over-next').addEventListener('click', () => {
+  sfx.click();
+  const next = currentLevel ? LEVELS.find((l) => l.id === currentLevel.id + 1) : null;
+  cancelNextCountdown();
+  if (next) startLevel(next);
 });
 $('#btn-continue-restart').addEventListener('click', () => {
   sfx.click();

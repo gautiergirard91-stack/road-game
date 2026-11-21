@@ -672,7 +672,9 @@ export class Game {
     this.level = opts.level;
     this.theme = THEMES[opts.themeOverride] || THEMES[opts.level.theme];
     this.skin = SKINS.find((s) => s.id === opts.skinId) || SKINS[0];
-    this.mode = opts.mode || 'auto';
+    // v1.3.19 : le mode speedrun se cale sur la difficulté Pilote
+    this.speedrun = !!opts.speedrun;
+    this.mode = this.speedrun ? 'pilote' : opts.mode || 'auto';
     this.effects = opts.effects || [];
     this.windows = opts.windows || WINDOWS;
     this.access = opts.access || {};
@@ -743,6 +745,8 @@ export class Game {
     this.slow = 1;
     this.slowCause = null;
     this.effSpeed = this.level.speed;
+    this.bonusSpeed = 0; // v1.3.19 : vitesse accumulée (speedrun)
+    this.elapsed = 0; // v1.3.19 : chrono (s)
     this.carXFrac = CAR_LANE;
     this.prevCarX = CAR_LANE;
     this.laneTarget = CAR_LANE;
@@ -801,6 +805,11 @@ export class Game {
     }
     this.stats.misses++;
     this.combo = 0;
+    if (this.speedrun) {
+      // v1.3.19 : un raté = TOUTE la vitesse accumulée est perdue
+      this.bonusSpeed = 0;
+      this.popups.push({ text: '⚡ VITESSE PERDUE !', y: ay - 100, life: 0.9, color: '#ff9f1c' });
+    }
     this.popups.push({ text: 'RATÉ', y: ay - 70, life: 0.9, color: '#ff5c5c' });
     this.shake = 8;
     this.audio.miss?.();
@@ -816,10 +825,11 @@ export class Game {
   update(dt) {
     if (!this.running || this.paused || this.tutHold) return;
     this.time += dt;
+    if (this.speedrun) this.elapsed += dt; // le chrono ne tourne pas en pause/tuto (return ci-dessus)
     const baseSpeed = this.level.endless
       ? Math.min(this.level.speed + this.distance * 0.02, this.level.speed * 2.4)
       : this.level.speed;
-    this.effSpeed = baseSpeed * this.slow;
+    this.effSpeed = (baseSpeed + (this.speedrun ? this.bonusSpeed : 0)) * this.slow;
     this.distance += this.effSpeed * dt;
     const missPx = (this.effSpeed * this.windows.passable) / 1000;
     for (const line of this.lines) {
@@ -1107,6 +1117,7 @@ export class Game {
       this.stats.score = this.score;
       this.combo++;
       this.bestCombo = Math.max(this.bestCombo, this.combo);
+      if (this.speedrun) this.bonusSpeed = Math.min(this.bonusSpeed + 30, this.level.speed * 0.8); // dépassement = PARFAIT
       this.popups.push({ text: `DÉPASSEMENT +${bonus}`, y: this.wheelY - 120, life: 0.9, color: '#54f0ff' });
       this.shake = Math.max(this.shake, 4);
       this.audio.perfect?.();
@@ -1223,6 +1234,8 @@ export class Game {
       // le combo ne monte QUE sur un PARFAIT (le dépassement compte aussi, voir swipeLeft)
       this.combo++;
       this.bestCombo = Math.max(this.bestCombo, this.combo);
+      // v1.3.19 : speedrun — chaque PARFAIT ajoute de la vitesse (plafond +80 %)
+      if (this.speedrun) this.bonusSpeed = Math.min(this.bonusSpeed + 30, this.level.speed * 0.8);
     }
     this.score += pts;
     this.stats.score = this.score;
@@ -1250,6 +1263,7 @@ export class Game {
     this.stats.completed = completed;
     this.stats.reason = reason;
     this.audio[completed ? 'win' : 'fail']?.();
+    this.stats.timeMs = Math.round(this.elapsed * 1000); // v1.3.19 : chrono speedrun
     this.onEnd({ ...this.stats, score: this.score, bestCombo: this.bestCombo, completed, reason }, this.level);
   }
 
