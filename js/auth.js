@@ -45,7 +45,16 @@ async function exchangeGoogleToken(googleIdToken) {
       returnSecureToken: true,
     }),
   });
-  if (!res.ok) throw new Error("Échec de l'échange du jeton Google");
+  if (!res.ok) {
+    let msg = `HTTP ${res.status}`;
+    try {
+      const e = await res.json();
+      if (e && e.error && e.error.message) msg = e.error.message;
+    } catch {
+      /* ignore */
+    }
+    throw new Error(`Échange du jeton Google: ${msg}`);
+  }
   const data = await res.json();
   return {
     uid: data.localId,
@@ -76,7 +85,8 @@ export async function renderGoogleButton(container) {
           if (!resp || !resp.credential) return done(null);
           try {
             done(await exchangeGoogleToken(resp.credential));
-          } catch {
+          } catch (err) {
+            console.error('[auth] échange du jeton échoué:', err);
             done(null);
           }
         },

@@ -845,16 +845,24 @@ $('#btn-pseudo').addEventListener('click', () => {
   const gsi = $('#gsi-btn');
   if (gsi && isGoogleAuthConfigured() && !save.uid) {
     gsi.innerHTML = '';
-    renderGoogleButton(gsi).then((sess) => {
-      if (sess) {
-        setAuthToken(sess.idToken);
-        store.setGoogleAccount(sess.uid, sess.email, sess.refreshToken);
-        sfx.coin();
-        toast(`🔗 Compte Google lié : ${sess.email || sess.uid}`);
-        updateGoogleStatus();
-        pushCloud();
-      }
-    });
+    renderGoogleButton(gsi)
+      .then((sess) => {
+        if (sess && sess.uid) {
+          setAuthToken(sess.idToken);
+          store.setGoogleAccount(sess.uid, sess.email, sess.refreshToken);
+          gsi.innerHTML = ''; // le bouton Google disparaît une fois lié
+          sfx.coin();
+          toast(`🔗 Compte Google lié : ${sess.email || sess.uid}`);
+          updateGoogleStatus();
+          pushCloud();
+        } else {
+          toast('❌ Connexion Google annulée ou refusée — réessaie (détail dans la console F12)');
+        }
+      })
+      .catch((err) => {
+        console.error('[auth] sign-in error:', err);
+        toast('❌ Connexion Google impossible : ' + (err && err.message ? err.message : 'erreur inconnue'));
+      });
   }
   $('#pseudo-modal').classList.remove('hidden');
   $('#pseudo-modal').classList.add('active');
