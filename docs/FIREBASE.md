@@ -24,9 +24,9 @@ En production, remplacer les règles de test par :
       }
     },
     "players": {
-      "$pseudo": {
+      "$id": {
         ".read": true,
-        ".write": "auth == null && newData.exists()"
+        ".write": "(auth == null && newData.exists()) || (auth != null && auth.uid == $id)"
       }
     },
     "analytics": {
@@ -67,3 +67,15 @@ export const FIREBASE_DB_SECRET = '';
 - `/players/<pseudo>` : snapshot du profil (pièces, achats, records, succès) — lisible publiquement, modifiable uniquement via l'app.
 - `/challenges/<dayKey>` : `{ pseudo, score, mode, date }` — classement du défi du jour (écriture validée, lecture publique).
 - `/analytics/<event>` : événements agrégés (level_start, game_over, purchase, ad_watched, continue_purchased) — écriture seule.
+
+## 5. Connexion avec un compte Google (sauvegarde cloud liée à un vrai compte)
+
+Difficulté : **modérée** — aucun SDK ajouté : on utilise le bouton officiel **Google Identity Services** + l'API REST Firebase (`identitytoolkit` / `securetoken`), voir `js/auth.js`.
+
+1. Console Firebase → **Authentication → Get started → Sign-in method → Google → Activer**. Copier le **Web client ID** (bloc « Web SDK configuration »).
+2. **Project settings → Général** → copier la **Web API key**.
+3. Authentication → **Settings → Authorized domains** : ajouter `roadtap.uk` et `gautiergirard91-stack.github.io`.
+4. Remplir `FIREBASE_WEB_API_KEY` et `FIREBASE_OAUTH_CLIENT_ID` dans `js/config.js` (clés publiques, commitables).
+5. Règles RTDB : le nœud `players` accepte désormais `(auth != null && auth.uid == $id)` (voir §2) — la sauvegarde cloud est keyed par **uid** quand Google est lié, sinon par pseudo (rétrocompatible).
+
+Données reçues de Google : **uid, email, displayName** (dans le jeton). Le `refreshToken` reste en `localStorage` uniquement et n'est **jamais** envoyé à la base de données. Voir `PRIVACY.md`.

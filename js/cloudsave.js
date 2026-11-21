@@ -1,20 +1,21 @@
 import { FIREBASE_DB_URL, FIREBASE_DB_SECRET } from './config.js';
 import { isOnline } from './leaderboard.js';
 
-function url(path) {
+function url(path, idToken) {
   const base = FIREBASE_DB_URL.replace(/\/$/, '');
-  const auth = FIREBASE_DB_SECRET ? `?auth=${FIREBASE_DB_SECRET}` : '';
+  // compte Google lié -> jeton Firebase ; sinon pseudo (écriture anonyme validée par les règles)
+  const auth = idToken ? `?auth=${encodeURIComponent(idToken)}` : FIREBASE_DB_SECRET ? `?auth=${FIREBASE_DB_SECRET}` : '';
   return `${base}${path}.json${auth}`;
 }
 
-function key(pseudo) {
-  return encodeURIComponent(pseudo.toLowerCase().trim());
+function key(account) {
+  return encodeURIComponent(String(account).toLowerCase().trim());
 }
 
-export async function load(pseudo) {
-  if (!isOnline() || !pseudo) return null;
+export async function load(account, idToken) {
+  if (!isOnline() || !account) return null;
   try {
-    const res = await fetch(url(`/players/${key(pseudo)}`));
+    const res = await fetch(url(`/players/${key(account)}`, idToken));
     if (!res.ok) return null;
     return await res.json();
   } catch {
@@ -22,10 +23,10 @@ export async function load(pseudo) {
   }
 }
 
-export async function save(pseudo, snapshot) {
-  if (!isOnline() || !pseudo) return false;
+export async function save(account, snapshot, idToken) {
+  if (!isOnline() || !account) return false;
   try {
-    const res = await fetch(url(`/players/${key(pseudo)}`), {
+    const res = await fetch(url(`/players/${key(account)}`, idToken), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...snapshot, updatedAt: Date.now() }),

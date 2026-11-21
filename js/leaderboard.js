@@ -1,4 +1,5 @@
 import { FIREBASE_DB_URL, FIREBASE_DB_SECRET } from './config.js';
+import { LEVELS, ENDLESS_LEVEL } from './data.js';
 
 const LOCAL_KEY = 'roadtap_leaderboard_local_v1';
 const TOP = 20;
@@ -58,6 +59,15 @@ function filterMode(arr, mode) {
   return mode === 'all' ? arr : arr.filter((e) => modeOf(e) === mode);
 }
 
+const LEVEL_NAMES = { ...Object.fromEntries(LEVELS.map((l) => [l.id, l.name])), [ENDLESS_LEVEL.id]: ENDLESS_LEVEL.name };
+
+// filtre par niveau : levelId (nouveaux scores) ou nom de niveau (anciens scores)
+function filterLevel(arr, levelFilter) {
+  if (levelFilter === 'all' || levelFilter === null || levelFilter === undefined) return arr;
+  const id = Number(levelFilter);
+  return arr.filter((e) => e.levelId === id || e.level === LEVEL_NAMES[id]);
+}
+
 export async function submitScore(entry) {
   const mode = modeOf(entry);
   if (!isOnline()) return submitLocal(entry);
@@ -76,8 +86,8 @@ export async function submitScore(entry) {
   return getTop('all');
 }
 
-export async function getTop(mode = 'all') {
-  if (!isOnline()) return sortDesc(filterMode(localList(), mode));
+export async function getTop(mode = 'all', levelFilter = 'all') {
+  if (!isOnline()) return sortDesc(filterLevel(filterMode(localList(), mode), levelFilter));
   const modes = mode === 'all' ? MODES : [mode];
   const all = [];
   for (const m of modes) {
@@ -93,8 +103,8 @@ export async function getTop(mode = 'all') {
       /* réseau indisponible */
     }
   }
-  if (all.length) return sortDesc(all);
-  return sortDesc(filterMode(localList(), mode));
+  if (all.length) return sortDesc(filterLevel(all, levelFilter));
+  return sortDesc(filterLevel(filterMode(localList(), mode), levelFilter));
 }
 
 // --- Classement du défi du jour (nœud /challenges/<dayKey>) ---

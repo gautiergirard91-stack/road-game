@@ -31,6 +31,9 @@ const defaults = () => ({
   streakRewardDay: '',
   quests: { weekKey: '', progress: {}, done: {} },
   challengeDone: {},
+  uid: '',
+  googleEmail: '',
+  googleRefresh: '',
 });
 
 let save;
@@ -278,6 +281,21 @@ export function isChallengeDone(dayId) {
   return !!save.challengeDone[dayId];
 }
 
+// --- compte Google (uid) : la sauvegarde cloud est keyed par uid quand lié ---
+export function setGoogleAccount(uid, email, refreshToken) {
+  save.uid = uid || '';
+  save.googleEmail = email || '';
+  if (refreshToken) save.googleRefresh = refreshToken;
+  persist();
+}
+
+export function clearGoogleAccount() {
+  save.uid = '';
+  save.googleEmail = '';
+  save.googleRefresh = '';
+  persist();
+}
+
 export function unlockAchievement(id) {
   if (!save.achievements.includes(id)) {
     save.achievements.push(id);
@@ -315,6 +333,9 @@ export function snapshot() {
     streakRewardDay: save.streakRewardDay,
     quests: save.quests,
     challengeDone: save.challengeDone,
+    uid: save.uid,
+    googleEmail: save.googleEmail,
+    // googleRefresh volontairement EXCLU du snapshot cloud (credential)
   };
 }
 
@@ -329,6 +350,10 @@ export function mergeRemote(remote) {
   save.soundPacks = [...new Set([...save.soundPacks, 'default', ...(remote.soundPacks || [])])];
   if (remote.soundPack && save.soundPacks.includes(remote.soundPack)) save.soundPack = remote.soundPack;
   save.streak = Math.max(save.streak || 0, remote.streak || 0);
+  if (!save.uid && remote.uid) {
+    save.uid = remote.uid;
+    save.googleEmail = remote.googleEmail || '';
+  }
   save.challengeDone = { ...(remote.challengeDone || {}), ...save.challengeDone };
   if (remote.quests && remote.quests.weekKey === save.quests.weekKey) {
     save.quests.done = { ...remote.quests.done, ...save.quests.done };

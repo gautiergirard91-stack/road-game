@@ -7,6 +7,7 @@ import { watchRewarded } from './ads.js';
 import { Tutorial } from './tutorial.js';
 import * as leaderboard from './leaderboard.js';
 import * as cloudsave from './cloudsave.js';
+import { renderGoogleButton, restoreGoogleSession, setAuthToken, getAuthToken, signOutGoogle, isGoogleAuthConfigured } from './auth.js';
 import { logEvent } from './analytics.js';
 import { VERSION } from './config.js';
 
@@ -59,6 +60,30 @@ function renderDifficultyPicker() {
 }
 
 let lbFilter = 'all';
+let lbLevelFilter = 'all';
+
+function renderLbLevelFilter() {
+  const el = $('#lb-level-filter');
+  if (!el) return;
+  el.innerHTML = '';
+  const opts = [
+    { id: 'all', name: 'Tous niveaux' },
+    ...LEVELS.map((l) => ({ id: String(l.id), name: `${l.id}. ${l.name}` })),
+    { id: String(ENDLESS_LEVEL.id), name: '∞ Survie' },
+  ];
+  for (const o of opts) {
+    const b = document.createElement('button');
+    b.className = 'btn small diff-btn' + (lbLevelFilter === o.id ? ' active' : '');
+    b.textContent = o.name;
+    b.addEventListener('click', () => {
+      lbLevelFilter = o.id;
+      sfx.click();
+      renderLbLevelFilter();
+      renderLeaderboard();
+    });
+    el.appendChild(b);
+  }
+}
 
 function renderLbFilter() {
   const el = $('#lb-filter');
@@ -87,7 +112,7 @@ async function renderLeaderboard() {
   list.innerHTML = '<div class="card-sub">Chargement…</div>';
   let top = [];
   try {
-    top = await leaderboard.getTop(lbFilter);
+    top = await leaderboard.getTop(lbFilter, lbLevelFilter);
   } catch {
     top = [];
   }
@@ -123,8 +148,11 @@ function hideContinue() {
 
 const effWindows = () => (save.wideWindows ? { perfect: 70, good: 150, passable: 240 } : WINDOWS);
 
+// sauvegarde cloud keyed par uid Google si lié, sinon par pseudo
+const accountKey = () => save.uid || save.pseudo;
+
 function pushCloud() {
-  if (leaderboard.isOnline() && save.pseudo) cloudsave.save(save.pseudo, store.snapshot());
+  if (leaderboard.isOnline() && accountKey()) cloudsave.save(accountKey(), store.snapshot(), getAuthToken());
 }
 
 const TUT_LEVEL = { ...ENDLESS_LEVEL, id: 0, name: 'Tutoriel', speed: 230, gapMin: 540, gapMax: 720, w: { dash: 1 }, pDouble: 0, endless: true };
@@ -631,7 +659,7 @@ function onGameEnd(stats, level) {
   logEvent('game_over', { score: stats.score, level: level.id, mode: save.difficulty, completed: !!stats.completed, reason: stats.reason });
   if (save.pseudo && save.leaderboardOptIn) {
     leaderboard
-      .submitScore({ pseudo: save.pseudo, score: stats.score, level: level.name, mode: save.difficulty, date: Date.now() })
+      .submitScore({ pseudo: save.pseudo, score: stats.score, level: level.name, levelId: level.id, mode: save.difficulty, date: Date.now() })
       .catch(() => {});
   }
   pushCloud();
@@ -780,6 +808,7 @@ $('#btn-music').addEventListener('click', () => {
 $('#btn-leaderboard').addEventListener('click', () => {
   sfx.click();
   renderLbFilter();
+  renderLbLevelFilter();
   renderLeaderboard();
   show('screen-leaderboard');
 });
@@ -796,12 +825,47 @@ $('#btn-leaderboard-back').addEventListener('click', () => {
   sfx.click();
   show('screen-menu');
 });
+function updateGoogleStatus() {
+  const el = $('#google-status');
+  const out = $('#btn-google-out');
+  if (el) {
+    el.textContent = save.uid
+      ? `🔗 Compte Google lié : ${save.googleEmail || save.uid}`
+      : isGoogleAuthConfigured()
+        ? 'Connecte-toi avec Google : ta progression sera synchronisée sur tous tes appareils.'
+        : 'Google Sign-In non configuré (clés dans js/config.js — voir docs/FIREBASE.md §5).';
+  }
+  if (out) out.classList.toggle('hidden', !save.uid);
+}
+
 $('#btn-pseudo').addEventListener('click', () => {
   sfx.click();
   $('#pseudo-input').value = save.pseudo;
+  updateGoogleStatus();
+  const gsi = $('#gsi-btn');
+  if (gsi && isGoogleAuthConfigured() && !save.uid) {
+    gsi.innerHTML = '';
+    renderGoogleButton(gsi).then((sess) => {
+      if (sess) {
+        setAuthToken(sess.idToken);
+        store.setGoogleAccount(sess.uid, sess.email, sess.refreshToken);
+        sfx.coin();
+        toast(`🔗 Compte Google lié : ${sess.email || sess.uid}`);
+        updateGoogleStatus();
+        pushCloud();
+      }
+    });
+  }
   $('#pseudo-modal').classList.remove('hidden');
   $('#pseudo-modal').classList.add('active');
   setTimeout(() => $('#pseudo-input').focus(), 50);
+});
+$('#btn-google-out').addEventListener('click', () => {
+  signOutGoogle();
+  store.clearGoogleAccount();
+  sfx.click();
+  updateGoogleStatus();
+  toast('Compte Google délié — la sauvegarde repasse sur ton pseudo.');
 });
 $('#btn-pseudo-cancel').addEventListener('click', () => {
   sfx.click();
@@ -989,8 +1053,26 @@ $('#optin-lb').checked = !!save.leaderboardOptIn;
 refreshStatus();
 show('screen-menu');
 
-if (leaderboard.isOnline() && save.pseudo) {
-  cloudsave.load(save.pseudo).then((remote) => {
+// restauration silencieuse de la session Google au démarrage
+if (save.uid && save.googleRefresh) {
+  restoreGoogleSession(save.googleRefresh).then((sess) => {
+    if (sess) {
+      setAuthToken(sess.idToken);
+      store.setGoogleAccount(sess.uid, sess.email || save.googleEmail, sess.refreshToken);
+    }
+    if (leaderboard.isOnline() && accountKey()) {
+      cloudsave.load(accountKey(), getAuthToken()).then((remote) => {
+        if (remote && store.mergeRemote(remote)) {
+          refreshCoins();
+          renderLevels();
+          renderShop();
+          toast('☁️ Progression synchronisée avec le cloud');
+        }
+      });
+    }
+  });
+} else if (leaderboard.isOnline() && accountKey()) {
+  cloudsave.load(accountKey(), getAuthToken()).then((remote) => {
     if (remote && store.mergeRemote(remote)) {
       refreshCoins();
       renderLevels();
