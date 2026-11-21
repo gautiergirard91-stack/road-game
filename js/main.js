@@ -393,7 +393,7 @@ function renderLevels() {
     const card = document.createElement('div');
     card.className = 'card';
     card.innerHTML = `
-      <div class="card-theme theme-${l.theme}"></div>
+      <canvas class="card-theme level-preview" aria-label="Aperçu ${l.name}"></canvas>
       <div class="card-body">
         <div class="card-title">${l.endless ? '∞' : l.id}. ${l.name}${medal}</div>
         <div class="card-sub">${THEMES[l.theme].name} · ${l.endless ? 'vitesse croissante' : `vitesse ${l.speed} · ${l.lines} lignes`}</div>
@@ -427,6 +427,8 @@ function renderLevels() {
         startLevel(l);
       }
     });
+    // v1.3.18 : aperçu réel du thème du niveau (mini route canvas, comme en boutique)
+    renderThemePreview(card.querySelector('canvas.level-preview'), l.theme, 52, 52);
     list.appendChild(card);
   }
 }
