@@ -392,6 +392,66 @@ body {
   background: #232c4d;
 }
 
+/* v1.3.10 : boutique paginée par catégorie */
+.shop-nav {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  width: 100%;
+  max-width: 560px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(10, 14, 32, 0.96);
+  padding: 6px 0;
+}
+
+.nav-arrow {
+  padding: 6px 10px;
+  flex-shrink: 0;
+}
+
+#shop-tabs {
+  display: flex;
+  gap: 6px;
+  flex: 1;
+  justify-content: center;
+}
+
+.shop-tab {
+  width: 46px;
+  height: 40px;
+  border-radius: 12px;
+  border: 1px solid #2c3560;
+  background: #161d3d;
+  color: #fff;
+  font-size: 20px;
+  cursor: pointer;
+  transition: transform 0.08s, background 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+
+.shop-tab:active {
+  transform: scale(0.92);
+}
+
+.shop-tab.active {
+  background: #2c4a8f;
+  border-color: #54f0ff;
+  box-shadow: 0 0 10px rgba(84, 240, 255, 0.35);
+}
+
+.shop-page {
+  display: none;
+}
+
+.shop-page.active {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
 .panel {
   width: min(92vw, 420px);
   background: #161d3d;
