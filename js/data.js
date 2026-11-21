@@ -96,6 +96,15 @@ export const SKINS = [
   { id: 'toy', name: 'Jouet plastique', color: '#ff8a3d', cost: 2200, currency: 'permisA', model: 'citadine', style: 'toy' },
   { id: 'neoncar', name: 'Néon', color: '#54f0ff', cost: 3500, currency: 'permisA', model: 'sport', style: 'neon' },
   { id: 'holo', name: 'Hologramme', color: '#9ef0ff', cost: 5500, currency: 'pilote', model: 'sport', style: 'holo' },
+  // v1.3.15 : nouveaux modèles top-down
+  { id: 'kart', name: 'Kart', color: '#ff6b35', cost: 1500, currency: 'auto', model: 'kart' },
+  { id: 'deuxcv', name: '2CV vintage', color: '#7fb3d5', cost: 2000, currency: 'auto', model: '2cv', style: 'retro' },
+  { id: 'van', name: 'Fourgon', color: '#e8e8e8', cost: 2800, currency: 'permisA', model: 'van' },
+  { id: 'decab', name: 'Décapotable', color: '#d21f2b', cost: 3200, currency: 'permisA', model: 'decapotable' },
+  { id: 'camion', name: 'Camion benne', color: '#f39c12', cost: 4500, currency: 'pilote', model: 'camion' },
+  { id: 'monster', name: 'Monster truck', color: '#8e44ad', cost: 6000, currency: 'pilote', model: 'monster' },
+  { id: 'limo', name: 'Limousine', color: '#1a1a22', cost: 8000, currency: 'pilote', model: 'limo', shine: true },
+  { id: 'supercar', name: 'Supercar', color: '#00c2ff', cost: 9500, currency: 'pilote', model: 'supercar' },
 ];
 
 export const EFFECTS = [

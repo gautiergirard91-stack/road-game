@@ -35,7 +35,7 @@ const hudLives = $('#hud-lives');
 
 let continuesThisRun = 0;
 
-const MODEL_LABEL = { berline: 'Berline', sport: 'Sport', citadine: 'Citadine', suv: '4x4', f1: 'Formule 1' };
+const MODEL_LABEL = { berline: 'Berline', sport: 'Sport', citadine: 'Citadine', suv: '4x4', f1: 'Formule 1', camion: 'Camion', van: 'Fourgon', decapotable: 'Décapotable', kart: 'Kart', limo: 'Limousine', '2cv': '2CV', monster: 'Monster truck', supercar: 'Supercar' };
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));

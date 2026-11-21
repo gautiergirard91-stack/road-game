@@ -14,6 +14,15 @@ export const MODELS = {
   sport: { w: 54, bodyH: 102, cabW: 0.72, cabH: 32, spoiler: true },
   suv: { w: 60, bodyH: 116, cabW: 0.88, cabH: 50, spoiler: false },
   f1: { w: 64, bodyH: 122, cabW: 0.52, cabH: 24, spoiler: true },
+  // v1.3.15 : nouveaux modèles top-down (box = caisse, open = cockpit ouvert, bigWheels = grosses roues)
+  camion: { w: 64, bodyH: 128, cabW: 0.9, cabH: 30, spoiler: false, box: true },
+  van: { w: 58, bodyH: 118, cabW: 0.78, cabH: 34, spoiler: false, box: true },
+  decapotable: { w: 50, bodyH: 100, cabW: 0.78, cabH: 30, spoiler: false, open: true },
+  kart: { w: 44, bodyH: 74, cabW: 0.7, cabH: 22, spoiler: false, open: true },
+  limo: { w: 54, bodyH: 150, cabW: 0.9, cabH: 60, spoiler: false },
+  '2cv': { w: 48, bodyH: 88, cabW: 0.86, cabH: 36, spoiler: false },
+  monster: { w: 66, bodyH: 108, cabW: 0.8, cabH: 34, spoiler: false, bigWheels: true },
+  supercar: { w: 56, bodyH: 106, cabW: 0.62, cabH: 28, spoiler: true },
 };
 
 const TRAFFIC_COLORS = ['#c94f4f', '#4f7ec9', '#c9b84f', '#7a4fc9', '#4fc9a8', '#b8b8b8', '#e07b39'];
@@ -68,8 +77,9 @@ function paintCar(ctx, cx, baseY, m, col, style) {
   const roofF = top + len * 0.34; // début du toit
   const roofR = top + len * 0.66; // fin du toit
   const trunkF = top + len * 0.76; // lunette arrière
-  const wheelW = Math.max(8, bw * 0.17);
-  const wheelH = Math.max(14, len * 0.15);
+  const wheelScale = m.bigWheels ? 1.5 : 1;
+  const wheelW = Math.max(8, bw * 0.17) * wheelScale;
+  const wheelH = Math.max(14, len * 0.15) * wheelScale;
   const axleF = top + len * 0.17; // essieu avant
   const axleR = baseY - len * 0.13; // essieu arrière
 
@@ -242,19 +252,40 @@ function paintCar(ctx, cx, baseY, m, col, style) {
   ctx.stroke();
 
   glass(hoodR + 1, roofF);
-  glass(roofR, trunkF);
-  ctx.fillStyle = col.shine ? '#ffe9a8' : style === 'photo' ? col.light : col.color;
-  rr(ctx, cabX + 2, roofF, cabW - 4, roofR - roofF, 6);
-  ctx.fill();
-  ctx.strokeStyle = 'rgba(0,0,0,0.35)';
-  ctx.lineWidth = 1.5;
-  rr(ctx, cabX + 2, roofF, cabW - 4, roofR - roofF, 6);
-  ctx.stroke();
-  if (style === 'photo') {
-    ctx.fillStyle = 'rgba(255,255,255,0.35)';
-    ctx.beginPath();
-    ctx.ellipse(cx, roofF + (roofR - roofF) * 0.3, cabW * 0.3, (roofR - roofF) * 0.16, 0, 0, Math.PI * 2);
+  if (m.box) {
+    // caisse de camion / fourgon
+    ctx.fillStyle = style === 'photo' ? col.light : col.color;
+    rr(ctx, cx - bw / 2 + 3, top + len * 0.3, bw - 6, len * 0.68, 5);
     ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+    ctx.lineWidth = 1.5;
+    rr(ctx, cx - bw / 2 + 3, top + len * 0.3, bw - 6, len * 0.68, 5);
+    ctx.stroke();
+  } else if (m.open) {
+    // décapotable / kart : cockpit ouvert avec 2 sièges
+    ctx.fillStyle = 'rgba(8,10,18,0.85)';
+    rr(ctx, cabX + 3, roofF, cabW - 6, roofR - roofF, 5);
+    ctx.fill();
+    ctx.fillStyle = col.dark;
+    rr(ctx, cabX + 6, roofF + 4, 8, 10, 3);
+    ctx.fill();
+    rr(ctx, cx + cabW / 2 - 14, roofF + 4, 8, 10, 3);
+    ctx.fill();
+  } else {
+    glass(roofR, trunkF);
+    ctx.fillStyle = col.shine ? '#ffe9a8' : style === 'photo' ? col.light : col.color;
+    rr(ctx, cabX + 2, roofF, cabW - 4, roofR - roofF, 6);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+    ctx.lineWidth = 1.5;
+    rr(ctx, cabX + 2, roofF, cabW - 4, roofR - roofF, 6);
+    ctx.stroke();
+    if (style === 'photo') {
+      ctx.fillStyle = 'rgba(255,255,255,0.35)';
+      ctx.beginPath();
+      ctx.ellipse(cx, roofF + (roofR - roofF) * 0.3, cabW * 0.3, (roofR - roofF) * 0.16, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
   if (style === 'toy') {
     ctx.fillStyle = 'rgba(255,255,255,0.5)';

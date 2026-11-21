@@ -238,4 +238,7 @@ for (const [id, mm] of Object.entries(MODELS)) {
   assert.ok(mm.bodyH > mm.w, `modèle ${id} en vue de dessus (bodyH ${mm.bodyH} > w ${mm.w})`);
 }
 
+// v1.3.15 : au moins 10 modèles de voiture
+assert.ok(Object.keys(MODELS).length >= 10, `au moins 10 modèles (reçu ${Object.keys(MODELS).length})`);
+
 console.log('OK - smoke test moteur : 9 scénarios sans crash, mécaniques vérifiées');
