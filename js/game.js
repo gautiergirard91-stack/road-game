@@ -423,7 +423,8 @@ export class Game {
     this.tOncoming -= dt;
     if (this.tOncoming <= 0) {
       this.tOncoming = 1.3 + Math.random() * 1.7;
-      if (this.oncoming.length < 4) {
+      // pas de spawn en sens inverse tant que la voiture du joueur est à gauche (dépassement en cours)
+      if (this.carXFrac >= 0.6 && this.oncoming.length < 4) {
         this.oncoming.push({
           p: this.distance + this.h + 240 + Math.random() * 400,
           v: -(220 + Math.random() * 140),
@@ -513,6 +514,9 @@ export class Game {
     }
     if (target) {
       target.overtaken = true;
+      // on vide l'entre-sens devant la voiture : aucun chevauchement visuel pendant le dépassement
+      this.oncoming = this.oncoming.filter((c) => this.wheelY + this.distance - c.p > this.h + 40);
+      this.tOncoming = Math.max(this.tOncoming, 0.9);
       this.lastOvertaken = target;
       this.laneTarget = ONCOMING_LANE;
       this.stats.overtakes++;
