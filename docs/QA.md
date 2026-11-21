@@ -101,6 +101,15 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] Les autres catégories (Effets/Thèmes/Packs/Sons) gardent leur pastille emoji
 - [ ] CI verte + CACHE sw bumpé (roadtap-v21) + VERSION 1.3.13
 
+## Checklist v1.3.14 (voitures en VUE DE DESSUS, comme les illustrations top-down)
+
+- [ ] Voiture du joueur : vue de dessus (capot, pare-brise, toit, lunette, coffre, 4 roues aux coins, phares devant, feux derrière, becquet sur sport/F1) — les 7 styles (photo/blocs/néon/pixel/rétro/jouet/holo) sont adaptés à la vue de dessus
+- [ ] Modèles plus longs que larges (citadine 46×92 … F1 64×122) ; essieu avant recalculé (`frontAxleY`) → le gameplay AV/AR reste correct
+- [ ] Trafic (sens inverse + même sens) aussi rendu en vue de dessus via paintCar
+- [ ] Badge de lignes restantes bien au-dessus du nez de la voiture ; effet fantôme OK
+- [ ] Aperçu boutique : canvas 56×64 (portrait), voiture top-down bien cadrée
+- [ ] CI verte + CACHE sw bumpé (roadtap-v22) + VERSION 1.3.14
+
 ## Note bloqueurs de pub (Google Sign-In)
 
 - uBlock Origin / Privacy Badger bloquent `accounts.google.com` (popup GIS) et `identitytoolkit.googleapis.com` (échange du jeton) → erreurs « popup bloquée » / CORS. **Mettre `roadtap.uk` en liste blanche** dans les deux extensions + autoriser les popups pour le site. Le bouton affiche alors « Continuer en tant que … » quand le navigateur est déjà connecté à un compte Google.

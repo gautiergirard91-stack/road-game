@@ -233,4 +233,9 @@ for (const s of SKINS) {
   renderCarPreview({ getContext: () => makeCtx(), style: {}, width: 0, height: 0 }, s);
 }
 
+// v1.3.14 : tous les modèles sont en vue de dessus (plus longs que larges)
+for (const [id, mm] of Object.entries(MODELS)) {
+  assert.ok(mm.bodyH > mm.w, `modèle ${id} en vue de dessus (bodyH ${mm.bodyH} > w ${mm.w})`);
+}
+
 console.log('OK - smoke test moteur : 9 scénarios sans crash, mécaniques vérifiées');
