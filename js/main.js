@@ -12,6 +12,27 @@ import { logEvent } from './analytics.js';
 import { VERSION } from './config.js';
 
 const $ = (sel) => document.querySelector(sel);
+
+// v1.3.24 : câblage résistant — ne plante pas si un élément manque dans le HTML (mélange de versions SW)
+function on(id, ev, fn) {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener(ev, fn);
+}
+
+// v1.3.24 : une erreur JS au démarrage s'affiche à l'écran au lieu de laisser une page morte
+window.addEventListener('error', (e) => {
+  console.error(e.error || e.message);
+  try {
+    let d = document.getElementById('fatal-error');
+    if (!d) {
+      d = document.createElement('div');
+      d.id = 'fatal-error';
+      d.style.cssText = 'position:fixed;left:8px;bottom:8px;max-width:92vw;z-index:9999;background:#5c1620;color:#fff;font:12px/1.4 monospace;padding:8px 10px;border-radius:8px;white-space:pre-wrap';
+      document.body.appendChild(d);
+    }
+    d.textContent = 'Erreur JS : ' + (e.message || String(e.error)) + ' (' + String(e.filename || '').split('/').pop() + ':' + e.lineno + ')';
+  } catch { /* ignore */ }
+});
 const $$ = (sel) => [...document.querySelectorAll(sel)];
 
 let save = store.load();
@@ -852,7 +873,7 @@ window.addEventListener('error', (e) => {
   logEvent('js_error', { message: String(e.message || '') });
 });
 
-$('#btn-play').addEventListener('click', () => {
+on('btn-play', 'click', () => {
   sfx.click();
   if (!save.tutorialDone) {
     startTutorial();
@@ -862,63 +883,64 @@ $('#btn-play').addEventListener('click', () => {
   renderLevels();
   show('screen-levels');
 });
-$('#btn-achievements').addEventListener('click', () => {
+on('btn-achievements', 'click', () => {
   sfx.click();
   renderAchievements();
   show('screen-achievements');
 });
-$('#btn-achievements-back').addEventListener('click', () => {
+on('btn-achievements-back', 'click', () => {
   sfx.click();
   show('screen-menu');
 });
-$('#btn-access').addEventListener('click', () => {
+on('btn-access', 'click', () => {
   sfx.click();
-  $('#opt-widewindows').checked = !!save.wideWindows;
-  $('#opt-colorblind').checked = !!save.colorblind;
-  $('#opt-zones-h').checked = !!save.horizontalZones;
+  for (const [id, key] of [['opt-widewindows', 'wideWindows'], ['opt-colorblind', 'colorblind'], ['opt-zones-h', 'horizontalZones']]) {
+    const el = document.getElementById(id);
+    if (el) el.checked = !!save[key];
+  }
   $('#access-modal').classList.remove('hidden');
   $('#access-modal').classList.add('active');
 });
-$('#btn-access-close').addEventListener('click', () => {
+on('btn-access-close', 'click', () => {
   sfx.click();
   $('#access-modal').classList.add('hidden');
   $('#access-modal').classList.remove('active');
 });
-$('#opt-widewindows').addEventListener('change', (e) => {
+on('opt-widewindows', 'change', (e) => {
   store.setWideWindows(e.target.checked);
   toast(e.target.checked ? 'Fenêtres de timing élargies (accessibilité)' : 'Fenêtres de timing standard');
 });
-$('#opt-colorblind').addEventListener('change', (e) => {
+on('opt-colorblind', 'change', (e) => {
   store.setColorblind(e.target.checked);
   toast(e.target.checked ? 'Symboles ajoutés sur les lignes (mode daltonien)' : 'Mode standard');
 });
-$('#opt-zones-h').addEventListener('change', (e) => {
+on('opt-zones-h', 'change', (e) => {
   store.setHorizontalZones(e.target.checked);
   toast(e.target.checked ? '🔄 Zones gauche/droite : gauche = roues AV, droite = roues AR' : 'Zones haut/bas rétablies (haut = AV, bas = AR)');
 });
-$('#btn-music').addEventListener('click', () => {
+on('btn-music', 'click', () => {
   store.setMusic(!save.music);
   setMusicEnabled(save.music && save.sound);
   updateMusicBtn();
   sfx.click();
 });
-$('#btn-leaderboard').addEventListener('click', () => {
+on('btn-leaderboard', 'click', () => {
   sfx.click();
   renderLbFilter();
   renderLbLevelFilter();
   renderLeaderboard();
   show('screen-leaderboard');
 });
-$('#btn-challenges').addEventListener('click', () => {
+on('btn-challenges', 'click', () => {
   sfx.click();
   renderChallenges();
   show('screen-challenges');
 });
-$('#btn-challenges-back').addEventListener('click', () => {
+on('btn-challenges-back', 'click', () => {
   sfx.click();
   show('screen-menu');
 });
-$('#btn-leaderboard-back').addEventListener('click', () => {
+on('btn-leaderboard-back', 'click', () => {
   sfx.click();
   show('screen-menu');
 });
@@ -935,7 +957,7 @@ function updateGoogleStatus() {
   if (out) out.classList.toggle('hidden', !save.uid);
 }
 
-$('#btn-pseudo').addEventListener('click', () => {
+on('btn-pseudo', 'click', () => {
   sfx.click();
   $('#pseudo-input').value = save.pseudo;
   updateGoogleStatus();
@@ -966,19 +988,19 @@ $('#btn-pseudo').addEventListener('click', () => {
   $('#pseudo-modal').classList.add('active');
   setTimeout(() => $('#pseudo-input').focus(), 50);
 });
-$('#btn-google-out').addEventListener('click', () => {
+on('btn-google-out', 'click', () => {
   signOutGoogle();
   store.clearGoogleAccount();
   sfx.click();
   updateGoogleStatus();
   toast('Compte Google délié — la sauvegarde repasse sur ton pseudo.');
 });
-$('#btn-pseudo-cancel').addEventListener('click', () => {
+on('btn-pseudo-cancel', 'click', () => {
   sfx.click();
   $('#pseudo-modal').classList.add('hidden');
   $('#pseudo-modal').classList.remove('active');
 });
-$('#btn-pseudo-save').addEventListener('click', () => {
+on('btn-pseudo-save', 'click', () => {
   const p = $('#pseudo-input').value.trim().slice(0, 16);
   store.setPseudo(p);
   $('#pseudo-modal').classList.add('hidden');
@@ -986,23 +1008,23 @@ $('#btn-pseudo-save').addEventListener('click', () => {
   sfx.coin();
   toast(p ? `Pseudo enregistré : ${p}` : 'Pseudo supprimé — tu n\'apparaîtras plus dans le classement');
 });
-$('#optin-lb').addEventListener('change', (e) => {
+on('optin-lb', 'change', (e) => {
   store.setLeaderboardOptIn(e.target.checked);
   sfx.click();
   toast(e.target.checked ? 'Tu apparaîtras dans le classement' : 'Tu n\'apparaîtras plus dans le classement');
 });
-$('#btn-shop').addEventListener('click', () => {
+on('btn-shop', 'click', () => {
   sfx.click();
   renderShop();
   showShopPage(shopCat);
   show('screen-shop');
 });
-$('#btn-mode-normal').addEventListener('click', () => {
+on('btn-mode-normal', 'click', () => {
   store.setSpeedrun(false);
   sfx.click();
   renderModePicker();
 });
-$('#btn-mode-speedrun').addEventListener('click', () => {
+on('btn-mode-speedrun', 'click', () => {
   store.setSpeedrun(true);
   store.setDifficulty('pilote'); // v1.3.19 : le speedrun se cale sur Pilote
   sfx.click();
@@ -1010,30 +1032,30 @@ $('#btn-mode-speedrun').addEventListener('click', () => {
   renderDifficultyPicker();
   toast('⏱ Mode Speedrun : termine le niveau le plus vite possible ! (difficulté Pilote)');
 });
-$('#btn-help').addEventListener('click', () => {
+on('btn-help', 'click', () => {
   sfx.click();
   startTutorial();
 });
 // v1.3.22 : replier/déplier la bannière du tutoriel (le texte ne bloque plus le haut de l'écran)
-$('#tut-fold').addEventListener('click', () => {
+on('tut-fold', 'click', () => {
   sfx.click();
   const b = $('#tut-banner');
   const f = !b.classList.contains('folded');
   b.classList.toggle('folded', f);
   $('#tut-fold').textContent = f ? '▴' : '▾';
 });
-$('#btn-sound').addEventListener('click', () => {
+on('btn-sound', 'click', () => {
   store.setSound(!save.sound);
   setEnabled(save.sound);
   setMusicEnabled(save.music && save.sound);
   updateSoundBtn();
   sfx.click();
 });
-$('#btn-levels-back').addEventListener('click', () => {
+on('btn-levels-back', 'click', () => {
   sfx.click();
   show('screen-menu');
 });
-$('#btn-shop-back').addEventListener('click', () => {
+on('btn-shop-back', 'click', () => {
   sfx.click();
   show('screen-menu');
 });
@@ -1044,43 +1066,43 @@ document.querySelectorAll('#shop-tabs .shop-tab').forEach((b) => {
   });
 });
 
-$('#btn-pause').addEventListener('click', () => togglePause());
-$('#btn-resume').addEventListener('click', () => togglePause(false));
-$('#btn-quit').addEventListener('click', () => {
+on('btn-pause', 'click', () => togglePause());
+on('btn-resume', 'click', () => togglePause(false));
+on('btn-quit', 'click', () => {
   if (game) game.running = false;
   $('#pause-overlay').classList.remove('active');
   renderLevels();
   show('screen-levels');
 });
-$('#btn-retry').addEventListener('click', () => {
+on('btn-retry', 'click', () => {
   sfx.click();
   cancelNextCountdown();
   if (currentLevel) startLevel(currentLevel);
 });
-$('#btn-over-levels').addEventListener('click', () => {
+on('btn-over-levels', 'click', () => {
   sfx.click();
   cancelNextCountdown(); // v1.3.19 : on quitte sans attendre le compte à rebours
   renderLevels();
   show('screen-levels');
 });
-$('#btn-over-menu').addEventListener('click', () => {
+on('btn-over-menu', 'click', () => {
   sfx.click();
   cancelNextCountdown();
   show('screen-menu');
 });
-$('#btn-over-next').addEventListener('click', () => {
+on('btn-over-next', 'click', () => {
   sfx.click();
   const next = currentLevel ? LEVELS.find((l) => l.id === currentLevel.id + 1) : null;
   cancelNextCountdown();
   if (next) startLevel(next);
 });
-$('#btn-continue-restart').addEventListener('click', () => {
+on('btn-continue-restart', 'click', () => {
   sfx.click();
   hideContinue();
   if (game) game.running = false;
   if (currentLevel) startLevel(currentLevel);
 });
-$('#btn-continue-coins').addEventListener('click', () => {
+on('btn-continue-coins', 'click', () => {
   const cost = continueCost(continuesThisRun);
   if (store.spend(save.difficulty, cost)) {
     continuesThisRun++;
@@ -1092,7 +1114,7 @@ $('#btn-continue-coins').addEventListener('click', () => {
     toast(`Il te manque ${cost - store.getWallet(save.difficulty)} ${cur(save.difficulty).icon}`);
   }
 });
-$('#btn-continue-ad').addEventListener('click', () => {
+on('btn-continue-ad', 'click', () => {
   hideContinue();
   watchRewarded((ok) => {
     if (ok && game && game.running) {
@@ -1104,7 +1126,7 @@ $('#btn-continue-ad').addEventListener('click', () => {
     }
   });
 });
-$('#btn-continue-quit').addEventListener('click', () => {
+on('btn-continue-quit', 'click', () => {
   hideContinue();
   if (game) game.finish(false);
 });
@@ -1213,7 +1235,8 @@ updateSoundBtn();
 updateMusicBtn();
 setMusicEnabled(save.music && save.sound);
 renderDifficultyPicker();
-$('#optin-lb').checked = !!save.leaderboardOptIn;
+const optinEl = document.getElementById('optin-lb');
+if (optinEl) optinEl.checked = !!save.leaderboardOptIn;
 refreshStatus();
 show('screen-menu');
 

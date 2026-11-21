@@ -1,4 +1,4 @@
-const CACHE = 'roadtap-v31';
+const CACHE = 'roadtap-v32';
 
 const ASSETS = [
   './',
@@ -59,11 +59,30 @@ self.addEventListener('fetch', (e) => {
     );
     return;
   }
+  const url = new URL(e.request.url);
+  const sameOrigin = url.origin === self.location.origin;
+  // v1.3.24 : le CODE (js/css/html/manifest) vient d'abord du réseau, cache en repli hors-ligne.
+  // Évite les mélanges de versions (nouveau HTML + vieux JS = page morte, clics inactifs).
+  const isCode = sameOrigin && /\.(js|css|html|webmanifest)$/.test(url.pathname);
+  if (isCode) {
+    e.respondWith(
+      fetch(e.request)
+        .then((res) => {
+          if (res && res.ok) {
+            const copy = res.clone();
+            caches.open(CACHE).then((c) => c.put(e.request, copy));
+          }
+          return res;
+        })
+        .catch(() => caches.match(e.request, { ignoreSearch: true }).then((hit) => hit || caches.match('./index.html')))
+    );
+    return;
+  }
   e.respondWith(
     caches.match(e.request, { ignoreSearch: true }).then((hit) => {
       if (hit) return hit;
       return fetch(e.request).then((res) => {
-        if (res && res.ok && new URL(e.request.url).origin === self.location.origin) {
+        if (res && res.ok && sameOrigin) {
           const copy = res.clone();
           caches.open(CACHE).then((c) => c.put(e.request, copy));
         }
