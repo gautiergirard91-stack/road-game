@@ -427,22 +427,22 @@ export function renderEffectPreview(canvas, fx) {
     for (let x = 9; x < cssW - 9; x += 8) ctx.fillRect(x, lineY, 5, 3);
     ctx.shadowBlur = 0;
   }
-  // petite voiture (style blocs)
-  const m = { w: 22, bodyH: 40, cabW: 0.8, cabH: 14, spoiler: false };
-  const col = { color: '#9aa3b2', dark: shade('#9aa3b2', -48), light: shade('#9aa3b2', 48), shine: false, tier: 2, time: 0 };
-  const drawMiniCar = (dx, alpha) => {
-    ctx.save();
-    ctx.globalAlpha = alpha;
-    ctx.translate(cssW / 2 + dx, cssH - 4);
-    paintCar(ctx, 0, 0, m, col, 'flat');
-    ctx.restore();
-  };
+  // v1.3.17 : PAS de voiture dans l'aperçu — seulement l'effet lui-même
   if (id === 'shake') {
-    drawMiniCar(-2.5, 0.3);
-    drawMiniCar(2.5, 0.3);
+    // la ligne "vibre" : 2 tracés fantômes décalés
+    ctx.fillStyle = '#f5f7ff';
+    for (const dx of [-2.5, 2.5]) {
+      ctx.globalAlpha = 0.35;
+      for (let x = 9 + dx; x < cssW - 9; x += 8) ctx.fillRect(x, lineY, 5, 3);
+    }
+    ctx.globalAlpha = 1;
   }
-  if (id === 'ghost') drawMiniCar(-9, 0.25);
-  drawMiniCar(0, 1);
+  if (id === 'ghost') {
+    // silhouette fantôme de l'ancienne position
+    ctx.fillStyle = 'rgba(180,220,255,0.18)';
+    rr(ctx, cssW / 2 - 20, cssH * 0.55, 13, 26, 6);
+    ctx.fill();
+  }
   // l'effet par-dessus
   if (id === 'trail') {
     for (let i = 0; i < 6; i++) {
@@ -497,6 +497,150 @@ export function renderEffectPreview(canvas, fx) {
     vg.addColorStop(1, 'rgba(0,0,0,0.6)');
     ctx.fillStyle = vg;
     ctx.fillRect(0, 0, cssW, cssH);
+  }
+}
+
+function previewSetup(canvas) {
+  const dpr = Math.min((typeof window !== 'undefined' && window.devicePixelRatio) || 1, 2);
+  const cssW = 56;
+  const cssH = 64;
+  canvas.width = Math.round(cssW * dpr);
+  canvas.height = Math.round(cssH * dpr);
+  canvas.style.width = cssW + 'px';
+  canvas.style.height = cssH + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { ctx, cssW, cssH };
+}
+
+// v1.3.17 : aperçu d'un thème de route (mini route avec les VRAIES couleurs du thème)
+export function renderThemePreview(canvas, themeId) {
+  const t = THEMES[themeId] || THEMES.autoroute;
+  const { ctx, cssW, cssH } = previewSetup(canvas);
+  const horizon = cssH * 0.42;
+  const sky = ctx.createLinearGradient(0, 0, 0, horizon);
+  sky.addColorStop(0, t.skyTop);
+  sky.addColorStop(1, t.skyBottom);
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, cssW, horizon);
+  if (t.night) {
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    for (let i = 0; i < 8; i++) {
+      ctx.beginPath();
+      ctx.arc(4 + ((i * 23) % (cssW - 8)), (i * 11) % Math.round(horizon * 0.9), 1, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  // bas-côté + route
+  ctx.fillStyle = t.shoulder;
+  ctx.fillRect(0, horizon, cssW, cssH * 0.08);
+  ctx.fillStyle = t.road;
+  ctx.fillRect(0, horizon + cssH * 0.08, cssW, cssH);
+  // bandes de rive + ligne centrale
+  ctx.fillStyle = t.edge;
+  ctx.fillRect(0, horizon + cssH * 0.08, 4, cssH);
+  ctx.fillRect(cssW - 4, horizon + cssH * 0.08, 4, cssH);
+  ctx.fillStyle = t.centerLine;
+  for (let y = horizon + cssH * 0.1; y < cssH; y += 10) ctx.fillRect(cssW / 2 - 1.5, y, 3, 6);
+  // la ligne blanche du jeu
+  ctx.fillStyle = t.line;
+  for (let x = 10; x < cssW - 10; x += 8) ctx.fillRect(x, Math.round(cssH * 0.74), 5, 3);
+  // décor selon le type de thème
+  if (t.scenery === 'trees' || t.scenery === 'pines') {
+    ctx.fillStyle = t.night ? '#0e2a1e' : '#2e7d46';
+    for (let i = 0; i < 3; i++) {
+      const x = 9 + i * 18;
+      const hgt = 9 + ((i * 5) % 5);
+      ctx.beginPath();
+      ctx.moveTo(x, horizon - hgt);
+      ctx.lineTo(x + 5, horizon);
+      ctx.lineTo(x - 5, horizon);
+      ctx.closePath();
+      ctx.fill();
+    }
+  } else if (t.scenery === 'buildings' || t.scenery === 'citynight') {
+    for (let i = 0; i < 3; i++) {
+      const x = 6 + i * 17;
+      const hgt = 10 + ((i * 7) % 8);
+      ctx.fillStyle = t.night ? '#0d1230' : '#7d8698';
+      ctx.fillRect(x, horizon - hgt, 12, hgt);
+      if (t.night) {
+        ctx.fillStyle = '#ffd54a';
+        ctx.fillRect(x + 2, horizon - hgt + 2, 2, 2);
+        ctx.fillRect(x + 7, horizon - hgt + 5, 2, 2);
+      }
+    }
+  } else if (t.scenery === 'cacti') {
+    ctx.fillStyle = '#3e8e5a';
+    for (let i = 0; i < 2; i++) {
+      const x = 12 + i * 30;
+      ctx.fillRect(x, horizon - 9, 4, 9);
+      ctx.fillRect(x - 3, horizon - 7, 3, 2);
+      ctx.fillRect(x + 4, horizon - 6, 3, 2);
+    }
+  }
+}
+
+// v1.3.17 : aperçu d'un pack = un cadeau
+export function renderPackPreview(canvas, pack) {
+  const { ctx, cssW, cssH } = previewSetup(canvas);
+  ctx.fillStyle = '#1c2450';
+  ctx.fillRect(0, 0, cssW, cssH);
+  const bx = cssW / 2 - 16;
+  const by = cssH / 2 - 6;
+  const bw2 = 32;
+  const bh = 22;
+  ctx.fillStyle = '#e0393e';
+  rr(ctx, bx, by, bw2, bh, 4);
+  ctx.fill();
+  ctx.fillStyle = '#ff5c5c';
+  rr(ctx, bx - 3, by - 6, bw2 + 6, 8, 3);
+  ctx.fill();
+  ctx.fillStyle = '#ffd54a';
+  ctx.fillRect(cssW / 2 - 3, by - 6, 6, bh + 6);
+  ctx.fillRect(bx, by + bh / 2 - 3, bw2, 6);
+  ctx.strokeStyle = '#ffd54a';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(cssW / 2 - 5, by - 8, 5, Math.PI * 0.9, Math.PI * 1.9);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(cssW / 2 + 5, by - 8, 5, Math.PI * 1.1, Math.PI * 0.1);
+  ctx.stroke();
+  ctx.fillStyle = '#ffffff';
+  for (let i = 0; i < 4; i++) ctx.fillRect(8 + ((i * 29) % (cssW - 16)), 8 + ((i * 17) % (cssH - 16)), 2, 2);
+}
+
+// v1.3.17 : aperçu d'un pack de sons = haut-parleur + ondes (carrées pour l'arcade)
+export function renderSoundPreview(canvas, sp) {
+  const { ctx, cssW, cssH } = previewSetup(canvas);
+  ctx.fillStyle = '#1c2450';
+  ctx.fillRect(0, 0, cssW, cssH);
+  const cx = cssW / 2 - 10;
+  const cy = cssH / 2;
+  ctx.fillStyle = '#cfd8ea';
+  ctx.beginPath();
+  ctx.moveTo(cx - 10, cy - 5);
+  ctx.lineTo(cx - 3, cy - 5);
+  ctx.lineTo(cx + 4, cy - 13);
+  ctx.lineTo(cx + 4, cy + 13);
+  ctx.lineTo(cx - 3, cy + 5);
+  ctx.lineTo(cx - 10, cy + 5);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillRect(cx - 13, cy - 8, 4, 16);
+  const col = sp.id === 'arcade' ? '#7ee081' : sp.id === 'synthwave' ? '#c792ff' : '#54f0ff';
+  ctx.strokeStyle = col;
+  ctx.lineWidth = 2.5;
+  ctx.lineCap = 'round';
+  if (sp.id === 'arcade') {
+    for (let i = 0; i < 3; i++) ctx.strokeRect(cx + 8 + i * 7, cy - 4 - i * 3, 5, 8 + i * 6);
+  } else {
+    for (let i = 0; i < 3; i++) {
+      ctx.beginPath();
+      ctx.arc(cx + 7, cy, 6 + i * 6, -0.9, 0.9);
+      ctx.stroke();
+    }
   }
 }
 

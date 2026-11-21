@@ -392,9 +392,12 @@ body {
   background: #232c4d;
 }
 
-/* v1.3.13 : aperçu réel de la voiture (mini canvas) à la place du carré de couleur ; v1.3.16 : idem pour les effets */
+/* v1.3.13 : aperçu réel de la voiture (mini canvas) à la place du carré de couleur ; v1.3.16/17 : idem pour effets, thèmes, packs, sons */
 canvas.swatch.car-preview,
-canvas.swatch.fx-preview {
+canvas.swatch.fx-preview,
+canvas.swatch.th-preview,
+canvas.swatch.pk-preview,
+canvas.swatch.snd-preview {
   width: 56px;
   height: 64px;
   border-radius: 12px;

@@ -6,6 +6,7 @@ const defaults = () => ({
   wallets: { auto: 0, permisA: 0, pilote: 0 },
   trophies: {},
   unlockedLevels: [1],
+  cleared: {}, // niveaux TERMINÉS en entier (clé = id du niveau) — requis pour acheter le suivant
   skins: ['default'],
   skin: 'default',
   effects: [],
@@ -54,6 +55,7 @@ export function load() {
     }
     save.wallets = { auto: 0, permisA: 0, pilote: 0, ...(save.wallets || {}) };
     save.trophies = save.trophies || {};
+    save.cleared = save.cleared || {};
   } catch {
     save = defaults();
   }
@@ -103,6 +105,18 @@ export function unlockLevel(id) {
     save.unlockedLevels.push(id);
     persist();
   }
+}
+
+// v1.3.17 : un niveau est "terminé" seulement quand la partie est complétée (stats.completed)
+export function markCleared(levelId) {
+  if (!save.cleared[levelId]) {
+    save.cleared[levelId] = true;
+    persist();
+  }
+}
+
+export function isCleared(levelId) {
+  return Boolean(save.cleared[levelId]);
 }
 
 export function buySkin(id, cost, currency = 'auto') {
@@ -315,6 +329,7 @@ export function snapshot() {
     wallets: save.wallets,
     trophies: save.trophies,
     unlockedLevels: save.unlockedLevels,
+    cleared: save.cleared,
     skins: save.skins,
     skin: save.skin,
     effects: save.effects,
@@ -362,6 +377,7 @@ export function mergeRemote(remote) {
     }
   }
   save.unlockedLevels = [...new Set([...save.unlockedLevels, ...(remote.unlockedLevels || [])])];
+  save.cleared = { ...(remote.cleared || {}), ...save.cleared };
   save.skins = [...new Set([...save.skins, ...(remote.skins || [])])];
   save.effects = [...new Set([...save.effects, ...(remote.effects || [])])];
   save.themes = [...new Set([...save.themes, ...(remote.themes || [])])];
