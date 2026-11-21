@@ -114,9 +114,19 @@ export class Tutorial {
 
   // Phase de lecture : le jeu est mis EN PAUSE et le joueur doit glisser le
   // curseur jusqu'au bout (il a lu, il est prêt) pour continuer.
+  // v1.3.22 : replier la bannière (le texte ne doit pas bloquer le haut de l'écran sur mobile)
+  setFolded(f) {
+    const banner = document.getElementById('tut-banner');
+    const btn = document.getElementById('tut-fold');
+    if (!banner) return;
+    banner.classList.toggle('folded', f);
+    if (btn) btn.textContent = f ? '▴' : '▾';
+  }
+
   beginRead() {
     this.reading = true;
     this.game.tutHold = true;
+    this.setFolded(false); // on déplie pour la phase de lecture (curseur visible)
     if (this.readEl) this.readEl.classList.remove('hidden');
     if (this.sliderEl) this.sliderEl.value = 0;
   }
@@ -126,6 +136,8 @@ export class Tutorial {
     this.reading = false;
     this.game.tutHold = false;
     if (this.readEl) this.readEl.classList.add('hidden');
+    // sur téléphone, on replie la bannière pendant les phases d'action
+    if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(max-width: 760px)').matches) this.setFolded(true);
     this.stepStart = performance.now();
     const s = this.steps[this.i];
     if (s && (s.autoNext || this.i === this.steps.length - 1)) this.next();

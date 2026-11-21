@@ -95,8 +95,8 @@ export async function getTop(mode = 'all', levelFilter = 'all') {
   for (const m of modes) {
     try {
       const base = FIREBASE_DB_URL.replace(/\/$/, '');
-      const params = `orderBy="score"&limitToLast=100${FIREBASE_DB_SECRET ? `&auth=${FIREBASE_DB_SECRET}` : ''}`;
-      const res = await fetch(`${base}/scores/${m}.json?${params}`);
+      const auth = FIREBASE_DB_SECRET ? `?auth=${FIREBASE_DB_SECRET}` : ''; // v1.3.22 : nœud entier + tri côté client (orderBy sans .indexOn = 400)
+      const res = await fetch(`${base}/scores/${m}.json${auth}`);
       if (res.ok) {
         const data = await res.json();
         if (data && typeof data === 'object') all.push(...Object.values(data));
@@ -130,8 +130,8 @@ export async function getChallengeTop(dayId) {
   if (!isOnline()) return [];
   try {
     const base = FIREBASE_DB_URL.replace(/\/$/, '');
-    const params = `orderBy="score"&limitToLast=20${FIREBASE_DB_SECRET ? `&auth=${FIREBASE_DB_SECRET}` : ''}`;
-    const res = await fetch(`${base}/challenges/${dayId}.json?${params}`);
+    const auth = FIREBASE_DB_SECRET ? `?auth=${FIREBASE_DB_SECRET}` : ''; // v1.3.22 : idem
+    const res = await fetch(`${base}/challenges/${dayId}.json${auth}`);
     if (res.ok) {
       const data = await res.json();
       if (data && typeof data === 'object') return sortDesc(Object.values(data));

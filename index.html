@@ -20,7 +20,10 @@
   <canvas id="game"></canvas>
 
   <div id="tut-banner" class="hidden">
-    <div id="tut-dots"></div>
+    <div id="tut-head">
+      <span id="tut-dots"></span>
+      <button id="tut-fold" class="btn secondary" title="Afficher / masquer le texte">▾</button>
+    </div>
     <div id="tut-text"></div>
     <div id="tut-read" class="hidden">
       <span id="tut-read-label">👀 Lis bien, puis glisse le curseur jusqu'au bout quand tu es prêt ▶</span>
@@ -214,11 +217,11 @@
   <div id="pseudo-modal" class="screen overlay hidden">
     <div class="panel">
       <h2>✏️ Ton pseudo</h2>
-      <input id="pseudo-input" maxlength="16" placeholder="Ex. Speedy" autocomplete="off">
-      <button class="btn big" id="btn-pseudo-save">Enregistrer</button>
       <div id="gsi-btn"></div>
       <p id="google-status" class="card-sub"></p>
       <button class="btn secondary hidden" id="btn-google-out">🔓 Se délier du compte Google</button>
+      <input id="pseudo-input" maxlength="16" placeholder="Ex. Speedy" autocomplete="off">
+      <button class="btn big" id="btn-pseudo-save">Enregistrer</button>
       <button class="btn secondary" id="btn-pseudo-cancel">Annuler</button>
     </div>
   </div>

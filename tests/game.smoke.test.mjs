@@ -278,4 +278,16 @@ for (const sp of SOUND_PACKS) renderSoundPreview(fakeCanvas(), sp);
 // v1.3.18 : aperçu de chaque niveau (taille carte 52×52) dans la liste des niveaux
 for (const l of [...LEVELS, ENDLESS_LEVEL]) renderThemePreview(fakeCanvas(), l.theme, 52, 52);
 
+{
+  // v1.3.22 : la délimitation des zones se dessine en Permis A / Pilote (haut/bas ou gauche/droite), pas en auto
+  const { game: gH } = makeGame(LEVELS[0], 'permisA', { access: { colorblind: false, horizontalZones: true } });
+  gH.start();
+  gH.update(1 / 60);
+  gH.render(); // ne doit pas crash avec la ligne verticale gauche/droite
+  const { game: gV } = makeGame(LEVELS[0], 'pilote', { access: { colorblind: false, horizontalZones: false } });
+  gV.start();
+  gV.update(1 / 60);
+  gV.render(); // ligne horizontale haut/bas
+}
+
 console.log('OK - smoke test moteur : 9 scénarios sans crash, mécaniques vérifiées');

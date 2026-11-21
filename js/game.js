@@ -1280,6 +1280,7 @@ export class Game {
     this.drawAxleGuides();
     this.drawTraffic();
     this.drawPedestrian();
+    this.drawZones();
     this.drawCar();
     this.drawWeather();
     this.drawParticles();
@@ -1686,6 +1687,39 @@ export class Game {
       time: this.time,
     }, carStyle);
     this.drawRemainingBadge(cx, baseY, m);
+  }
+
+  // v1.3.22 : délimitation visuelle des zones de tap en Permis A / Pilote
+  // (haut/bas par défaut, gauche/droite si access.horizontalZones)
+  drawZones() {
+    if (this.mode === 'auto') return; // une seule zone en Auto école
+    const { ctx, w, h } = this;
+    const horiz = Boolean(this.access && this.access.horizontalZones);
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,255,0.20)';
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([10, 10]);
+    ctx.font = 'bold 13px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    if (horiz) {
+      const x = w / 2;
+      ctx.beginPath();
+      ctx.moveTo(x, 76);
+      ctx.lineTo(x, h - 30);
+      ctx.stroke();
+      ctx.fillText('AV ⬅', x - 36, 96);
+      ctx.fillText('➡ AR', x + 36, 96);
+    } else {
+      const y = h / 2;
+      ctx.beginPath();
+      ctx.moveTo(16, y);
+      ctx.lineTo(w - 16, y);
+      ctx.stroke();
+      ctx.fillText('▲ AV', w / 2, y - 8);
+      ctx.fillText('▼ AR', w / 2, y + 22);
+    }
+    ctx.restore();
   }
 
   drawRemainingBadge(cx, baseY, m) {
