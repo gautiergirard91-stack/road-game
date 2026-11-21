@@ -180,6 +180,33 @@ function step(game, seconds, tapper) {
 }
 
 {
+  // v1.3.7 : pendant un dépassement, l'entre-sens devant est vidé et aucun spawn en sens inverse tant que la voiture est à gauche
+  const { game } = makeGame(LEVELS[0], 'pilote');
+  game.start();
+  game.tSame = 9999;
+  game.oncoming.push(
+    { p: game.distance + game.wheelY + 100, v: -300, color: '#fff', w: 60 }, // devant (au-dessus de l'écran, approche)
+    { p: game.distance + game.wheelY - game.h - 200, v: -300, color: '#fff', w: 60 } // déjà passé sous l'écran
+  );
+  game.sameDir.push({ p: game.distance + game.wheelY - 100, v: game.level.speed * 0.5, color: '#fff', w: 60, overtaken: false, grace: 0 });
+  game.swipeLeft();
+  assert.equal(game.stats.overtakes, 1, 'dépassement déclenché');
+  assert.equal(game.oncoming.length, 1, "l'entre-sens devant est vidé au dépassement (reste seulement la voiture passée)");
+  assert.ok(game.oncoming.every((c) => game.wheelY + game.distance - c.p > game.h + 40), 'aucune voiture en sens inverse visible/devant');
+  game.carXFrac = 0.28;
+  game.laneTarget = 0.28;
+  const n = game.oncoming.length;
+  game.tOncoming = 0.01;
+  for (let i = 0; i < 10; i++) game.updateTraffic(1 / 60);
+  assert.equal(game.oncoming.length, n, 'aucun spawn en sens inverse tant que carXFrac < 0.6');
+  game.carXFrac = 0.72;
+  game.laneTarget = 0.72;
+  game.tOncoming = 0.01;
+  game.updateTraffic(1 / 60);
+  assert.ok(game.oncoming.length > n, 'spawn en sens inverse repris une fois la voiture revenue à droite');
+}
+
+{
   // v1.3.4 : piéton -> la voiture s'arrête AVANT le passage piéton, pas au milieu
   const { game } = makeGame(LEVELS[3], 'auto');
   game.start();
@@ -203,4 +230,4 @@ for (const s of SKINS) {
   assert.ok(MODELS[s.model], `modèle ${s.model} existe pour le skin ${s.id}`);
 }
 
-console.log('OK - smoke test moteur : 8 scénarios sans crash, mécaniques vérifiées');
+console.log('OK - smoke test moteur : 9 scénarios sans crash, mécaniques vérifiées');
