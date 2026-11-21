@@ -117,6 +117,13 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] Jouer avec chaque nouveau modèle : caisse/cockpit/grosses roues bien rendus dans les 7 styles
 - [ ] CI verte + CACHE sw bumpé (roadtap-v23) + VERSION 1.3.15
 
+## Checklist v1.3.16 (boutique : aperçu réel des effets, comme les voitures)
+
+- [ ] Page ✨ Effets : chaque carte affiche un **mini canvas 56×64** montrant l'effet réel (mini route + ligne + voiture + pluie/neige/confettis/traînée/feu/vignette/arc-en-ciel/halo/fantôme/secousse)
+- [ ] Voitures (🚗) : aperçu inchangé ; Thèmes/Packs/Sons gardent leur emoji
+- [ ] Aperçus re-rendus à chaque renderShop()
+- [ ] CI verte + CACHE sw bumpé (roadtap-v24) + VERSION 1.3.16
+
 ## Note bloqueurs de pub (Google Sign-In)
 
 - uBlock Origin / Privacy Badger bloquent `accounts.google.com` (popup GIS) et `identitytoolkit.googleapis.com` (échange du jeton) → erreurs « popup bloquée » / CORS. **Mettre `roadtap.uk` en liste blanche** dans les deux extensions + autoriser les popups pour le site. Le bouton affiche alors « Continuer en tant que … » quand le navigateur est déjà connecté à un compte Google.

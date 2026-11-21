@@ -390,6 +390,116 @@ export function renderCarPreview(canvas, skin) {
   ctx.fill();
 }
 
+// v1.3.16 : aperçu réel d'un effet visuel dans la boutique (mini scène : route + ligne + voiture + l'effet)
+export function renderEffectPreview(canvas, fx) {
+  const dpr = Math.min((typeof window !== 'undefined' && window.devicePixelRatio) || 1, 2);
+  const cssW = 56;
+  const cssH = 64;
+  canvas.width = Math.round(cssW * dpr);
+  canvas.height = Math.round(cssH * dpr);
+  canvas.style.width = cssW + 'px';
+  canvas.style.height = cssH + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const id = fx.id;
+  // fond : route verticale sombre
+  const bg = ctx.createLinearGradient(0, 0, 0, cssH);
+  bg.addColorStop(0, '#232c4d');
+  bg.addColorStop(1, '#141a38');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, cssW, cssH);
+  ctx.fillStyle = '#0d1130';
+  ctx.fillRect(0, 0, 7, cssH);
+  ctx.fillRect(cssW - 7, 0, 7, cssH);
+  // ligne pointillée (arc-en-ciel ou lumineuse selon l'effet)
+  const lineY = Math.round(cssH * 0.28);
+  if (id === 'rainbow') {
+    const rg = ctx.createLinearGradient(8, 0, cssW - 8, 0);
+    ['#ff5c8a', '#ffd54a', '#7ee081', '#54f0ff', '#c792ff'].forEach((c, i, a) => rg.addColorStop(i / (a.length - 1), c));
+    ctx.fillStyle = rg;
+    for (let x = 9; x < cssW - 9; x += 8) ctx.fillRect(x, lineY, 5, 3);
+  } else {
+    if (id === 'glow') {
+      ctx.shadowColor = '#ffd54a';
+      ctx.shadowBlur = 9;
+    }
+    ctx.fillStyle = '#f5f7ff';
+    for (let x = 9; x < cssW - 9; x += 8) ctx.fillRect(x, lineY, 5, 3);
+    ctx.shadowBlur = 0;
+  }
+  // petite voiture (style blocs)
+  const m = { w: 22, bodyH: 40, cabW: 0.8, cabH: 14, spoiler: false };
+  const col = { color: '#9aa3b2', dark: shade('#9aa3b2', -48), light: shade('#9aa3b2', 48), shine: false, tier: 2, time: 0 };
+  const drawMiniCar = (dx, alpha) => {
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(cssW / 2 + dx, cssH - 4);
+    paintCar(ctx, 0, 0, m, col, 'flat');
+    ctx.restore();
+  };
+  if (id === 'shake') {
+    drawMiniCar(-2.5, 0.3);
+    drawMiniCar(2.5, 0.3);
+  }
+  if (id === 'ghost') drawMiniCar(-9, 0.25);
+  drawMiniCar(0, 1);
+  // l'effet par-dessus
+  if (id === 'trail') {
+    for (let i = 0; i < 6; i++) {
+      ctx.fillStyle = `rgba(158,203,255,${0.5 - i * 0.08})`;
+      ctx.beginPath();
+      ctx.arc(cssW / 2 + Math.sin(i * 1.7) * 3, cssH - 1 - i * 3.2, Math.max(0.6, 2.2 - i * 0.25), 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else if (id === 'confetti') {
+    const cols = ['#ff5c8a', '#ffd54a', '#7ee081', '#54f0ff', '#c792ff'];
+    for (let i = 0; i < 9; i++) {
+      ctx.save();
+      ctx.translate(10 + ((i * 37) % (cssW - 20)), 6 + ((i * 23) % Math.round(cssH * 0.4)));
+      ctx.rotate(i * 0.7);
+      ctx.fillStyle = cols[i % cols.length];
+      ctx.fillRect(-2, -1, 4, 2);
+      ctx.restore();
+    }
+  } else if (id === 'rain') {
+    ctx.strokeStyle = 'rgba(130,180,255,0.55)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 10; i++) {
+      const x = 8 + ((i * 29) % (cssW - 16));
+      const y = (i * 17) % cssH;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x - 3, y + 7);
+      ctx.stroke();
+    }
+  } else if (id === 'snowfall') {
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    for (let i = 0; i < 12; i++) {
+      ctx.beginPath();
+      ctx.arc(6 + ((i * 31) % (cssW - 12)), (i * 19) % cssH, 1.4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else if (id === 'fire') {
+    for (let i = 0; i < 3; i++) {
+      const fx0 = cssW / 2 + (i - 1) * 5;
+      const hgt = 8 + ((i * 13) % 6);
+      ctx.fillStyle = i % 2 ? '#ff9f1c' : '#ff5c1c';
+      ctx.beginPath();
+      ctx.moveTo(fx0 - 2.5, cssH - 1);
+      ctx.lineTo(fx0, cssH - 1 - hgt);
+      ctx.lineTo(fx0 + 2.5, cssH - 1);
+      ctx.closePath();
+      ctx.fill();
+    }
+  } else if (id === 'vignette') {
+    const vg = ctx.createRadialGradient(cssW / 2, cssH / 2, 8, cssW / 2, cssH / 2, cssH * 0.75);
+    vg.addColorStop(0, 'rgba(0,0,0,0)');
+    vg.addColorStop(1, 'rgba(0,0,0,0.6)');
+    ctx.fillStyle = vg;
+    ctx.fillRect(0, 0, cssW, cssH);
+  }
+}
+
 function drawTrafficCar(ctx, x, y, w, color, down) {
   ctx.save();
   ctx.translate(x, y);

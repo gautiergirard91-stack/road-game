@@ -1,5 +1,5 @@
 import { LEVELS, THEMES, SKINS, EFFECTS, DIFFICULTIES, CURRENCIES, WINDOWS, ACHIEVEMENTS, THEME_SHOP, ENDLESS_LEVEL, PACKS, SOUND_PACKS } from './data.js';
-import { Game, CAR_STYLE_LABEL, renderCarPreview } from './game.js';
+import { Game, CAR_STYLE_LABEL, renderCarPreview, renderEffectPreview } from './game.js';
 import * as store from './store.js';
 import { sfx, setEnabled, setMusicEnabled, unlockAudio, applySoundPack } from './audio.js';
 import { coinsForResult, accuracy, avgReaction, continueCost, maxMissesFor, firstClearBonus, isPerfectClear, perfectClearBonus, dailyChallenge, weeklyQuests } from './core.js';
@@ -524,7 +524,7 @@ function renderShop() {
     const card = document.createElement('div');
     card.className = 'card shop-card';
     card.innerHTML = `
-      <div class="swatch fx">✨</div>
+      <canvas class="swatch fx-preview" aria-label="Aperçu ${e.name}"></canvas>
       <div class="card-body">
         <div class="card-title">${e.name}</div>
         <div class="card-sub">${e.desc}</div>
@@ -549,6 +549,7 @@ function renderShop() {
       refreshCoins();
       renderShop();
     });
+    renderEffectPreview(card.querySelector('canvas.fx-preview'), e);
     fxEl.appendChild(card);
   }
   renderPacks();
