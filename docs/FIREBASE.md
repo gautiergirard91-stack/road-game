@@ -74,7 +74,9 @@ Difficulté : **modérée** — aucun SDK ajouté : on utilise le bouton officie
 
 1. Console Firebase → **Authentication → Get started → Sign-in method → Google → Activer**. Copier le **Web client ID** (bloc « Web SDK configuration »).
 2. **Project settings → Général** → copier la **Web API key**.
-3. Authentication → **Settings → Authorized domains** : ajouter `roadtap.uk` et `gautiergirard91-stack.github.io`.
+3. **Deux listes de domaines à remplir** (sinon erreur 400 `origin_mismatch` au clic sur le bouton Google) :
+   - Firebase : Authentication → **Settings → Authorized domains** → ajouter `roadtap.uk` et `gautiergirard91-stack.github.io` ;
+   - **Google Cloud Console** (console.cloud.google.com, même projet) → **API & Services → Credentials** → clic sur le client OAuth `…apps.googleusercontent.com` → **Authorized JavaScript origins** → ajouter `https://roadtap.uk`, `https://gautiergirard91-stack.github.io` (et `http://localhost:8080` pour les tests locaux). Les redirect URIs ne sont pas nécessaires (flux ID-token). Propagation : quelques minutes.
 4. Remplir `FIREBASE_WEB_API_KEY` et `FIREBASE_OAUTH_CLIENT_ID` dans `js/config.js` (clés publiques, commitables).
 5. Règles RTDB : le nœud `players` accepte désormais `(auth != null && auth.uid == $id)` (voir §2) — la sauvegarde cloud est keyed par **uid** quand Google est lié, sinon par pseudo (rétrocompatible).
 
