@@ -45,6 +45,8 @@ En production, remplacer les règles de test par :
 
 Puis activer **Firebase App Check** ou au minimum limiter les écritures (les règles ci-dessus bornent score et taille du pseudo). Ne jamais commiter de secret : `FIREBASE_DB_SECRET` reste vide en ligne (les règles remplacent le secret).
 
+> Note : la racine `/.json` n'est **pas** lisible publiquement avec ces règles (c'est voulu). La pastille « serveur » du jeu teste donc la connexion via `/scores/.json?shallow=true` (nœud public) — ne pas « corriger » les règles en ouvrant la racine.
+
 ## 3. Remplir la config
 
 Projet de production : `realtime-database-5fd49`, instance `realtime-database-5fd49-default-rtdb` (région **europe-west1**, Belgique).

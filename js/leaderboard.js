@@ -14,7 +14,9 @@ export async function ping() {
   try {
     const base = FIREBASE_DB_URL.replace(/\/$/, '');
     const q = FIREBASE_DB_SECRET ? `auth=${FIREBASE_DB_SECRET}&shallow=true` : 'shallow=true';
-    const res = await fetch(`${base}/.json?${q}`);
+    // la racine n'est volontairement PAS lisible publiquement (règles RTDB) :
+    // on pingue un nœud public (scores, ".read": true) pour tester la connexion
+    const res = await fetch(`${base}/scores/.json?${q}`);
     return res.ok;
   } catch {
     return false;
