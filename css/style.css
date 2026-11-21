@@ -417,13 +417,14 @@ body {
 .shop-tab {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 7px 10px;
-  border-radius: 12px;
+  gap: 6px;
+  padding: 10px 14px;
+  border-radius: 14px;
   border: 1px solid #2c3560;
   background: #161d3d;
   color: #fff;
-  font-size: 13px;
+  font-size: 16px;
+  font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
   transition: transform 0.08s, background 0.15s, border-color 0.15s, box-shadow 0.15s;

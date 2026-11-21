@@ -86,6 +86,14 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] Achat/équipement depuis n'importe quelle page → re-render OK, on reste sur la même catégorie
 - [ ] CI verte + CACHE sw bumpé (roadtap-v19) + VERSION 1.3.11
 
+## Checklist v1.3.12 (voiture : plusieurs styles de rendu + boutons boutique plus gros)
+
+- [ ] 7 styles de voiture : **photo réaliste** (défaut), **blocs** (ancien look, skin « Classique »), néon, pixel 8-bit, rétro 80s, jouet plastique, hologramme — nouveaux skins dans la page 🚗 Voitures, label du style affiché sur la carte
+- [ ] La voiture par défaut (Berline grise) utilise le rendu « photo » (dégradés, reflets, jantes à rayons, phares à halo)
+- [ ] Boutons de catégories boutique plus gros (16 px, padding 10×14) et toujours lisibles à 390 px
+- [ ] Effet fantôme (changement de voie) + badge de lignes restantes toujours visibles avec tous les styles
+- [ ] CI verte + CACHE sw bumpé (roadtap-v20) + VERSION 1.3.12
+
 ## Note bloqueurs de pub (Google Sign-In)
 
 - uBlock Origin / Privacy Badger bloquent `accounts.google.com` (popup GIS) et `identitytoolkit.googleapis.com` (échange du jeton) → erreurs « popup bloquée » / CORS. **Mettre `roadtap.uk` en liste blanche** dans les deux extensions + autoriser les popups pour le site. Le bouton affiche alors « Continuer en tant que … » quand le navigateur est déjà connecté à un compte Google.
