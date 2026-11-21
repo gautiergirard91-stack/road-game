@@ -68,6 +68,7 @@ export class Tutorial {
         text: "🚶 En ville : le passage piéton (bandes blanches) est une ligne à cliquer comme les autres — et la voiture s'arrête seule pour laisser passer les piétons. Tape quand IL atteint les roues !",
         enter: (g) => g.spawnLine('crosswalk', 640),
         minTime: 2800,
+        respawn: true, // v1.3.26 : si le joueur rate ce passage piéton, on lui en remet un (anti-blocage)
         done: (t, e) => Boolean(e) && e.type === 'crosswalk',
       },
       {
@@ -201,16 +202,23 @@ export class Tutorial {
   tick() {
     if (this.finished || this.reading) return;
     const s = this.steps[this.i];
+    const elapsed = performance.now() - this.stepStart;
     // repli : si le joueur tape tout parfaitement et ne rate jamais rien, on avance quand même après 12 s
-    if (s && s.missStep && !this.missed && performance.now() - this.stepStart > 12000) return this.next();
+    if (s && s.missStep && !this.missed && elapsed > 12000) return this.next();
+    // v1.3.26 : passage piéton raté -> on en respawn un (sinon l'étape ne peut jamais finir)
+    if (s && s.respawn && !this.game.lines.some((l) => l.type === 'crosswalk' && l.state === 'pending')) {
+      this.game.spawnLine('crosswalk', 640);
+    }
     // étapes sondées en continu (ex. dépassement : attendre le retour en file de droite)
-    if (s && s.poll && performance.now() - this.stepStart >= (s.minTime || 0)) {
+    if (s && s.poll && elapsed >= (s.minTime || 0)) {
       try {
         if (s.done(this, this.lastEvent || null)) this.next();
       } catch {
         /* ignore */
       }
     }
+    // v1.3.26 : garde-fou anti-blocage — aucune étape d'action ne dure plus de 45 s
+    if (s && !s.autoNext && elapsed > 45000) return this.next();
   }
 
   finish() {

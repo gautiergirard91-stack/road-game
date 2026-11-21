@@ -5,6 +5,19 @@ const LOCAL_KEY = 'roadtap_leaderboard_local_v1';
 const TOP = 20;
 const MODES = ['auto', 'permisA', 'pilote'];
 
+// --- diagnostic (affiché dans l'UI pour expliquer pourquoi on ne voit que soi) ---
+let lastLbError = null;     // ex: 'HTTP 401 sur scores/auto' | 'écriture HTTP 403' | null
+let lastLbCount = 0;        // nb d'entrées lues depuis Firebase à la dernière lecture
+let lastLbSource = 'local'; // 'firebase' | 'local'
+export function getLbStatus() {
+  return { error: lastLbError, count: lastLbCount, source: lastLbSource, online: isOnline() };
+}
+function setLbStatus(source, count, error = null) {
+  lastLbSource = source;
+  lastLbCount = count;
+  lastLbError = error;
+}
+
 export function isOnline() {
   return Boolean(FIREBASE_DB_URL);
 }
@@ -33,8 +46,17 @@ function localList() {
   }
 }
 
+function cleanEntry(e) {
+  if (!e || typeof e !== 'object') return null;
+  const score = typeof e.score === 'number' && Number.isFinite(e.score) ? e.score : 0;
+  return { ...e, score };
+}
 function sortDesc(arr) {
-  return [...arr].sort((a, b) => b.score - a.score).slice(0, TOP);
+  return arr
+    .map(cleanEntry)
+    .filter(Boolean)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, TOP);
 }
 
 export function getTopLocal() {
@@ -81,17 +103,24 @@ export async function submitScore(entry) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(entry),
     });
-    if (!res.ok) throw new Error('firebase submit failed');
-  } catch {
+    if (!res.ok) {
+      const err = `écriture HTTP ${res.status} sur scores/${mode} (règles RTDB ?) — score gardé en local`;
+      setLbStatus('local', 0, err);
+      throw new Error(err);
+    }
+  } catch (e) {
+    const msg = String((e && e.message) ? e.message : e);
+    if (lastLbError !== msg) setLbStatus('local', 0, msg);
     return submitLocal(entry);
   }
   return getTop('all');
 }
 
 export async function getTop(mode = 'all', levelFilter = 'all') {
-  if (!isOnline()) return sortDesc(filterLevel(filterMode(localList(), mode), levelFilter));
+  if (!isOnline()) { setLbStatus('local', 0); return sortDesc(filterLevel(filterMode(localList(), mode), levelFilter)); }
   const modes = mode === 'all' ? MODES : [mode];
   const all = [];
+  const errors = [];
   for (const m of modes) {
     try {
       const base = FIREBASE_DB_URL.replace(/\/$/, '');
@@ -100,12 +129,18 @@ export async function getTop(mode = 'all', levelFilter = 'all') {
       if (res.ok) {
         const data = await res.json();
         if (data && typeof data === 'object') all.push(...Object.values(data));
+      } else {
+        errors.push(`HTTP ${res.status} sur scores/${m}`);
       }
-    } catch {
-      /* réseau indisponible */
+    } catch (e) {
+      errors.push(`réseau indisponible (${(e && e.message) ? e.message : 'fetch failed'})`);
     }
   }
-  if (all.length) return sortDesc(filterLevel(all, levelFilter));
+  if (all.length) {
+    setLbStatus('firebase', all.length, errors.length ? errors.join(' ; ') : null);
+    return sortDesc(filterLevel(all, levelFilter));
+  }
+  setLbStatus('local', 0, errors.length ? errors.join(' ; ') : 'aucun score en ligne (nœuds vides ou règles RTDB restrictives)');
   return sortDesc(filterLevel(filterMode(localList(), mode), levelFilter));
 }
 
@@ -135,9 +170,11 @@ export async function getChallengeTop(dayId) {
     if (res.ok) {
       const data = await res.json();
       if (data && typeof data === 'object') return sortDesc(Object.values(data));
+    } else {
+      setLbStatus('local', 0, `HTTP ${res.status} sur challenges/${dayId}`);
     }
-  } catch {
-    /* réseau indisponible */
+  } catch (e) {
+    setLbStatus('local', 0, `challenges: réseau indisponible (${(e && e.message) ? e.message : 'fetch failed'})`);
   }
   return [];
 }

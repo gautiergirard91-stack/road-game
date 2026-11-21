@@ -42,26 +42,90 @@ const defaults = () => ({
 
 let save;
 
+// v1.3.27 : sanitizers — une sauvegarde corrompue (JSON cassé, mauvais types, vieille version)
+// ne doit JAMAIS faire planter le jeu
+const num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
+const str = (v, d = '') => (typeof v === 'string' ? v : d);
+const bool = (v, d = false) => (typeof v === 'boolean' ? v : d);
+const arrStr = (v) => (Array.isArray(v) ? v.filter((x) => typeof x === 'string') : []);
+const arrNum = (v) => (Array.isArray(v) ? v.filter((x) => typeof x === 'number' && Number.isFinite(x)) : []);
+const obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : {});
+const numMap = (v) => {
+  const out = {};
+  for (const [k, val] of Object.entries(obj(v))) if (typeof val === 'number' && Number.isFinite(val)) out[k] = val;
+  return out;
+};
+const boolMap = (v) => {
+  const out = {};
+  for (const [k, val] of Object.entries(obj(v))) if (typeof val === 'boolean') out[k] = val;
+  return out;
+};
+
+function sanitize(s) {
+  s.wallets = { auto: num(s.wallets && s.wallets.auto), permisA: num(s.wallets && s.wallets.permisA), pilote: num(s.wallets && s.wallets.pilote) };
+  s.trophies = boolMap(s.trophies);
+  s.cleared = boolMap(s.cleared);
+  s.best = numMap(s.best);
+  s.bestTime = numMap(s.bestTime);
+  s.unlockedLevels = arrNum(s.unlockedLevels);
+  if (!s.unlockedLevels.includes(1)) s.unlockedLevels.push(1);
+  s.skins = arrStr(s.skins);
+  if (!s.skins.includes('default')) s.skins.push('default');
+  s.skin = str(s.skin, 'default');
+  s.effects = arrStr(s.effects);
+  s.selectedEffects = arrStr(s.selectedEffects);
+  s.themes = arrStr(s.themes);
+  s.packs = arrStr(s.packs);
+  s.soundPacks = arrStr(s.soundPacks);
+  if (!s.soundPacks.includes('default')) s.soundPacks.push('default');
+  s.soundPack = str(s.soundPack, 'default');
+  s.achievements = arrStr(s.achievements);
+  s.difficulty = ['auto', 'permisA', 'pilote'].includes(s.difficulty) ? s.difficulty : 'auto';
+  s.pseudo = str(s.pseudo).slice(0, 16);
+  s.leaderboardOptIn = bool(s.leaderboardOptIn);
+  s.sound = bool(s.sound, true);
+  s.music = bool(s.music, true);
+  s.wideWindows = bool(s.wideWindows);
+  s.colorblind = bool(s.colorblind);
+  s.themeOverride = str(s.themeOverride);
+  s.tutorialDone = bool(s.tutorialDone);
+  s.speedrun = bool(s.speedrun);
+  s.horizontalZones = bool(s.horizontalZones);
+  s.lastLogin = str(s.lastLogin);
+  s.streak = num(s.streak);
+  s.streakRewardDay = str(s.streakRewardDay);
+  s.quests = obj(s.quests);
+  s.quests.weekKey = str(s.quests.weekKey);
+  s.quests.progress = numMap(s.quests.progress);
+  s.quests.done = boolMap(s.quests.done);
+  s.challengeDone = boolMap(s.challengeDone);
+  s.uid = str(s.uid);
+  s.googleEmail = str(s.googleEmail);
+  s.googleRefresh = str(s.googleRefresh);
+  s.totals = obj(s.totals);
+  s.totals.runs = num(s.totals.runs);
+  s.totals.perfects = num(s.totals.perfects);
+  s.totals.overtakes = num(s.totals.overtakes);
+  return s;
+}
+
 export function load() {
   try {
     const raw = localStorage.getItem(KEY);
+    let parsed = null;
     if (raw) {
-      const parsed = JSON.parse(raw);
-      // migration : l'ancienne save "coins" devient le portefeuille auto
-      if (typeof parsed.coins === 'number' && !parsed.wallets) {
-        parsed.wallets = { auto: parsed.coins, permisA: 0, pilote: 0 };
-        delete parsed.coins;
+      parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') {
+        // migration : l'ancienne save "coins" devient le portefeuille auto
+        if (typeof parsed.coins === 'number' && !parsed.wallets) {
+          parsed.wallets = { auto: parsed.coins, permisA: 0, pilote: 0 };
+          delete parsed.coins;
+        }
       }
-      save = { ...defaults(), ...parsed };
-    } else {
-      save = defaults();
     }
-    save.wallets = { auto: 0, permisA: 0, pilote: 0, ...(save.wallets || {}) };
-    save.trophies = save.trophies || {};
-    save.cleared = save.cleared || {};
-    save.bestTime = save.bestTime || {};
+    save = sanitize({ ...defaults(), ...(parsed && typeof parsed === 'object' ? parsed : {}) });
   } catch {
-    save = defaults();
+    save = sanitize(defaults());
   }
   return save;
 }
@@ -84,15 +148,18 @@ export function getWallet(diff) {
 
 export function addCoins(diff, n) {
   const key = save.wallets[diff] !== undefined ? diff : 'auto';
-  save.wallets[key] = (save.wallets[key] || 0) + n;
+  const add = num(n); // v1.3.27 : jamais de NaN dans un portefeuille
+  save.wallets[key] = (save.wallets[key] || 0) + add;
   persist();
   return save.wallets[key];
 }
 
 export function spend(diff, n) {
   const key = save.wallets[diff] !== undefined ? diff : 'auto';
-  if ((save.wallets[key] || 0) < n) return false;
-  save.wallets[key] -= n;
+  const cost = num(n);
+  if (cost <= 0) return true;
+  if ((save.wallets[key] || 0) < cost) return false;
+  save.wallets[key] -= cost;
   persist();
   return true;
 }
@@ -196,7 +263,7 @@ export function setDifficulty(id) {
 }
 
 export function setPseudo(p) {
-  save.pseudo = p;
+  save.pseudo = str(p).slice(0, 16); // v1.3.27 : toujours une string sûre, même en session
   persist();
 }
 
@@ -384,38 +451,41 @@ export function snapshot() {
   };
 }
 
-export function mergeRemote(remote) {
+const arr = (x) => (Array.isArray(x) ? x : []);
+
+function mergeRemoteBody(remote) {
   if (!remote || typeof remote !== 'object') return false;
   const rw = remote.wallets || (typeof remote.coins === 'number' ? { auto: remote.coins } : {});
   for (const k of ['auto', 'permisA', 'pilote']) {
-    save.wallets[k] = Math.max(save.wallets[k] || 0, rw[k] || 0);
+    save.wallets[k] = Math.max(save.wallets[k] || 0, num(rw[k]));
   }
   save.trophies = { ...(remote.trophies || {}), ...save.trophies };
-  save.packs = [...new Set([...save.packs, ...(remote.packs || [])])];
-  save.soundPacks = [...new Set([...save.soundPacks, 'default', ...(remote.soundPacks || [])])];
+  save.packs = [...new Set([...save.packs, ...arr(remote.packs)])];
+  save.soundPacks = [...new Set([...save.soundPacks, 'default', ...arr(remote.soundPacks)])];
   if (remote.soundPack && save.soundPacks.includes(remote.soundPack)) save.soundPack = remote.soundPack;
-  save.streak = Math.max(save.streak || 0, remote.streak || 0);
+  save.streak = Math.max(save.streak || 0, num(remote.streak));
   if (!save.uid && remote.uid) {
     save.uid = remote.uid;
     save.googleEmail = remote.googleEmail || '';
   }
   save.challengeDone = { ...(remote.challengeDone || {}), ...save.challengeDone };
-  if (remote.quests && remote.quests.weekKey === save.quests.weekKey) {
+  if (remote.quests && typeof remote.quests === 'object' && remote.quests.weekKey === save.quests.weekKey) {
     save.quests.done = { ...remote.quests.done, ...save.quests.done };
-    for (const [k, v] of Object.entries(remote.quests.progress || {})) {
-      save.quests.progress[k] = Math.max(save.quests.progress[k] || 0, v);
+    for (const [k, v] of Object.entries((remote.quests.progress && typeof remote.quests.progress === 'object') ? remote.quests.progress : {})) {
+      save.quests.progress[k] = Math.max(save.quests.progress[k] || 0, num(v));
     }
   }
-  save.unlockedLevels = [...new Set([...save.unlockedLevels, ...(remote.unlockedLevels || [])])];
+  save.unlockedLevels = [...new Set([...save.unlockedLevels, ...arr(remote.unlockedLevels)])];
   save.cleared = { ...(remote.cleared || {}), ...save.cleared };
-  save.skins = [...new Set([...save.skins, ...(remote.skins || [])])];
-  save.effects = [...new Set([...save.effects, ...(remote.effects || [])])];
-  save.themes = [...new Set([...save.themes, ...(remote.themes || [])])];
-  save.achievements = [...new Set([...save.achievements, ...(remote.achievements || [])])];
-  for (const [k, v] of Object.entries(remote.best || {})) {
-    save.best[k] = Math.max(save.best[k] || 0, v);
+  save.skins = [...new Set([...save.skins, ...arr(remote.skins)])];
+  save.effects = [...new Set([...save.effects, ...arr(remote.effects)])];
+  save.themes = [...new Set([...save.themes, ...arr(remote.themes)])];
+  save.achievements = [...new Set([...save.achievements, ...arr(remote.achievements)])];
+  for (const [k, v] of Object.entries((remote.best && typeof remote.best === 'object') ? remote.best : {})) {
+    save.best[k] = Math.max(save.best[k] || 0, num(v));
   }
-  for (const [k, v] of Object.entries(remote.bestTime || {})) {
+  for (const [k, v] of Object.entries((remote.bestTime && typeof remote.bestTime === 'object') ? remote.bestTime : {})) {
+    if (!num(v)) continue;
     const cur = save.bestTime[k];
     if (cur === undefined || v < cur) save.bestTime[k] = v;
   }
@@ -428,4 +498,14 @@ export function mergeRemote(remote) {
   };
   persist();
   return true;
+}
+
+// mergeRemote ne doit JAMAIS faire planter le jeu : données distantes corrompues => on ignore.
+export function mergeRemote(remote) {
+  try {
+    return mergeRemoteBody(remote);
+  } catch (e) {
+    console.warn('[store] mergeRemote ignoré (données distantes invalides):', e);
+    return false;
+  }
 }
