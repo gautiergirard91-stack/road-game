@@ -165,6 +165,14 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] Option OFF = comportement haut/bas inchangé
 - [ ] CI verte + CACHE sw bumpé (roadtap-v29) + VERSION 1.3.21
 
+## Checklist v1.3.22 (classement global, Google sur mobile, bannière tuto repliable, délimitation des zones)
+
+- [ ] **Classement** : `getTop` lit `/scores/<mode>.json` entier + tri côté client (plus d'`orderBy` = plus de 400 sans `.indexOn`) → on voit **tous les joueurs**, pas que soi ; idem classement du défi du jour
+- [ ] **Modale pseudo sur mobile** : le panneau scrolle (`overflow-y:auto`) et le bouton **Google est en haut**, visible sans scroller
+- [ ] **Bannière tuto** : bouton ▾/▴ pour replier le texte ; sur mobile (<760 px) elle est compacte et **repliée automatiquement pendant les phases d'action**, dépliée pendant la lecture (curseur visible)
+- [ ] **Délimitation des zones** : en Permis A/Pilote, une ligne pointillée au milieu de l'écran avec « ▲ AV / ▼ AR » (haut/bas) ou « AV ⬅ / ➡ AR » verticale (option gauche/droite) ; rien en Auto école
+- [ ] CI verte + CACHE sw bumpé (roadtap-v30) + VERSION 1.3.22
+
 ## Note bloqueurs de pub (Google Sign-In)
 
 - uBlock Origin / Privacy Badger bloquent `accounts.google.com` (popup GIS) et `identitytoolkit.googleapis.com` (échange du jeton) → erreurs « popup bloquée » / CORS. **Mettre `roadtap.uk` en liste blanche** dans les deux extensions + autoriser les popups pour le site. Le bouton affiche alors « Continuer en tant que … » quand le navigateur est déjà connecté à un compte Google.

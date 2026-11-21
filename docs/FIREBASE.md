@@ -47,6 +47,8 @@ Puis activer **Firebase App Check** ou au minimum limiter les écritures (les r�
 
 > Note : la racine `/.json` n'est **pas** lisible publiquement avec ces règles (c'est voulu). La pastille « serveur » du jeu teste donc la connexion via `/scores/.json?shallow=true` (nœud public) — ne pas « corriger » les règles en ouvrant la racine.
 
+> Note classement : le jeu lit le nœud **entier** `/scores/<mode>.json` et trie côté client. **Ne pas utiliser `orderBy` en REST** : sans `.indexOn: ["score"]` dans les règles, Firebase renvoie **400** et le jeu retombe en mode local (symptôme : « on ne voit que son propre score »). Si tu veux un vrai tri serveur plus tard, ajoute `"scores": { ".indexOn": ["score"] }` dans les règles.
+
 ## 3. Remplir la config
 
 Projet de production : `realtime-database-5fd49`, instance `realtime-database-5fd49-default-rtdb` (région **europe-west1**, Belgique).

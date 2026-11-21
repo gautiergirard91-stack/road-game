@@ -482,6 +482,7 @@ canvas.swatch.snd-preview {
   align-items: center;
   gap: 12px;
   max-height: 88vh;
+  overflow-y: auto; /* v1.3.22 : les modales scrollent sur mobile (bouton Google visible) */
   overflow-y: auto;
 }
 
@@ -867,4 +868,40 @@ canvas.swatch.snd-preview {
   width: 100%;
   background: linear-gradient(90deg, #54f0ff, #7ee081);
   transition: width 0.1s linear;
+}
+
+/* v1.3.22 : bannière du tutoriel repliable + compacte sur mobile */
+#tut-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+#tut-fold {
+  padding: 2px 10px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+#tut-banner.folded #tut-text {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  #tut-banner {
+    top: calc(56px + env(safe-area-inset-top));
+    padding: 8px 12px;
+    width: min(96vw, 560px);
+  }
+  #tut-text {
+    font-size: 14px;
+  }
+  #tut-dots {
+    font-size: 12px;
+    margin-bottom: 2px;
+  }
+  #tut-read-label {
+    font-size: 12px;
+  }
 }

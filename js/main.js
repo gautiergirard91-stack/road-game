@@ -192,7 +192,7 @@ function startTutorial() {
     mode: 'auto',
     tutorial: true,
     windows: effWindows(),
-    access: { colorblind: save.colorblind },
+    access: { colorblind: save.colorblind, horizontalZones: save.horizontalZones },
     effects: save.selectedEffects,
     audio: { tap: sfx.tap, perfect: sfx.perfect, good: sfx.good, passable: sfx.passable, fail: sfx.fail, win: sfx.win, miss: sfx.miss },
     onJudge: (e) => {
@@ -670,7 +670,7 @@ function startLevel(level) {
     speedrun: save.speedrun, // v1.3.19 : mode speedrun (chrono + vitesse bonus)
     themeOverride: save.themeOverride || undefined,
     windows: effWindows(),
-    access: { colorblind: save.colorblind },
+    access: { colorblind: save.colorblind, horizontalZones: save.horizontalZones },
     effects: save.selectedEffects,
     audio: { tap: sfx.tap, perfect: sfx.perfect, good: sfx.good, passable: sfx.passable, fail: sfx.fail, win: sfx.win, miss: sfx.miss },
     onJudge: (e) => {
@@ -1013,6 +1013,14 @@ $('#btn-mode-speedrun').addEventListener('click', () => {
 $('#btn-help').addEventListener('click', () => {
   sfx.click();
   startTutorial();
+});
+// v1.3.22 : replier/déplier la bannière du tutoriel (le texte ne bloque plus le haut de l'écran)
+$('#tut-fold').addEventListener('click', () => {
+  sfx.click();
+  const b = $('#tut-banner');
+  const f = !b.classList.contains('folded');
+  b.classList.toggle('folded', f);
+  $('#tut-fold').textContent = f ? '▴' : '▾';
 });
 $('#btn-sound').addEventListener('click', () => {
   store.setSound(!save.sound);
