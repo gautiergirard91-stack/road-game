@@ -94,6 +94,13 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] Effet fantôme (changement de voie) + badge de lignes restantes toujours visibles avec tous les styles
 - [ ] CI verte + CACHE sw bumpé (roadtap-v20) + VERSION 1.3.12
 
+## Checklist v1.3.13 (boutique : aperçu réel de la voiture à la place du carré de couleur)
+
+- [ ] Page 🚗 Voitures : chaque carte affiche un **mini canvas 64×48** rendu avec le vrai moteur (`paintCar`) → aperçu fidèle au style (photo/blocs/néon/pixel/rétro/jouet/holo) et à la couleur
+- [ ] Aperçu redessiné à chaque `renderShop()` (achat OK) ; ombre au sol visible
+- [ ] Les autres catégories (Effets/Thèmes/Packs/Sons) gardent leur pastille emoji
+- [ ] CI verte + CACHE sw bumpé (roadtap-v21) + VERSION 1.3.13
+
 ## Note bloqueurs de pub (Google Sign-In)
 
 - uBlock Origin / Privacy Badger bloquent `accounts.google.com` (popup GIS) et `identitytoolkit.googleapis.com` (échange du jeton) → erreurs « popup bloquée » / CORS. **Mettre `roadtap.uk` en liste blanche** dans les deux extensions + autoriser les popups pour le site. Le bouton affiche alors « Continuer en tant que … » quand le navigateur est déjà connecté à un compte Google.

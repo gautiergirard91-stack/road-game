@@ -1,5 +1,5 @@
 import { LEVELS, THEMES, SKINS, EFFECTS, DIFFICULTIES, CURRENCIES, WINDOWS, ACHIEVEMENTS, THEME_SHOP, ENDLESS_LEVEL, PACKS, SOUND_PACKS } from './data.js';
-import { Game, CAR_STYLE_LABEL } from './game.js';
+import { Game, CAR_STYLE_LABEL, renderCarPreview } from './game.js';
 import * as store from './store.js';
 import { sfx, setEnabled, setMusicEnabled, unlockAudio, applySoundPack } from './audio.js';
 import { coinsForResult, accuracy, avgReaction, continueCost, maxMissesFor, firstClearBonus, isPerfectClear, perfectClearBonus, dailyChallenge, weeklyQuests } from './core.js';
@@ -453,7 +453,7 @@ function renderShop() {
     const card = document.createElement('div');
     card.className = 'card shop-card';
     card.innerHTML = `
-      <div class="swatch" style="background:${s.rainbow ? 'linear-gradient(90deg,#ff5c8a,#ffd54a,#7ee081,#54f0ff,#c792ff)' : s.color}"></div>
+      <canvas class="swatch car-preview" aria-label="Aperçu ${s.name}"></canvas>
       <div class="card-body">
         <div class="card-title">${s.name}</div>
         <div class="card-sub">${MODEL_LABEL[s.model] || 'Berline'} · ${CAR_STYLE_LABEL[s.style || 'photo']}</div>
@@ -477,6 +477,7 @@ function renderShop() {
       refreshCoins();
       renderShop();
     });
+    renderCarPreview(card.querySelector('canvas.car-preview'), s);
     skinsEl.appendChild(card);
   }
   const thEl = $('#shop-themes');
