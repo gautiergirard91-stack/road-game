@@ -363,6 +363,40 @@ function paintCar(ctx, cx, baseY, m, col, style) {
   for (const sx of [-1, 1]) drawWheel(cx + sx * bw * 0.42, baseY, fancy);
 }
 
+// v1.3.13 : aperçu réel de la voiture dans la boutique — mini canvas rendu avec le même paintCar que le jeu
+export function renderCarPreview(canvas, skin) {
+  const dpr = Math.min((typeof window !== 'undefined' && window.devicePixelRatio) || 1, 2);
+  const cssW = 64;
+  const cssH = 48;
+  canvas.width = Math.round(cssW * dpr);
+  canvas.height = Math.round(cssH * dpr);
+  canvas.style.width = cssW + 'px';
+  canvas.style.height = cssH + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, cssW, cssH);
+  const m = MODELS[skin.model] || MODELS.berline;
+  const totalH = m.bodyH + m.cabH + 21;
+  const s = Math.min((cssW - 14) / m.w, (cssH - 14) / totalH);
+  const isHex = (skin.color || '').startsWith('#');
+  ctx.save();
+  ctx.translate(cssW / 2, cssH - 6 - 12 * s);
+  ctx.scale(s, s);
+  paintCar(ctx, 0, 0, m, {
+    color: skin.rainbow ? '#ff5c8a' : skin.color,
+    dark: skin.shine || !isHex ? 'rgba(0,0,0,0.42)' : shade(skin.color, -48),
+    light: skin.shine || !isHex ? 'rgba(255,255,255,0.5)' : shade(skin.color, 48),
+    shine: Boolean(skin.shine),
+    tier: 3,
+    time: 0,
+  }, skin.style || 'photo');
+  ctx.restore();
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.beginPath();
+  ctx.ellipse(cssW / 2, cssH - 4, m.w * 0.55 * s, 4, 0, 0, Math.PI * 2);
+  ctx.fill();
+}
+
 function drawTrafficCar(ctx, x, y, w, color, down) {
   ctx.save();
   ctx.translate(x, y);

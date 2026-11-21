@@ -5,7 +5,7 @@ Object.defineProperty(globalThis, 'window', {
   configurable: true,
 });
 
-const { Game, MODELS, CAR_STYLES } = await import('../js/game.js');
+const { Game, MODELS, CAR_STYLES, renderCarPreview } = await import('../js/game.js');
 const { LEVELS, SKINS } = await import('../js/data.js');
 
 function makeCtx() {
@@ -229,6 +229,8 @@ function step(game, seconds, tapper) {
 for (const s of SKINS) {
   assert.ok(MODELS[s.model], `modèle ${s.model} existe pour le skin ${s.id}`);
   assert.ok(CAR_STYLES.includes(s.style || 'photo'), `style ${s.style || 'photo'} connu pour le skin ${s.id}`);
+  // v1.3.13 : l'aperçu boutique de chaque skin se rend sans erreur
+  renderCarPreview({ getContext: () => makeCtx(), style: {}, width: 0, height: 0 }, s);
 }
 
 console.log('OK - smoke test moteur : 9 scénarios sans crash, mécaniques vérifiées');
