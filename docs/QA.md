@@ -71,6 +71,13 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] Si 403 : le toast affiche le vrai message Google → vérifier la clé (Afficher la clé == `AIzaSyCIFhp4tI-8pL9HG-fD9XIJfNLln5dBG9g`)
 - [ ] CI verte + CACHE sw bumpé (roadtap-v16) + VERSION 1.3.8
 
+## Checklist v1.3.9 (pastille serveur)
+
+- [ ] La pastille pingue `/scores/.json?shallow=true` (nœud public) au lieu de la racine `/.json` (401 à cause des règles) → affiche **🟢 En ligne — serveur OK** quand la RTDB est atteignable
+- [ ] Règles RTDB bien enregistrées dans la console Firebase (onglet Règles) ; URL de la base = `realtime-database-5fd49-default-rtdb.europe-west1.firebasedatabase.app`
+- [ ] Classement : les scores envoyés apparaissent bien sous `/scores/<mode>` dans Firebase
+- [ ] CI verte + CACHE sw bumpé (roadtap-v17) + VERSION 1.3.9
+
 ## Note bloqueurs de pub (Google Sign-In)
 
 - uBlock Origin / Privacy Badger bloquent `accounts.google.com` (popup GIS) et `identitytoolkit.googleapis.com` (échange du jeton) → erreurs « popup bloquée » / CORS. **Mettre `roadtap.uk` en liste blanche** dans les deux extensions + autoriser les popups pour le site. Le bouton affiche alors « Continuer en tant que … » quand le navigateur est déjà connecté à un compte Google.
