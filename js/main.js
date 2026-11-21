@@ -2,7 +2,7 @@ import { LEVELS, THEMES, SKINS, EFFECTS, DIFFICULTIES, CURRENCIES, WINDOWS, ACHI
 import { Game, CAR_STYLE_LABEL, renderCarPreview, renderEffectPreview, renderThemePreview, renderPackPreview, renderSoundPreview } from './game.js';
 import * as store from './store.js';
 import { sfx, setEnabled, setMusicEnabled, unlockAudio, applySoundPack } from './audio.js';
-import { coinsForResult, accuracy, avgReaction, continueCost, maxMissesFor, firstClearBonus, isPerfectClear, perfectClearBonus, dailyChallenge, weeklyQuests, fmtTime } from './core.js';
+import { coinsForResult, accuracy, avgReaction, continueCost, maxMissesFor, firstClearBonus, isPerfectClear, perfectClearBonus, dailyChallenge, weeklyQuests, fmtTime, zoneFromPoint, keyToAction } from './core.js';
 import { watchRewarded } from './ads.js';
 import { Tutorial } from './tutorial.js';
 import * as leaderboard from './leaderboard.js';
@@ -161,6 +161,8 @@ async function renderLeaderboard() {
   } else {
     srcEl.textContent = 'Classement en ligne (Firebase) — aucun score en ligne pour ce filtre, affichage local';
   }
+  // v1.3.28 : si les envois sont refusés (403…), on le dit aussi — sinon on croit que le nœud est juste vide
+  if (st && st.writeError) srcEl.textContent += ` — ⚠ ${st.writeError}`;
   list.innerHTML = '';
   if (!top.length) {
     const hint = leaderboard.isOnline()
@@ -592,7 +594,7 @@ function renderShop() {
       } else if (store.buyEffect(e.id, e.cost, e.currency || 'auto')) {
         sfx.coin();
         logEvent('purchase', { item: `effect:${e.id}`, cost: e.cost });
-        toast(`${e.name} acheté et activé !`);
+        toast(`${e.name} acheté ! Tape « Activer » pour l'utiliser`); // v1.3.28 : jamais activé automatiquement
         pushCloud();
       } else {
         toast(`Il te manque ${e.cost - store.getWallet(e.currency || 'auto')} ${cur(e.currency || 'auto').icon}`);
@@ -1167,14 +1169,8 @@ window.addEventListener('pointerdown', (e) => {
   swipeFired = false;
   if (!canPlayNow()) return;
   if (e.target.closest('button, input, select, textarea, a, label')) return; // ne pas taper le jeu quand on touche un contrôle
-  // v1.3.21 : option zones gauche/droite (gauche = AV, droite = AR) au lieu de haut/bas
-  const zone = save.horizontalZones
-    ? e.clientX < window.innerWidth / 2
-      ? 'front'
-      : 'rear'
-    : e.clientY < window.innerHeight / 2
-      ? 'front'
-      : 'rear';
+  // v1.3.21/v1.3.28 : option zones gauche/droite (gauche = AV, droite = AR) au lieu de haut/bas
+  const zone = zoneFromPoint(e.clientX, e.clientY, window.innerWidth, window.innerHeight, save.horizontalZones);
   game.tap(zone);
 });
 
@@ -1201,26 +1197,15 @@ window.addEventListener('pointercancel', () => {
 window.addEventListener('keydown', (e) => {
   if (e.repeat) return;
   const canPlay = canPlayNow();
-  if (e.code === 'Space' || e.code === 'ArrowDown' || e.code === 'Enter') {
+  // v1.3.28 : UNE SEULE action par touche via keyToAction (sinon ArrowLeft = tap AV + swipe
+  // quand les zones horizontales sont actives ; le swipe clavier passe sur ArrowDown/KeyS)
+  const action = keyToAction(e.code, save.horizontalZones);
+  if (action) {
     e.preventDefault();
-    if (canPlay) game.tap('rear');
-  }
-  if (e.code === 'ArrowUp') {
-    e.preventDefault();
-    if (canPlay) game.tap('front');
-  }
-  // v1.3.21 : clavier en mode zones gauche/droite
-  if (save.horizontalZones && e.code === 'ArrowLeft') {
-    e.preventDefault();
-    if (canPlay) game.tap('front');
-  }
-  if (save.horizontalZones && e.code === 'ArrowRight') {
-    e.preventDefault();
-    if (canPlay) game.tap('rear');
-  }
-  if (e.code === 'ArrowLeft') {
-    e.preventDefault();
-    if (canPlay) game.swipeLeft();
+    if (canPlay) {
+      if (action === 'swipe') game.swipeLeft();
+      else game.tap(action);
+    }
   }
   if (e.code === 'KeyP' && currentScreen === 'screen-game') togglePause();
   if (e.code === 'Escape' && currentScreen === 'screen-game') togglePause();

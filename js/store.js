@@ -223,7 +223,7 @@ export function buySkin(id, cost, currency = 'auto') {
 export function buyEffect(id, cost, currency = 'auto') {
   if (save.effects.includes(id) || !spend(currency, cost)) return false;
   save.effects.push(id);
-  if (!save.selectedEffects.includes(id)) save.selectedEffects.push(id);
+  // v1.3.28 : un achat N'ACTIVE PAS l'effet automatiquement (le joueur choisit dans la boutique)
   persist();
   return true;
 }
@@ -314,7 +314,7 @@ export function grantSkin(id) {
 export function grantEffect(id) {
   if (!save.effects.includes(id)) {
     save.effects.push(id);
-    if (!save.selectedEffects.includes(id)) save.selectedEffects.push(id);
+    // v1.3.28 : un pack débloque le contenu mais ne l'active pas (évite « secousse activée par défaut »)
     persist();
   }
 }

@@ -6,11 +6,12 @@ const TOP = 20;
 const MODES = ['auto', 'permisA', 'pilote'];
 
 // --- diagnostic (affiché dans l'UI pour expliquer pourquoi on ne voit que soi) ---
-let lastLbError = null;     // ex: 'HTTP 401 sur scores/auto' | 'écriture HTTP 403' | null
-let lastLbCount = 0;        // nb d'entrées lues depuis Firebase à la dernière lecture
-let lastLbSource = 'local'; // 'firebase' | 'local'
+let lastLbError = null;       // ex: 'HTTP 401 sur scores/auto' (lecture) | null
+let lastLbWriteError = null;  // ex: 'écriture HTTP 403 sur scores/auto' (envoi) | null — v1.3.28 : conservé même après une lecture
+let lastLbCount = 0;          // nb d'entrées lues depuis Firebase à la dernière lecture
+let lastLbSource = 'local';   // 'firebase' | 'local'
 export function getLbStatus() {
-  return { error: lastLbError, count: lastLbCount, source: lastLbSource, online: isOnline() };
+  return { error: lastLbError, writeError: lastLbWriteError, count: lastLbCount, source: lastLbSource, online: isOnline() };
 }
 function setLbStatus(source, count, error = null) {
   lastLbSource = source;
@@ -105,12 +106,14 @@ export async function submitScore(entry) {
     });
     if (!res.ok) {
       const err = `écriture HTTP ${res.status} sur scores/${mode} (règles RTDB ?) — score gardé en local`;
-      setLbStatus('local', 0, err);
+      lastLbWriteError = err; // v1.3.28 : conservé et affiché dans l'UI
       throw new Error(err);
     }
+    lastLbWriteError = null; // v1.3.28 : une écriture qui passe efface l'erreur précédente
   } catch (e) {
     const msg = String((e && e.message) ? e.message : e);
-    if (lastLbError !== msg) setLbStatus('local', 0, msg);
+    if (!lastLbWriteError) lastLbWriteError = msg;
+    setLbStatus('local', 0, lastLbError && lastLbError !== msg ? lastLbError : null);
     return submitLocal(entry);
   }
   return getTop('all');

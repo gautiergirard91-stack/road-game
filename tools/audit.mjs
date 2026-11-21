@@ -102,5 +102,24 @@ for (const f of parseFiles) {
   }
 }
 
+// 9) workflows GitHub : un `name:` non quoté contenant ": " casse tout le workflow
+//    (v1.3.28 : la CI est devenue rouge à cause d'un name avec ": " — plus de jobs lancés)
+const wfDir = path.join(root, '.github', 'workflows');
+if (fs.existsSync(wfDir)) {
+  for (const f of fs.readdirSync(wfDir).filter((f) => f.endsWith('.yml') || f.endsWith('.yaml'))) {
+    const src = fs.readFileSync(path.join(wfDir, f), 'utf8');
+    for (const [i, line] of src.split('\n').entries()) {
+      const m = line.match(/^\s*-\s*name:\s*(.+?)\s*$/);
+      if (!m) continue;
+      const v = m[1];
+      const quoted = (v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"));
+      if (!quoted && /:\s/.test(v)) {
+        console.log(`❌ .github/workflows/${f}:${i + 1}: name non quoté contenant ": " -> workflow invalide (${v.slice(0, 60)}...)`);
+        problems++;
+      }
+    }
+  }
+}
+
 console.log(problems === 0 ? '✅ AUDIT STATIQUE: aucun problème trouvé' : `❌ ${problems} problème(s) trouvé(s)`);
 process.exit(problems === 0 ? 0 : 1);

@@ -253,9 +253,53 @@ console.log('F. leaderboard : réseau cassé / HTTP 401 / données corrompues c�
   globalThis.fetch = async () => ({ ok: false, status: 403 });
   const r4 = await lb.submitScore({ pseudo: 'Moi', score: 10, level: 'L', levelId: 1, mode: 'auto', date: Date.now() });
   const st4 = lb.getLbStatus();
-  ok('écriture HTTP 403 -> score local + erreur "écriture HTTP 403"', Array.isArray(r4) && st4.error.includes('403'));
+  ok('écriture HTTP 403 -> score local + writeError "403"', Array.isArray(r4) && st4.writeError && st4.writeError.includes('403'));
   ok('le score soumis est bien en local', r4.some((e) => e.pseudo === 'Moi'));
 
+  delete globalThis.fetch;
+}
+
+console.log('G. v1.3.28 : zones gauche/droite (mapping pur) + effets jamais auto-activés + erreur d\'écriture LB persistante');
+{
+  // --- zoneFromPoint : gauche/droite si option ON, haut/bas sinon, gardes NaN ---
+  ok('zone gauche -> front (horizontal ON)', core.zoneFromPoint(100, 500, 390, 844, true) === 'front');
+  ok('zone droite -> rear (horizontal ON)', core.zoneFromPoint(300, 500, 390, 844, true) === 'rear');
+  ok('zone haut -> front (horizontal OFF)', core.zoneFromPoint(200, 100, 390, 844, false) === 'front');
+  ok('zone bas -> rear (horizontal OFF)', core.zoneFromPoint(200, 700, 390, 844, false) === 'rear');
+  ok('zoneFromPoint NaN -> rear (pas de crash)', core.zoneFromPoint(NaN, NaN, 390, 844, true) === 'rear');
+
+  // --- keyToAction : UNE SEULE action par touche (fix double-binding ArrowLeft) ---
+  ok('horizontal ON: ArrowLeft -> front (PAS swipe)', core.keyToAction('ArrowLeft', true) === 'front');
+  ok('horizontal ON: ArrowRight -> rear', core.keyToAction('ArrowRight', true) === 'rear');
+  ok('horizontal ON: ArrowDown -> swipe', core.keyToAction('ArrowDown', true) === 'swipe');
+  ok('horizontal ON: KeyS -> swipe', core.keyToAction('KeyS', true) === 'swipe');
+  ok('horizontal OFF: ArrowLeft -> swipe (hérité)', core.keyToAction('ArrowLeft', false) === 'swipe');
+  ok('horizontal OFF: ArrowUp -> front', core.keyToAction('ArrowUp', false) === 'front');
+  ok('horizontal OFF: Space -> rear', core.keyToAction('Space', false) === 'rear');
+  ok('touche inconnue -> null', core.keyToAction('KeyZ', true) === null);
+
+  // --- effets : JAMAIS activés automatiquement ---
+  mem['roadtap_save_v1'] = JSON.stringify({});
+  store.load();
+  ok('save fraîche -> aucun effet sélectionné', store.get().selectedEffects.length === 0);
+  store.addCoins('auto', 10000);
+  ok('buyEffect -> possédé mais PAS sélectionné', store.buyEffect('shake', 600, 'auto') === true && store.get().effects.includes('shake') && !store.get().selectedEffects.includes('shake'));
+  ok('toggleEffect active un effet possédé', (store.toggleEffect('shake'), store.get().selectedEffects.includes('shake')));
+  ok('toggleEffect retire', (store.toggleEffect('shake'), !store.get().selectedEffects.includes('shake')));
+  store.grantEffect('glow'); // chemin pack
+  ok('grantEffect (pack) -> possédé mais PAS sélectionné', store.get().effects.includes('glow') && !store.get().selectedEffects.includes('glow'));
+  ok('toggleEffect sur effet NON possédé = no-op', (store.toggleEffect('fire'), !store.get().selectedEffects.includes('fire')));
+  const { PACKS } = await import('../js/data.js');
+  ok('buyPack -> contenus débloqués, rien d\'activé', store.buyPack(PACKS[0]) === true && store.get().effects.includes('shake') && store.get().selectedEffects.length === 0);
+
+  // --- leaderboard : l'erreur d'écriture reste visible après une lecture réussie ---
+  globalThis.fetch = async () => ({ ok: false, status: 403 });
+  await lb.submitScore({ pseudo: 'Moi', score: 5, level: 'L', levelId: 1, mode: 'auto', date: 1 });
+  ok('submit 403 -> writeError enregistrée', lb.getLbStatus().writeError && lb.getLbStatus().writeError.includes('403'));
+  globalThis.fetch = async () => ({ ok: true, json: async () => ({ a: { pseudo: 'Y', score: 50, mode: 'auto' } }) });
+  await lb.getTop('auto'); // lecture OK ensuite
+  const st = lb.getLbStatus();
+  ok('lecture OK après 403 -> writeError TOUJOURS visible', st.source === 'firebase' && st.count === 1 && st.writeError && st.writeError.includes('403'));
   delete globalThis.fetch;
 }
 

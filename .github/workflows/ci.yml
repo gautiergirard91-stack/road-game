@@ -19,7 +19,7 @@ jobs:
         run: node tests/game.smoke.test.mjs
       - name: Test de bout en bout du tutoriel (headless)
         run: node tests/tutorial.test.mjs
-      - name: Test adversarial (casser le jeu : save corrompue, réseau down, NaN…)
+      - name: "Test adversarial (casser le jeu : save corrompue, réseau down, NaN…)"
         run: node tests/break.test.mjs
       - name: Audit statique (IDs HTML↔JS, imports↔exports, assets SW, manifest)
         run: node tools/audit.mjs

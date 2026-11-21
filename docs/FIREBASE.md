@@ -53,11 +53,13 @@ Puis activer **Firebase App Check** ou au minimum limiter les écritures (les r�
 
 Symptôme : chaque joueur ne voit que ses scores (fallback local silencieux). Causes possibles, dans l'ordre :
 
+0. **Aucun joueur n'a rempli pseudo + opt-in** : le jeu n'envoie un score au serveur que si un pseudo est défini ET la case « participer au classement » est cochée (modale pseudo). Sans ça, AUCUNE écriture n'est tentée et la base reste vide → tout le monde voit du local. Vérifier que les testeurs ont bien un pseudo + opt-in.
+
 1. **Règles jamais publiées** : dans l'éditeur de règles RTDB, cliquer sur **Publier** (les règles « mode test » expirent après 30 jours et bloquent tout : lecture ET écriture).
 2. **Lecture refusée** : ouvrir dans le navigateur `https://realtime-database-5fd49-default-rtdb.europe-west1.firebasedatabase.app/scores.json` → doit répondre **200** (objet avec des données, ou `null` si vide). Si **401** : `".read": true` n'est pas effectif sur `scores`.
 3. **Écriture refusée** : le jeu envoie `{pseudo, score, level, levelId, mode, date}` ; la règle exige `hasChildren(['pseudo','score','level','mode','date'])` + `score <= 1000000` + `pseudo <= 16` caractères. Un champ manquant ou un score > 1 000 000 → **403/400** → le score reste en local. Tester : `POST https://...app/scores/auto/test.json` avec ce JSON → 200 attendu.
 4. **Racine non lisible = NORMAL** : `https://...app/.json` doit renvoyer **401** (c'est voulu, la racine n'est pas publique). Le jeu pingue `/scores/.json?shallow=true`.
-5. **Depuis v1.3.27, le jeu affiche le diagnostic** : la ligne sous les filtres du classement indique `N score(s) chargé(s)` (source Firebase) ou l'erreur exacte (`⚠ HTTP 401 sur scores/auto — affichage local`). Plus besoin de deviner.
+5. **Depuis v1.3.27, le jeu affiche le diagnostic** : la ligne sous les filtres du classement indique `N score(s) chargé(s)` (source Firebase) ou l'erreur exacte (`⚠ HTTP 401 sur scores/auto — affichage local`). **Depuis v1.3.28**, si les envois sont refusés, la ligne affiche aussi `⚠ écriture HTTP 403 sur scores/auto — score gardé en local` (l'erreur d'écriture reste visible même après une lecture réussie). Plus besoin de deviner.
 
 Vérification rapide en console (F12) : `fetch('https://realtime-database-5fd49-default-rtdb.europe-west1.firebasedatabase.app/scores/auto.json').then(r=>r.status)` → `200` attendu.
 
