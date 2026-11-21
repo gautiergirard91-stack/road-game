@@ -1199,6 +1199,13 @@ export class Game {
     if (!this.running || this.paused || this.tutHold) return;
     const axle = this.mode === 'auto' ? 'rear' : zone;
     const speed = this.effSpeed;
+    // v1.3.27 : voiture à l'arrêt (piéton) -> effSpeed = 0 -> tout tap est un "clic dans le vide"
+    // (sinon dtMs = 0/0 = NaN et le jugement crashait)
+    if (!(speed > 0)) {
+      this.audio.tap?.();
+      this.pendingStray = 0.25;
+      return;
+    }
     const missPx = (speed * this.windows.passable) / 1000;
     let best = null;
     let bestAd = Infinity;
@@ -1219,6 +1226,12 @@ export class Game {
     const dy = this.distance - best.dist + this.axleDelta(axle);
     const dtMs = (dy / speed) * 1000;
     const result = judge(dtMs, this.windows);
+    if (!result) {
+      // garde-fou : aucun jugement valide -> clic dans le vide
+      this.audio.tap?.();
+      this.pendingStray = 0.25;
+      return;
+    }
     best.hits[axle] = result;
     best.state = this.axles.every((a) => best.hits[a]) ? 'resolved' : 'pending';
     if (best.state === 'resolved') this.remaining--;

@@ -1,0 +1,84 @@
+# 🗺️ Roadmap & étude détaillée des améliorations — Road Tap Racer
+
+Étude de **tous les aspects du jeu** relus from first principles, avec pour chacun : état actuel, limites, et améliorations proposées (avec priorité P0/P1/P2).
+
+Légende : **P0** = à faire avant/après le merge de la branche béton armé ; **P1** = avant la publication Play Store (2–3 semaines) ; **P2** = après, contenu/vivant.
+
+---
+
+## 1. Classement & social
+
+**État** : local + Firebase (filtre difficulté + niveau, pseudo + opt-in, Google Sign-In, classement du défi du jour), diagnostic d'erreur visible (v1.3.27).
+**Limites** : pas de classement dédié speedrun ; pas de « défi tes amis » ; scores non signés (un tricheur peut poster 999 999 — la règle borne à 1 000 000 mais pas la crédibilité).
+- **P0** Vérifier avec 2 testeurs que le classement affiche bien les autres joueurs (voir `docs/FIREBASE.md` §2bis : `scores.json` → 200, règles publiées). Le diagnostic v1.3.27 dira exactement ce qui bloque sinon.
+- **P1** Classement **speedrun** dédié : nœud `speedrun/<levelId>`, tri **croissant** (temps), même filtres. (Le score speedrun est un temps : le tri desc du classement global ne convient pas.)
+- **P1** Anti-triche léger côté client : rejeter un `submitScore` si `score >` un plafond crédible pour le niveau (ex: `lines × 150 × combo max`), et ignorer les temps speedrun < temps théorique minimal (`sum(gaps) / vitesse max`).
+- **P2** « Défier un ami » (lien de partage avec son score), amis Google, notifications de nouveau record d'un ami.
+- **P2** Saisons de classement (reset mensuel, récompense cosmétique pour le top).
+
+## 2. Boucle de jeu & rétention
+
+**État** : 15 niveaux, survie ∞, speedrun, défi du jour, quêtes hebdo, streak, succès (13), tutoriel forcé.
+**Limites** : peu de raisons de revenir après les 15 niveaux ; la survie ∞ n'a pas de fin ni de récompense de palier.
+- **P1** Paliers de Survie ∞ avec récompenses cosmétiques tous les 10 niveaux (ex: skin « or » à 50 lignes).
+- **P1** Événements week-end (double pièces, niveau spécial « pluie de météores »…).
+- **P2** Mode « contre-la-montre quotidien » (= défi du jour mais avec classement temps, cf. §1).
+- **P2** Progression visible : carte du monde avec les niveaux en chaîne (au lieu d'une grille), étoiles (parfait/combo) par niveau.
+
+## 3. Économie & boutique
+
+**État** : 3 monnaies par difficulté, boutique paginée avec aperçus canvas, packs, sons ; 100 % cosmétique.
+**Limites** : pas d'achat réel (AdMob/IAP) ; aperçus statiques ; pas de « nouveau » badge.
+- **P1** AdMob **rewarded réel** dans `js/ads.js` (actuellement simulé 5 s) pour le « continuer » gratuit.
+- **P1** IAP cosmétiques via **Play Billing** (packs de pièces) — optionnel, documented dans MONETIZATION.md.
+- **P2** Aperçus **animés** (la voiture roule dans le preview, l'effet joue en boucle).
+- **P2** Badge « NOUVEAU » sur les items ajoutés depuis la dernière visite + « déjà possédé » grisé.
+- **P2** Équilibrage continu via `tools/balance_sim.mjs` (simuler des milliers de parties pour ajuster les coûts/bonus).
+
+## 4. Game feel & moteur
+
+**État** : fenêtres ms, combos sur PARFAIT, speedrun +vitesse, effets visuels, sons WebAudio, vibrations, météo, trafic, piétons, dépassement.
+**Limites** : peu de feedback d'erreur (le raté est brutal), pas de ralenti dramatique en fin de niveau, pas de « ghost » du meilleur run.
+- **P1** Jauge de précision en fin de partie (répartition perfect/bien/passable/raté) + réaction moyenne (déjà calculé : `avgReaction`).
+- **P2** Replay « ghost » du meilleur run sur le niveau (ligne fantôme).
+- **P2** Screen shake / flash / ralenti au dernier cœur (déjà un shake sur raté : l'amplifier quand il reste 1 ❤️).
+- **P2** Nouveaux types de lignes (zigzag, double bande, ligne « glissante » où le jugement se décale).
+
+## 5. Tutoriel & onboarding
+
+**État** : 9 étapes forcées, pause + curseur, quit → popup, repliable, zones AV/AR visibles.
+**Limites** : un seul tuto ; pas de « astuces » contextuelles en jeu.
+- **P0** Valider en conditions réelles (téléphone) que le slider fonctionne partout (test headless OK, mais valider le tactile réel).
+- **P2** Bulle d'aide contextuelle la première fois dans chaque mode (speedrun, survie).
+
+## 6. Accessibilité & confort
+
+**État** : fenêtres élargies, daltonien, zones horizontales, tuto repliable.
+- **P1** Option **taille des zones de tap** (S/M/L) + option « vibrations » on/off (actuellement toujours on).
+- **P2** Mode « une main » (toute la largeur = même essieu selon la difficulté), lecteur d'écran (aria-live sur le HUD).
+
+## 7. Technique & dette
+
+- **P0** Merger `vibe/beton-arme-264a24` après revue ; vérifier que la CI passe sur main.
+- **P0** Bump `CACHE`/`VERSION` à chaque deploy (déjà en règle AGENTS.md) ; demander aux testeurs de **désenregistrer le SW une fois** (F12 → Application → Service Workers → Unregister + Clear site data).
+- **P1** Google Sign-In : finir le plan B si le flux GIS pose encore souci (charger firebase-app/auth depuis gstatic + `signInWithPopup`), puis **tester la synchro cloud entre 2 appareils**.
+- **P1** Play Store (dans 2–3 semaines, cf. README) : créer l'app (`uk.roadtap.game`), récupérer **application ID + SHA-256**, remplir `.well-known/assetlinks.json`, Bubblewrap (`init` depuis `https://roadtap.uk/manifest.webmanifest`, `build`, test APK interne, upload AAB), fiche store (assets `store/` + textes ASO), classification IARC, héberger PRIVACY.md, **budget Cloud à 1 €** + supprimer le projet Cloud parasite `project-f6b7d7eb` + éventuellement repasser en plan Spark.
+- **P2** Perf : profiler le render sur vieux téléphone (déjà render stoppé si `document.hidden`) ; pré-rendre les sprites de voiture en offscreen canvas.
+- **P2** Analytics : exploiter `js/analytics.js` (funnel tuto, rétention J1/J7, niveau le plus raté) pour guider l'équilibrage.
+- **P2** i18n : anglais (ASO déjà prêt dans MARKETING.md).
+
+## 8. Qualité & processus
+
+- **P0** Garder la CI à 4 tests + audit sur **chaque push de branche** (déjà le cas) ; ne merger que CI verte.
+- **P1** Checklist manuelle `docs/QA.md` exécutée sur PC **et** téléphone avant chaque release (déjà le rituel 🔔 BLOC DE TEST).
+- **P2** Tests E2E réels (Playwright) sur la TWA avant publication store.
+
+---
+
+## 9. Risques connus à surveiller
+
+1. **Règles RTDB** : si le classement n'affiche que soi, lire la ligne de diagnostic dans le jeu + `docs/FIREBASE.md` §2bis (règles publiées ? `scores.json` → 200 ? écriture → 200 ?).
+2. **Service worker fantôme** chez les testeurs : un seul Unregister + Clear site data règle 90 % des « la version n'a pas changé ».
+3. **Bloqueurs de pub/trackers** (uBlock, Privacy Badger) cassent Google Sign-In : prévoir un message « désactive ton bloqueur pour la connexion Google » (déjà partiellement géré via `getLastAuthError`).
+4. **Facturation Google Cloud** : projet parasite supprimé, budget à 1 €, plan Spark envisagé — RTDB + Auth restent gratuits à notre échelle.
+5. **Données personnelles** : jamais de secret commité (`FIREBASE_DB_SECRET` vide, refresh token jamais envoyé à la DB) — relire `PRIVACY.md` avant chaque release store.

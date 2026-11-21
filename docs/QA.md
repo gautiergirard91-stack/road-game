@@ -198,3 +198,14 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 ## Note bloqueurs de pub (Google Sign-In)
 
 - uBlock Origin / Privacy Badger bloquent `accounts.google.com` (popup GIS) et `identitytoolkit.googleapis.com` (échange du jeton) → erreurs « popup bloquée » / CORS. **Mettre `roadtap.uk` en liste blanche** dans les deux extensions + autoriser les popups pour le site. Le bouton affiche alors « Continuer en tant que … » quand le navigateur est déjà connecté à un compte Google.
+
+## Checklist v1.3.27 (branche `vibe/beton-arme-264a24` — « béton armé »)
+
+- [ ] **Classement bavard** : la ligne sous les filtres affiche « N score(s) chargé(s) » (Firebase) ou l'erreur exacte (⚠ HTTP 401/403, réseau…) + fallback local ; liste vide en ligne → indice sur les règles RTDB (voir `docs/FIREBASE.md` §2bis : `scores.json` doit répondre 200)
+- [ ] **Save blindée** : `sanitize()` au chargement (JSON cassé / mauvais types tolérés), `mergeRemote` en try/catch, `setPseudo`/`addCoins`/`spend` anti-NaN — couvert par `tests/break.test.mjs` (42 assertions) lancé en CI
+- [ ] **Régression crash piéton** : tap quand la voiture est à l'arrêt pile sur une ligne → plus de crash (`judge(NaN)` → null, tap → clic dans le vide) — test de régression dans break.test.mjs
+- [ ] **buildPattern** : jamais de boucle infinie (lines plafonné à 10000, poids vides → dash, gaps inversés corrigés)
+- [ ] **Tutoriel** : se termine jusqu'au bout même après le passage piéton (respawn + watchdog 45 s) — `tests/tutorial.test.mjs` headless complet en CI
+- [ ] CI verte (core + smoke + tutorial + **break** + audit avec parse ESM) + CACHE sw bumpé (roadtap-v35) + VERSION 1.3.27
+- [ ] Reset dur côté testeur (Unregister SW + Clear site data) puis Ctrl+Shift+R : vérifier que la v1.3.27 charge et que tous les écrans répondent
+- [ ] Rétro + roadmap à jour : `docs/RETROSPECTIVE.md`, `docs/ROADMAP.md`

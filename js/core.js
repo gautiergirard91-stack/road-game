@@ -12,6 +12,7 @@ export function mulberry32(seed) {
 }
 
 export function judge(dtMs, windows = WINDOWS) {
+  if (!Number.isFinite(dtMs)) return null; // v1.3.27 : NaN (ex: vitesse 0) ne doit jamais passer pour un jugement
   const a = Math.abs(dtMs);
   if (a <= windows.perfect) return 'perfect';
   if (a <= windows.good) return 'good';
@@ -22,17 +23,24 @@ export function judge(dtMs, windows = WINDOWS) {
 export const BASE_POINTS = { perfect: 100, good: 60, passable: 25 };
 
 export function pointsFor(result, combo) {
-  return Math.round(BASE_POINTS[result] * (1 + Math.min(combo, 40) * 0.05));
+  const base = BASE_POINTS[result] || 0; // v1.3.27 : result inconnu/NaN -> 0, jamais NaN
+  const c = Number.isFinite(combo) ? combo : 0;
+  return Math.round(base * (1 + Math.min(c, 40) * 0.05));
 }
 
 export function buildPattern(level, seed, mode = 'auto') {
   const rand = mulberry32(seed);
-  const types = Object.keys(level.w).filter((k) => level.w[k] > 0);
+  let types = Object.keys(level.w || {}).filter((k) => level.w[k] > 0);
+  if (!types.length) types = ['dash']; // v1.3.27 : poids corrompus -> dash par défaut
+  // v1.3.27 : jamais de boucle infinie, même avec un level bidouillé (lines = NaN/Infinity/énorme)
+  const nLines = Math.max(1, Math.min(Math.floor(Number(level.lines)) || 1, 10000));
+  const gapMin = Number.isFinite(level.gapMin) ? level.gapMin : 540;
+  const gapMax = Number.isFinite(level.gapMax) && level.gapMax >= gapMin ? level.gapMax : gapMin + 180;
   const axle = () => (mode === 'auto' ? 'rear' : rand() < 0.5 ? 'front' : 'rear');
   const lines = [];
-  let dist = Math.max(level.gapMax, 620);
+  let dist = Math.max(gapMax, 620);
   lines.push({ type: 'dash', dist, axle: axle() });
-  for (let i = 1; i < level.lines; i++) {
+  for (let i = 1; i < nLines; i++) {
     const r = rand();
     let acc = 0;
     let type = types[0];
@@ -44,7 +52,7 @@ export function buildPattern(level, seed, mode = 'auto') {
       }
     }
     if (level.crosswalk && i > 2 && rand() < 0.1) type = 'crosswalk';
-    const gap = level.gapMin + rand() * (level.gapMax - level.gapMin);
+    const gap = gapMin + rand() * (gapMax - gapMin);
     dist += gap;
     lines.push({ type, dist, axle: axle() });
     if (rand() < (level.pDouble || 0)) {
@@ -56,7 +64,9 @@ export function buildPattern(level, seed, mode = 'auto') {
 }
 
 export function isPerfectClear(stats) {
-  return stats.perfects > 0 && stats.goods === 0 && stats.passables === 0 && stats.misses === 0;
+  const s = stats || {};
+  const n = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
+  return n(s.perfects) > 0 && n(s.goods) === 0 && n(s.passables) === 0 && n(s.misses) === 0;
 }
 
 export function perfectClearBonus(level) {
@@ -64,9 +74,13 @@ export function perfectClearBonus(level) {
 }
 
 export function coinsForResult(stats, level, completed) {
-  const perfectBonus = completed && isPerfectClear(stats) ? perfectClearBonus(level) : 0;
+  // v1.3.27 : stats corrompues -> 0 (jamais NaN, sinon le portefeuille devenait NaN)
+  const fin = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
+  const s = stats || {};
+  const id = fin(level && level.id);
+  const perfectBonus = completed && isPerfectClear(s) ? perfectClearBonus({ id }) : 0;
   // gains volontairement sobres (anti-farm) : score/8 + 3×PARFAIT + complétion
-  return Math.round(stats.score / 8) + stats.perfects * 3 + (completed ? 100 + level.id * 20 : 0) + perfectBonus;
+  return Math.round(fin(s.score) / 8) + fin(s.perfects) * 3 + (completed ? 100 + id * 20 : 0) + perfectBonus;
 }
 
 export function accuracy(stats) {
@@ -98,8 +112,9 @@ export function avgReaction(stats) {
 
 // --- Défis & quêtes (rétention) ---
 
-// v1.3.19 : formatage du chrono speedrun -> "m:ss.cc"
+// v1.3.19 : formatage du chrono speedrun -> "m:ss.cc" (v1.3.27 : garde NaN/infini/négatif)
 export function fmtTime(sec) {
+  if (!Number.isFinite(sec) || sec < 0) sec = 0;
   const m = Math.floor(sec / 60);
   const s = sec - m * 60;
   return `${m}:${s.toFixed(2).padStart(5, '0')}`;

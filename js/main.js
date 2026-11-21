@@ -141,9 +141,6 @@ function renderLbFilter() {
 }
 
 async function renderLeaderboard() {
-  $('#lb-source').textContent = leaderboard.isOnline()
-    ? 'Classement en ligne (Firebase)'
-    : 'Classement local — configure Firebase dans js/config.js pour un classement en ligne (voir README)';
   const list = $('#leaderboard-list');
   list.innerHTML = '<div class="card-sub">Chargement…</div>';
   let top = [];
@@ -152,9 +149,24 @@ async function renderLeaderboard() {
   } catch {
     top = [];
   }
+  // v1.3.27 : diagnostic visible pour expliquer un classement "vide" (règles RTDB, réseau, etc.)
+  const st = leaderboard.getLbStatus ? leaderboard.getLbStatus() : null;
+  const srcEl = $('#lb-source');
+  if (!leaderboard.isOnline()) {
+    srcEl.textContent = 'Classement local — configure Firebase dans js/config.js pour un classement en ligne (voir README)';
+  } else if (st && st.source === 'firebase') {
+    srcEl.textContent = `Classement en ligne (Firebase) — ${st.count} score(s) chargé(s)` + (st.error ? ` — ⚠ ${st.error}` : '');
+  } else if (st && st.error) {
+    srcEl.textContent = `⚠ Firebase injoignable ou refusé : ${st.error} — affichage local`;
+  } else {
+    srcEl.textContent = 'Classement en ligne (Firebase) — aucun score en ligne pour ce filtre, affichage local';
+  }
   list.innerHTML = '';
   if (!top.length) {
-    list.innerHTML = '<div class="card-sub">Aucun score pour l\'instant — joue une partie !</div>';
+    const hint = leaderboard.isOnline()
+      ? 'Vérifie les règles RTDB : ouvre ' + 'https://realtime-database-5fd49-default-rtdb.europe-west1.firebasedatabase.app/scores.json' + ' (doit répondre 200 avec des données ou null). Si la règle est "auth != null", les joueurs non connectés ne voient que leurs scores locaux.'
+      : 'Aucun score pour l\'instant — joue une partie !';
+    list.innerHTML = `<div class="card-sub">${hint}</div>`;
     return;
   }
   top.forEach((e, i) => {
