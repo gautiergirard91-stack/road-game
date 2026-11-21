@@ -53,7 +53,7 @@ async function exchangeGoogleToken(googleIdToken) {
     } catch {
       /* ignore */
     }
-    throw new Error(`Échange du jeton Google: ${msg}`);
+    throw new Error(`Échange du jeton Google: ${msg} (clé API invalide ou API Identity Toolkit non activée ?)`);
   }
   const data = await res.json();
   return {
@@ -66,6 +66,11 @@ async function exchangeGoogleToken(googleIdToken) {
 }
 
 let gsiInitialized = false;
+let lastAuthError = null;
+
+export function getLastAuthError() {
+  return lastAuthError;
+}
 
 // Rend le bouton officiel Google dans `container` ; la promesse est résolue avec la session
 // { uid, idToken, refreshToken, email } au choix du compte, ou null si annulé/erreur.
