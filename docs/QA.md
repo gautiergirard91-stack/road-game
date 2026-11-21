@@ -188,6 +188,13 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] Hors-ligne après ça : le jeu se lance toujours depuis le cache
 - [ ] CI verte (tests + audit) + CACHE sw bumpé (roadtap-v32) + VERSION 1.3.24
 
+## Checklist v1.3.25 (fix SyntaxError tutorial.js + parse ESM dans l'audit)
+
+- [ ] **fix** : `tutorial.js` ligne 44 — template literal ouverte en backtick mais fermée en `"` (SyntaxError « missing } », page morte) → fermée proprement en backtick
+- [ ] `tools/audit.mjs` fait maintenant un **parse ESM fiable** (`node --input-type=module --check` via stdin) de tous les modules + sw.js + tests — `node --check file.js` seul ne suffit pas (il a raté ce bug) ; lancé en CI
+- [ ] Le jeu démarre, tous les clics répondent, le tutoriel se lance et le texte de l'étape Permis A s'affiche (avec haut/bas ou gauche/droite selon l'option)
+- [ ] CI verte (core + smoke + audit incl. parse ESM) + CACHE sw bumpé (roadtap-v33) + VERSION 1.3.25
+
 ## Note bloqueurs de pub (Google Sign-In)
 
 - uBlock Origin / Privacy Badger bloquent `accounts.google.com` (popup GIS) et `identitytoolkit.googleapis.com` (échange du jeton) → erreurs « popup bloquée » / CORS. **Mettre `roadtap.uk` en liste blanche** dans les deux extensions + autoriser les popups pour le site. Le bouton affiche alors « Continuer en tant que … » quand le navigateur est déjà connecté à un compte Google.

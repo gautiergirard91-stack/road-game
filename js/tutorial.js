@@ -41,7 +41,7 @@ export class Tutorial {
         missStep: true,
       },
       {
-        text: `🎚️ Permis A : chaque ligne se joue 2 fois, indépendamment ! ${zonesTxt}. Fais les deux sur une même ligne.",
+        text: `🎚️ Permis A : chaque ligne se joue 2 fois, indépendamment ! ${zonesTxt}. Fais les deux sur une même ligne.`,
         enter: (g) => {
           g.mode = 'permisA';
           g.axles = ['front', 'rear'];
