@@ -5,7 +5,7 @@ Object.defineProperty(globalThis, 'window', {
   configurable: true,
 });
 
-const { Game, MODELS } = await import('../js/game.js');
+const { Game, MODELS, CAR_STYLES } = await import('../js/game.js');
 const { LEVELS, SKINS } = await import('../js/data.js');
 
 function makeCtx() {
@@ -225,9 +225,10 @@ function step(game, seconds, tapper) {
   assert.ok(stoppedBefore, "à l'arrêt pour le piéton, la voiture est AVANT le passage piéton");
 }
 
-// v1.3.4 : chaque skin a un modèle de voiture existant
+// v1.3.4 : chaque skin a un modèle de voiture existant ; v1.3.12 : chaque style de rendu est connu
 for (const s of SKINS) {
   assert.ok(MODELS[s.model], `modèle ${s.model} existe pour le skin ${s.id}`);
+  assert.ok(CAR_STYLES.includes(s.style || 'photo'), `style ${s.style || 'photo'} connu pour le skin ${s.id}`);
 }
 
 console.log('OK - smoke test moteur : 9 scénarios sans crash, mécaniques vérifiées');

@@ -1,5 +1,5 @@
 import { LEVELS, THEMES, SKINS, EFFECTS, DIFFICULTIES, CURRENCIES, WINDOWS, ACHIEVEMENTS, THEME_SHOP, ENDLESS_LEVEL, PACKS, SOUND_PACKS } from './data.js';
-import { Game } from './game.js';
+import { Game, CAR_STYLE_LABEL } from './game.js';
 import * as store from './store.js';
 import { sfx, setEnabled, setMusicEnabled, unlockAudio, applySoundPack } from './audio.js';
 import { coinsForResult, accuracy, avgReaction, continueCost, maxMissesFor, firstClearBonus, isPerfectClear, perfectClearBonus, dailyChallenge, weeklyQuests } from './core.js';
@@ -456,7 +456,7 @@ function renderShop() {
       <div class="swatch" style="background:${s.rainbow ? 'linear-gradient(90deg,#ff5c8a,#ffd54a,#7ee081,#54f0ff,#c792ff)' : s.color}"></div>
       <div class="card-body">
         <div class="card-title">${s.name}</div>
-        <div class="card-sub">${MODEL_LABEL[s.model] || 'Berline'}</div>
+        <div class="card-sub">${MODEL_LABEL[s.model] || 'Berline'} · ${CAR_STYLE_LABEL[s.style || 'photo']}</div>
       </div>
       <button class="btn small">${selected ? '✓ Équipée' : owned ? 'Équiper' : `${s.cost} ${cur(s.currency || 'auto').icon}`}</button>`;
     card.querySelector('button').addEventListener('click', () => {

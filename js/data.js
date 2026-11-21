@@ -75,7 +75,7 @@ export const LEVELS = [
 ];
 
 export const SKINS = [
-  { id: 'default', name: 'Berline grise', color: '#9aa3b2', cost: 0, currency: 'auto', model: 'berline' },
+  { id: 'default', name: 'Berline grise', color: '#9aa3b2', cost: 0, currency: 'auto', model: 'berline', style: 'photo' },
   { id: 'rouge', name: 'Berline rouge', color: '#e0393e', cost: 200, currency: 'auto', model: 'berline' },
   { id: 'bleue', name: 'Citadine bleue', color: '#2f7de1', cost: 200, currency: 'auto', model: 'citadine' },
   { id: 'verte', name: 'Berline verte', color: '#2fae5f', cost: 300, currency: 'auto', model: 'berline' },
@@ -89,6 +89,13 @@ export const SKINS = [
   { id: 'police', name: 'Police', color: '#eef2f7', cost: 3000, currency: 'pilote', model: 'berline' },
   { id: 'f1rouge', name: 'F1 rouge', color: '#d21f2b', cost: 5000, currency: 'pilote', model: 'f1' },
   { id: 'f1noire', name: 'F1 noire', color: '#15171c', cost: 6500, currency: 'pilote', model: 'f1', shine: true },
+  // v1.3.12 : styles de rendu variés (du photoréaliste aux blocs)
+  { id: 'blocs', name: 'Classique (blocs)', color: '#8a93a6', cost: 0, currency: 'auto', model: 'citadine', style: 'flat' },
+  { id: 'pixel', name: 'Pixel 8-bit', color: '#54f0ff', cost: 1200, currency: 'auto', model: 'citadine', style: 'pixel' },
+  { id: 'retro', name: 'Rétro 80s', color: '#e05c9a', cost: 1800, currency: 'auto', model: 'berline', style: 'retro' },
+  { id: 'toy', name: 'Jouet plastique', color: '#ff8a3d', cost: 2200, currency: 'permisA', model: 'citadine', style: 'toy' },
+  { id: 'neoncar', name: 'Néon', color: '#54f0ff', cost: 3500, currency: 'permisA', model: 'sport', style: 'neon' },
+  { id: 'holo', name: 'Hologramme', color: '#9ef0ff', cost: 5500, currency: 'pilote', model: 'sport', style: 'holo' },
 ];
 
 export const EFFECTS = [
