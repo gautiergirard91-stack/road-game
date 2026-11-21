@@ -173,6 +173,13 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] **Délimitation des zones** : en Permis A/Pilote, une ligne pointillée au milieu de l'écran avec « ▲ AV / ▼ AR » (haut/bas) ou « AV ⬅ / ➡ AR » verticale (option gauche/droite) ; rien en Auto école
 - [ ] CI verte + CACHE sw bumpé (roadtap-v30) + VERSION 1.3.22
 
+## Checklist v1.3.23 (audit anti-bugs)
+
+- [ ] `tools/audit.mjs` (lancé aussi en CI) : aucun ID JS sans élément HTML, aucun import sans export, tous les assets du SW existent, icônes du manifest OK
+- [ ] **fix** : `js/auth.js` ajouté à la liste ASSETS du service worker (sinon le jeu plantait hors-ligne)
+- [ ] Mode hors-ligne : recharger roadtap.uk sans réseau → le jeu se lance (menu jouable)
+- [ ] CI verte (tests + audit) + CACHE sw bumpé (roadtap-v31) + VERSION 1.3.23
+
 ## Note bloqueurs de pub (Google Sign-In)
 
 - uBlock Origin / Privacy Badger bloquent `accounts.google.com` (popup GIS) et `identitytoolkit.googleapis.com` (échange du jeton) → erreurs « popup bloquée » / CORS. **Mettre `roadtap.uk` en liste blanche** dans les deux extensions + autoriser les popups pour le site. Le bouton affiche alors « Continuer en tant que … » quand le navigateur est déjà connecté à un compte Google.

@@ -1,4 +1,4 @@
-const CACHE = 'roadtap-v30';
+const CACHE = 'roadtap-v31';
 
 const ASSETS = [
   './',
@@ -16,6 +16,7 @@ const ASSETS = [
   './js/cloudsave.js',
   './js/analytics.js',
   './js/tutorial.js',
+  './js/auth.js',
   './manifest.webmanifest',
   './icons/favicon-32.png',
   './icons/icon-192.png',
