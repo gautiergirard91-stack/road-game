@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 
 const root = process.cwd();
@@ -81,6 +82,25 @@ for (const f of jsFiles) {
   }
 }
 console.log('🔑 clés localStorage:', [...keys].join(', '));
+
+// 8) parse ESM fiable de chaque module — `node --check file.js` rate des SyntaxError ESM,
+//    donc on parse via stdin en mode module (attrape les template literals cassés, etc.)
+const parseFiles = [
+  ...jsFiles.map((f) => 'js/' + f),
+  'sw.js',
+  ...fs.readdirSync(path.join(root, 'tests')).filter((f) => f.endsWith('.mjs')).map((f) => 'tests/' + f),
+];
+for (const f of parseFiles) {
+  const r = spawnSync(process.execPath, ['--input-type=module', '--check'], {
+    input: fs.readFileSync(path.join(root, f), 'utf8'),
+    encoding: 'utf8',
+  });
+  if (r.status !== 0) {
+    const first = String(r.stderr).split('\n').find((l) => l.trim()) || '';
+    console.log(`❌ ${f}: SyntaxError ESM — ${first}`);
+    problems++;
+  }
+}
 
 console.log(problems === 0 ? '✅ AUDIT STATIQUE: aucun problème trouvé' : `❌ ${problems} problème(s) trouvé(s)`);
 process.exit(problems === 0 ? 0 : 1);
