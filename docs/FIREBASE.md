@@ -81,3 +81,12 @@ Difficulté : **modérée** — aucun SDK ajouté : on utilise le bouton officie
 5. Règles RTDB : le nœud `players` accepte désormais `(auth != null && auth.uid == $id)` (voir §2) — la sauvegarde cloud est keyed par **uid** quand Google est lié, sinon par pseudo (rétrocompatible).
 
 Données reçues de Google : **uid, email, displayName** (dans le jeton). Le `refreshToken` reste en `localStorage` uniquement et n'est **jamais** envoyé à la base de données. Voir `PRIVACY.md`.
+
+## 6. Facturation : rester à 0 €
+
+- Les crédits d'essai (≈ 269 €) ne sont pas une facture ; la facturation à l'usage ne démarre qu'au-delà des quotas gratuits.
+- **Gratuit à notre échelle** : RTDB (1 Gio stocké, 10 Gio/mois), Firebase Auth Google (quota mensuel gratuit), credentials OAuth (gratuits).
+- **Verrouiller** : Cloud Console → Billing → Budgets & alerts → budget à **1 €** avec alerte e-mail (50 %/100 %).
+- Option : repasser le projet en plan **Spark** (Firebase → Project settings → Usage and billing → Modify plan) — RTDB + Auth continuent gratuitement.
+- Supprimer tout projet Cloud parasite créé par erreur (sélecteur de projet → Shut down) — ne JAMAIS arrêter `realtime-database-5fd49`.
+- L'édition des origines OAuth se fait dans le projet Cloud **lié à `realtime-database-5fd49`** (n° 804737015370), pas dans un autre projet.
