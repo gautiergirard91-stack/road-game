@@ -7,7 +7,7 @@ import { watchRewarded } from './ads.js';
 import { Tutorial } from './tutorial.js';
 import * as leaderboard from './leaderboard.js';
 import * as cloudsave from './cloudsave.js';
-import { renderGoogleButton, restoreGoogleSession, setAuthToken, getAuthToken, signOutGoogle, isGoogleAuthConfigured } from './auth.js';
+import { renderGoogleButton, restoreGoogleSession, setAuthToken, getAuthToken, signOutGoogle, isGoogleAuthConfigured, getLastAuthError } from './auth.js';
 import { logEvent } from './analytics.js';
 import { VERSION } from './config.js';
 
@@ -856,7 +856,8 @@ $('#btn-pseudo').addEventListener('click', () => {
           updateGoogleStatus();
           pushCloud();
         } else {
-          toast('❌ Connexion Google annulée ou refusée — réessaie (détail dans la console F12)');
+          const why = getLastAuthError();
+          toast(`❌ Connexion Google refusée${why ? ' : ' + why : ' — réessaie (F12 console + onglet Réseau pour le détail)'}`, );
         }
       })
       .catch((err) => {
