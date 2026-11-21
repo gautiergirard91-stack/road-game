@@ -34,16 +34,19 @@ function loadGsi() {
 }
 
 // Échange le jeton Google (ID token) contre une session Firebase (REST, zéro SDK)
+// En form-urlencoded = requête "simple" CORS : AUCUN preflight OPTIONS (celui-ci renvoyait
+// 404 sans Access-Control-Allow-Origin). La réponse POST renvoie ACAO:* si la clé est valide.
 async function exchangeGoogleToken(googleIdToken) {
+  const body = new URLSearchParams({
+    postBody: `id_token=${encodeURIComponent(googleIdToken)}&providerId=google.com`,
+    requestUri: window.location.origin,
+    returnIdpCredential: 'true',
+    returnSecureToken: 'true',
+  });
   const res = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithIdToken?key=${FIREBASE_WEB_API_KEY}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      postBody: `id_token=${encodeURIComponent(googleIdToken)}&providerId=google.com`,
-      requestUri: window.location.origin,
-      returnIdpCredential: true,
-      returnSecureToken: true,
-    }),
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: body.toString(),
   });
   if (!res.ok) {
     let msg = `HTTP ${res.status}`;
