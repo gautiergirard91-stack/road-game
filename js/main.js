@@ -2,7 +2,7 @@ import { LEVELS, THEMES, SKINS, EFFECTS, DIFFICULTIES, CURRENCIES, WINDOWS, ACHI
 import { Game, CAR_STYLE_LABEL, renderCarPreview, renderEffectPreview, renderThemePreview, renderPackPreview, renderSoundPreview } from './game.js';
 import * as store from './store.js';
 import { sfx, setEnabled, setMusicEnabled, unlockAudio, applySoundPack, setMusicCombo, musicSting, musicVictory } from './audio.js';
-import { coinsForResult, accuracy, avgReaction, continueCost, maxMissesFor, firstClearBonus, isPerfectClear, perfectClearBonus, dailyChallenge, weeklyQuests, fmtTime, zoneFromPoint, keyToAction, isNewerVersion, starsFor, endlessMilestones, isWeekend, weekendCoinMultiplier, filterFriendsByPseudo } from './core.js';
+import { coinsForResult, accuracy, avgReaction, continueCost, maxMissesFor, firstClearBonus, isPerfectClear, perfectClearBonus, dailyChallenge, weeklyQuests, fmtTime, zoneFromPoint, keyToAction, isNewerVersion, starsFor, endlessMilestones, isWeekend, weekendCoinMultiplier, filterFriendsByPseudo, canSubmitToLeaderboard } from './core.js';
 import { watchRewarded } from './ads.js';
 import { Tutorial } from './tutorial.js';
 import * as leaderboard from './leaderboard.js';
@@ -250,6 +250,8 @@ async function renderLeaderboard() {
   if (st && st.writeError) srcEl.textContent += ` — ⚠ ${st.writeError}`;
   // v1.3.37 : sans compte Google, on ne peut PAS apparaître dans le classement (accès anonyme retiré)
   if (!save.uid) srcEl.textContent = '🔒 Connecte ton compte Google (bouton « ✏️ Mon pseudo ») pour apparaître dans le classement — l\'accès anonyme est retiré. ' + srcEl.textContent;
+  // v1.3.45 : fenêtres de timing élargies actives -> non éligible au classement en ligne
+  if (save.wideWindows) srcEl.textContent += ' — ♿ fenêtres élargies actives : tes scores n\'apparaissent pas dans le classement en ligne.';
   list.innerHTML = '';
   if (!top.length) {
     // v1.3.36 : message dédié quand on cherche dans ses amis
@@ -995,14 +997,14 @@ function onGameEnd(stats, level) {
   logEvent('game_over', { score: stats.score, level: level.id, mode: save.difficulty, completed: !!stats.completed, reason: stats.reason });
   // v1.3.37 : envoi UNIQUEMENT si compte Google lié (uid) — l'accès anonyme au classement est retiré
   // (règles RTDB v1.3.37 : auth != null requis ; leaderboard.submitScore refuse sinon et garde en local)
-  if (!sr && save.pseudo && save.uid) {
+  if (!sr && canSubmitToLeaderboard(save)) { // v1.3.45 : wideWindows -> hors classement en ligne
     // v1.3.19 : en speedrun le score est un temps -> pas de classement global (record local bestTime)
     leaderboard
       // v1.3.32 : uid + jeton -> règles RTDB vérifient uid == auth.uid (anti-usurpation)
       .submitScore({ pseudo: save.pseudo, uid: save.uid || '', score: stats.score, level: level.name, levelId: level.id, mode: save.difficulty, date: Date.now() }, getAuthToken())
       .catch(() => {});
   }
-  if (sr && stats.completed && save.pseudo && save.uid) {
+  if (sr && stats.completed && canSubmitToLeaderboard(save)) { // v1.3.45 : idem speedrun
     // v1.3.31 : classement speedrun dédié (nœud /speedrun/<levelId>, temps en ms, tri croissant)
     leaderboard
       .submitSpeedrun(level.id, { pseudo: save.pseudo, uid: save.uid || '', timeMs: stats.timeMs || 0, level: level.name, levelId: level.id, mode: save.difficulty, date: Date.now() }, getAuthToken())
@@ -1039,7 +1041,7 @@ function onGameEnd(stats, level) {
       store.addCoins(dc.mode, dc.reward);
       refreshCoins();
       toast(`🎯 Défi du jour réussi : « ${dc.label} » → +${dc.reward} ${cur(dc.mode).icon}`);
-      if (save.pseudo && save.uid) {
+      if (canSubmitToLeaderboard(save)) { // v1.3.45 : idem (wideWindows exclu aussi)
         // v1.3.37 : idem — défi du jour réservé aux comptes Google connectés
         leaderboard.submitChallengeScore(dc.id, { pseudo: save.pseudo, uid: save.uid || '', score: stats.score, mode: dc.mode, date: Date.now() }, getAuthToken()).catch(() => {});
       }
@@ -1466,6 +1468,13 @@ on('btn-quit', 'click', () => {
   $('#pause-overlay').classList.remove('active');
   renderLevels();
   show('screen-levels');
+});
+// v1.3.45 : « Recommencer » directement depuis le menu pause
+on('btn-pause-retry', 'click', () => {
+  sfx.click();
+  togglePause(false);
+  cancelNextCountdown();
+  if (currentLevel) startLevel(currentLevel);
 });
 on('btn-retry', 'click', () => {
   sfx.click();

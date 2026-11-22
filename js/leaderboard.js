@@ -49,6 +49,8 @@ function localList() {
 
 function cleanEntry(e) {
   if (!e || typeof e !== 'object') return null;
+  // v1.3.45 : une entrée marquée wideWindows (fenêtres élargies) n'est JAMAIS affichée
+  if (e.wideWindows === true) return null;
   const score = typeof e.score === 'number' && Number.isFinite(e.score) ? e.score : 0;
   return { ...e, score };
 }
@@ -256,6 +258,7 @@ function localSrList() {
 
 function cleanTimeEntry(e) {
   if (!e || typeof e !== 'object') return null;
+  if (e.wideWindows === true) return null; // v1.3.45 : idem pour le classement speedrun
   if (typeof e.timeMs !== 'number' || !Number.isFinite(e.timeMs)) return null;
   return { ...e, timeMs: e.timeMs };
 }

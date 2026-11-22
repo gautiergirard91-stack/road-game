@@ -214,6 +214,14 @@ export function weekendCoinMultiplier(d = new Date()) {
 // --- v1.3.36 : classement « amis » — filtrage par pseudo (insensible à la casse, espaces ignorés) ---
 // Amis = liste de pseudos saisie par le joueur (save.friends) ; on ne lit JAMAIS les contacts
 // Google du téléphone (People API = permission intrusive, voir docs/PRIVACY.md).
+
+// v1.3.45 : éligibilité au classement EN LIGNE — pseudo + compte Google lié requis (v1.3.40),
+// et PAS de fenêtres de timing élargies (option accessibilité wideWindows) : un joueur qui
+// joue avec des fenêtres allongées ne doit pas apparaître dans le classement.
+export function canSubmitToLeaderboard(s) {
+  return Boolean(s && s.pseudo && s.uid && !s.wideWindows);
+}
+
 export function filterFriendsByPseudo(entries, friends) {
   const set = new Set(
     (Array.isArray(friends) ? friends : [])
