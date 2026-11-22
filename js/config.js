@@ -10,4 +10,4 @@ export const VERSION = '1.3.34';
 // App Check reCAPTCHA v3 — SITE KEY (publique, commitable ; la secret key reste côté console uniquement)
 // App Check = reCAPTCHA ENTERPRISE (Fraud Defense) — Firebase ne prend plus les nouvelles clés v3.
 // Site key Enterprise (publique) créée dans Cloud Console > reCAPTCHA Enterprise/Fraud Defense, type "score-based website", domaines: roadtap.uk, gautiergirard91-stack.github.io, localhost
-export const FIREBASE_APP_CHECK_SITE_KEY = '6LecyCwuAAAAAFt9Kb_uhj4AFraOo4dnpWQfQpQD';
+export const FIREBASE_APP_CHECK_SITE_KEY = '6LecyCwuAAAAAAjFj7BPiUGf7raomYz2mvjYOWxw'; // site key ENTERPRISE (Fraud Defense), enregistrée aussi dans Firebase > App Check > Apps
