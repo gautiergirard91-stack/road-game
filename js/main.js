@@ -501,15 +501,15 @@ function toast(msg) {
 }
 
 function updateSoundBtn() {
-  $('#btn-sound').textContent = save.sound ? '🔊 Son : ON' : '🔇 Son : OFF';
+  // v1.3.53 : plus de bouton son dans le menu principal -> uniquement ⚙️ Paramètres
   const bs = $('#btn-set-sound');
-  if (bs) bs.textContent = save.sound ? '🔊 Son : ON' : '🔇 Son : OFF'; // v1.3.47 : menu Paramètres
+  if (bs) bs.textContent = save.sound ? '🔊 Son : ON' : '🔇 Son : OFF';
 }
 
 function updateMusicBtn() {
-  $('#btn-music').textContent = save.music ? '🎵 Musique : ON' : '🎵 Musique : OFF';
+  // v1.3.53 : plus de bouton musique dans le menu principal -> uniquement ⚙️ Paramètres
   const bm = $('#btn-set-music');
-  if (bm) bm.textContent = save.music ? '🎵 Musique : ON' : '🎵 Musique : OFF'; // v1.3.47 : menu Paramètres
+  if (bm) bm.textContent = save.music ? '🎵 Musique : ON' : '🎵 Musique : OFF';
 }
 
 async function renderChallenges() {
@@ -1822,8 +1822,8 @@ window.addEventListener('keydown', (e) => {
   if (action) {
     e.preventDefault();
     if (action === 'retry') {
-      // v1.3.49 : touche « recommencer » — fonctionne en jeu, même en pause
-      if (currentScreen === 'screen-game' && currentLevel) {
+      // v1.3.49/v1.3.53 : touche « recommencer » — en jeu (même en pause) ET sur l'écran de fin
+      if ((currentScreen === 'screen-game' || currentScreen === 'screen-over') && currentLevel) {
         cancelNextCountdown();
         startLevel(currentLevel);
       }

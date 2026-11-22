@@ -435,3 +435,10 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] `node tests/break.test.mjs` : section AD (pause/settings HTML, plus de p-, câblage retour pause, contextmenu)
 - [ ] Test manuel : en jeu, clic droit bindé = action de jeu, plus de menu Windows ; ⏸ → ⚙️ Paramètres → retour → toujours en pause
 - [ ] CI verte + CACHE sw bumpé (roadtap-v60) + VERSION 1.3.52 + version.json 1.3.52
+
+## Checklist v1.3.53 (menu principal allégé + retry sur l'écran de fin)
+
+- [ ] Menu principal : boutons « 🔊 Son » et « 🎵 Musique » supprimés (les réglages restent dans ⚙️ Paramètres → `btn-set-sound`/`btn-set-music`)
+- [ ] Touche « recommencer » (`save.keys.retry`, défaut R) fonctionne en jeu (même en pause) **et sur l'écran de fin de partie** (`screen-over`) → relance le niveau direct
+- [ ] `node tests/break.test.mjs` : section AE (menu sans son/musique, settings conservé, retry sur screen-over)
+- [ ] CI verte + CACHE sw bumpé (roadtap-v61) + VERSION 1.3.53 + version.json 1.3.53
