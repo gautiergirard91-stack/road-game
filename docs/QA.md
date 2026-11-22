@@ -418,3 +418,11 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] Classement : options « Tous » (difficulté) et « Tous niveaux » (niveau) supprimées — ouverture = difficulté courante, aucun filtre niveau ; **filtre par niveau 2 « Accélération » : on balaie désormais tous les modes + `levelId` string/number accepté** (bug testeur corrigé)
 - [ ] `node tests/break.test.mjs` : section AB (textes/filtres/CSS + filterLevel fonctionnel)
 - [ ] CI verte + CACHE sw bumpé (roadtap-v58) + VERSION 1.3.50 + version.json 1.3.50
+
+## Checklist v1.3.51 (niveaux déterministes — speedrun-friendly)
+
+- [ ] `core.levelSeed(levelId, mode)` = hash fixe ; `game.start()` utilise cette seed (plus `Date.now()`) et reset `this.rand` + `chunkN` → **le même niveau (id+mode) est identique à chaque partie**
+- [ ] Tronçons suivants (`extendPattern`) seedés (`id#chunkN`) ; trafic + piétons passent sur `this.rand` (seedé) — décor/météo restent cosmétiques (`Math.random`)
+- [ ] `node tests/break.test.mjs` : section AC (levelSeed stable/mode, buildPattern identique, 2 parties = mêmes lignes + mêmes tronçons, trafic déterministe)
+- [ ] Test manuel : niveau 3 en Permis A deux fois → mêmes lignes au même endroit ; en speedrun, le parcours est reproductible (temps comparables) ; « 🔄 Recommencer »/touche R -> parcours identique aussi
+- [ ] CI verte + CACHE sw bumpé (roadtap-v59) + VERSION 1.3.51 + version.json 1.3.51

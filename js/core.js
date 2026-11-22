@@ -241,6 +241,13 @@ export function fmtTime(sec) {
   return `${m}:${s.toFixed(2).padStart(5, '0')}`;
 }
 
+
+// v1.3.51 : seed déterministe d'un niveau — le même niveau (id + mode) produit EXACTEMENT
+// le même parcours à chaque partie (speedrun-friendly : on peut apprendre le niveau par cœur).
+export function levelSeed(levelId, mode = 'auto') {
+  return hashString(`lvl:${levelId}:${mode || 'auto'}`);
+}
+
 export function hashString(s) {
   let h = 2166136261;
   for (let i = 0; i < s.length; i++) {

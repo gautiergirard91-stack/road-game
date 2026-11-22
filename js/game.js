@@ -1,5 +1,5 @@
 import { THEMES, SKINS, WINDOWS } from './data.js';
-import { buildPattern, judge, pointsFor, maxMissesFor, axleDelta } from './core.js';
+import { buildPattern, judge, pointsFor, maxMissesFor, axleDelta, mulberry32, levelSeed } from './core.js';
 
 const RESULT_STYLE = {
   perfect: { label: 'PARFAIT', color: '#ffd54a' },
@@ -725,6 +725,9 @@ export class Game {
     // v1.3.41 : le speedrun ne force PLUS la difficulté Pilote — il se joue dans la difficulté
     // choisie (auto / permisA / pilote) ; seule la mécanique change (chrono + vitesse bonus)
     this.mode = opts.mode || 'auto';
+    // v1.3.51 : niveaux déterministes — rand seedé (seed fixe par niveau+mode), reset dans start()
+    this.rand = mulberry32(levelSeed(this.level ? this.level.id : 0, this.mode));
+    this.chunkN = 0;
     this.effects = opts.effects || [];
     this.windows = opts.windows || WINDOWS;
     this.access = opts.access || {};
@@ -763,7 +766,11 @@ export class Game {
   }
 
   start() {
-    const seed = (Date.now() % 2147483647) >>> 0;
+    // v1.3.51 : seed FIXE par (niveau, mode) -> le même niveau est identique à chaque partie
+    // (speedrun-friendly). Le trafic/les piétons utilisent le même rand seedé (reset ici).
+    const seed = levelSeed(this.level.id, this.mode);
+    this.rand = mulberry32(seed);
+    this.chunkN = 0;
     this.lines = buildPattern(this.level, seed, this.mode).map((l) => ({
       type: l.type,
       dist: l.dist,
@@ -995,7 +1002,7 @@ export class Game {
         gapMin: Math.max(230, this.level.gapMin - this.distance * 0.004),
         gapMax: Math.max(320, this.level.gapMax - this.distance * 0.004),
       },
-      (Math.random() * 1e9) >>> 0,
+      levelSeed(`${this.level.id}#${++this.chunkN}`, this.mode), // v1.3.51 : tronçons déterministes aussi
       this.mode
     );
     const offset = last.dist + 400;
@@ -1052,15 +1059,15 @@ export class Game {
     if (cw && !this.ped) {
       const y = this.lineY(cw);
       if (y > this.wheelY - 750 && y < this.wheelY - 250) {
-        const fromLeft = Math.random() < 0.5;
+        const fromLeft = this.rand() < 0.5; // v1.3.51 : seedé
         this.ped = {
           line: cw,
           x: fromLeft ? this.roadX - 30 : this.roadX + this.roadW + 30,
           dir: fromLeft ? 1 : -1,
           y: y + 16,
-          speed: 70 + Math.random() * 50,
-          color: TRAFFIC_COLORS[(Math.random() * TRAFFIC_COLORS.length) | 0],
-          phase: Math.random() * 6,
+          speed: 70 + this.rand() * 50,
+          color: TRAFFIC_COLORS[(this.rand() * TRAFFIC_COLORS.length) | 0],
+          phase: this.rand() * 6,
         };
       }
     }
@@ -1091,14 +1098,14 @@ export class Game {
   updateTraffic(dt) {
     this.tOncoming -= dt;
     if (this.tOncoming <= 0) {
-      this.tOncoming = 1.3 + Math.random() * 1.7;
+      this.tOncoming = 1.3 + this.rand() * 1.7;
       // pas de spawn en sens inverse tant que la voiture du joueur est à gauche (dépassement en cours)
       if (this.carXFrac >= 0.6 && this.oncoming.length < 4) {
         this.oncoming.push({
-          p: this.distance + this.h + 240 + Math.random() * 400,
-          v: -(220 + Math.random() * 140),
-          color: TRAFFIC_COLORS[(Math.random() * TRAFFIC_COLORS.length) | 0],
-          w: 54 + Math.random() * 16,
+          p: this.distance + this.h + 240 + this.rand() * 400,
+          v: -(220 + this.rand() * 140),
+          color: TRAFFIC_COLORS[(this.rand() * TRAFFIC_COLORS.length) | 0],
+          w: 54 + this.rand() * 16,
         });
       }
     }
@@ -1108,13 +1115,13 @@ export class Game {
     if (this.mode === 'pilote') {
       this.tSame -= dt;
       if (this.tSame <= 0) {
-        this.tSame = 5 + Math.random() * 5;
+        this.tSame = 5 + this.rand() * 5;
         if (!this.sameDir.some((c) => !c.overtaken)) {
           this.sameDir.push({
-            p: this.distance + 650 + Math.random() * 450,
-            v: this.level.speed * (0.5 + Math.random() * 0.2),
-            color: TRAFFIC_COLORS[(Math.random() * TRAFFIC_COLORS.length) | 0],
-            w: 56 + Math.random() * 16,
+            p: this.distance + 650 + this.rand() * 450,
+            v: this.level.speed * (0.5 + this.rand() * 0.2),
+            color: TRAFFIC_COLORS[(this.rand() * TRAFFIC_COLORS.length) | 0],
+            w: 56 + this.rand() * 16,
             overtaken: false,
             grace: 0,
           });
