@@ -721,9 +721,10 @@ export class Game {
     this.level = opts.level;
     this.theme = THEMES[opts.themeOverride] || THEMES[opts.level.theme];
     this.skin = SKINS.find((s) => s.id === opts.skinId) || SKINS[0];
-    // v1.3.19 : le mode speedrun se cale sur la difficulté Pilote
     this.speedrun = !!opts.speedrun;
-    this.mode = this.speedrun ? 'pilote' : opts.mode || 'auto';
+    // v1.3.41 : le speedrun ne force PLUS la difficulté Pilote — il se joue dans la difficulté
+    // choisie (auto / permisA / pilote) ; seule la mécanique change (chrono + vitesse bonus)
+    this.mode = opts.mode || 'auto';
     this.effects = opts.effects || [];
     this.windows = opts.windows || WINDOWS;
     this.access = opts.access || {};
@@ -934,7 +935,8 @@ export class Game {
     this.shake = Math.max(0, this.shake - dt * 28);
     // changement de voie quasi instantané pendant un dépassement (évite de traverser la voiture doublée)
     this.prevCarX = this.carXFrac;
-    const laneRate = this.laneTarget === ONCOMING_LANE ? 18 : 4;
+    // v1.3.41 : retour un peu plus franc aussi (6 au lieu de 4) pour passer moins de temps entre les voies
+    const laneRate = this.laneTarget === ONCOMING_LANE ? 18 : 6;
     this.carXFrac += (this.laneTarget - this.carXFrac) * Math.min(1, dt * laneRate);
     const range = this.h + 240;
     for (const s of this.scenery) {
@@ -1093,8 +1095,11 @@ export class Game {
           });
         }
       }
+      // v1.3.41 : une voiture doublée CONTINUE de rouler à sa propre vitesse (plus lente que le
+      // joueur) -> elle retombe derrière naturellement au lieu d'être gelée et de glisser
+      // à travers la voiture du joueur (bug visuel « le modèle traverse la voiture »)
       for (const c of this.sameDir) {
-        if (!c.overtaken) c.p += c.v * dt;
+        c.p += c.v * dt;
       }
       for (const c of this.sameDir) {
         if (c.overtaken) continue;
@@ -1344,10 +1349,14 @@ export class Game {
     this.drawSpeedStreaks();
     this.drawLines();
     this.drawAxleGuides();
-    this.drawTraffic();
+    // v1.3.41 : z-order par profondeur — les voitures DEVANT le joueur (sy < wheelY, plus haut
+    // = plus loin) sont dessinées AVANT la voiture du joueur ; celles DERRIÈRE (sy >= wheelY,
+    // plus bas = plus proches du spectateur) APRÈS -> plus de « traversée » visuelle
+    this.drawTraffic('ahead');
     this.drawPedestrian();
     this.drawZones();
     this.drawCar();
+    this.drawTraffic('behind');
     this.drawWeather();
     this.drawParticles();
     this.drawPopups();
@@ -1669,18 +1678,19 @@ export class Game {
     }
   }
 
-  drawTraffic() {
+  // v1.3.41 : phase 'ahead' = voitures devant le joueur (dessinées sous lui), 'behind' = derrière
+  // (dessinées par-dessus, elles sont plus proches du spectateur)
+  drawTraffic(phase = 'ahead') {
     const { ctx, roadX, roadW, wheelY, distance, h } = this;
-    for (const c of this.oncoming) {
+    const wantBehind = phase === 'behind';
+    const draw = (c, lane, down) => {
       const sy = wheelY + distance - c.p;
-      if (sy < -160 || sy > h + 160) continue;
-      drawTrafficCar(ctx, roadX + roadW * ONCOMING_LANE, sy, c.w, c.color, true);
-    }
-    for (const c of this.sameDir) {
-      const sy = wheelY + distance - c.p;
-      if (sy < -160 || sy > h + 160) continue;
-      drawTrafficCar(ctx, roadX + roadW * CAR_LANE, sy, c.w, c.color, false);
-    }
+      if (sy < -160 || sy > h + 160) return;
+      if (wantBehind !== sy >= wheelY) return; // filtre z-order
+      drawTrafficCar(ctx, roadX + roadW * lane, sy, c.w, c.color, down);
+    };
+    for (const c of this.oncoming) draw(c, ONCOMING_LANE, true);
+    for (const c of this.sameDir) draw(c, CAR_LANE, false);
   }
 
   drawPedestrian() {

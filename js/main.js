@@ -73,13 +73,11 @@ function renderDifficultyPicker() {
     b.textContent = d.name;
     b.title = d.desc;
     b.addEventListener('click', () => {
-      if (save.speedrun && d.id !== 'pilote') {
-        store.setSpeedrun(false);
-        renderModePicker();
-        toast('Mode Speedrun désactivé (il se cale sur la difficulté Pilote)');
-      }
+      // v1.3.41 : le speedrun se joue dans la difficulté choisie -> on peut changer de
+      // difficulté même avec le speedrun actif (il suivra la nouvelle difficulté)
       store.setDifficulty(d.id);
       sfx.click();
+      if (save.speedrun) toast(`⏱ Speedrun actif en difficulté ${d.name}`);
       renderDifficultyPicker();
     });
     el.appendChild(b);
@@ -896,7 +894,7 @@ function startLevel(level) {
   game = new Game($('#game'), {
     level,
     skinId: save.skin,
-    mode: save.speedrun ? 'pilote' : save.difficulty,
+    mode: save.difficulty, // v1.3.41 : speedrun se joue dans la difficulté choisie (plus forcément Pilote)
     speedrun: save.speedrun, // v1.3.19 : mode speedrun (chrono + vitesse bonus)
     themeOverride: save.themeOverride || undefined,
     windows: effWindows(),
@@ -993,7 +991,7 @@ function onGameEnd(stats, level) {
   if (sr && stats.completed && save.pseudo && save.uid) {
     // v1.3.31 : classement speedrun dédié (nœud /speedrun/<levelId>, temps en ms, tri croissant)
     leaderboard
-      .submitSpeedrun(level.id, { pseudo: save.pseudo, uid: save.uid || '', timeMs: stats.timeMs || 0, level: level.name, levelId: level.id, mode: 'pilote', date: Date.now() }, getAuthToken())
+      .submitSpeedrun(level.id, { pseudo: save.pseudo, uid: save.uid || '', timeMs: stats.timeMs || 0, level: level.name, levelId: level.id, mode: save.difficulty, date: Date.now() }, getAuthToken())
       .catch(() => {});
   }
   pushCloud();
@@ -1405,12 +1403,13 @@ on('btn-mode-normal', 'click', () => {
   renderModePicker();
 });
 on('btn-mode-speedrun', 'click', () => {
+  // v1.3.41 : speedrun disponible dans TOUTES les difficultés (plus forcément Pilote)
   store.setSpeedrun(true);
-  store.setDifficulty('pilote'); // v1.3.19 : le speedrun se cale sur Pilote
   sfx.click();
   renderModePicker();
   renderDifficultyPicker();
-  toast('⏱ Mode Speedrun : termine le niveau le plus vite possible ! (difficulté Pilote)');
+  const dName = (DIFFICULTIES.find((d) => d.id === save.difficulty) || {}).name || save.difficulty;
+  toast(`⏱ Mode Speedrun : termine le niveau le plus vite possible ! (difficulté ${dName})`);
 });
 on('btn-help', 'click', () => {
   sfx.click();

@@ -331,3 +331,10 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] Déconnexion (« 🔓 Se délier ») : `store.resetProgress()` → progression locale à 0 (prefs son/musique/accessibilité conservées), cloud conservé ; reconnexion → fusion, progression cloud retrouvée
 - [ ] `node tests/break.test.mjs` : section R (jouer = pseudo seul, LB = uid requis, resetProgress à 0 + prefs gardées + persisté, reconnexion = fusion cloud)
 - [ ] CI verte + CACHE sw bumpé (roadtap-v48) + VERSION 1.3.40 + version.json 1.3.40
+
+## Checklist v1.3.41 (dépassement retravaillé + speedrun dans toutes les difficultés)
+
+- [ ] Dépassement : z-order `drawTraffic('ahead')` avant / `('behind')` après la voiture du joueur (plus de traversée visuelle) ; la voiture doublée **continue de rouler** (plus gelée) et retombe derrière ; retour de voie plus franc (laneRate 6)
+- [ ] Speedrun : dispo en Auto école / Permis A / Pilote (`btn-mode-speedrun` ne force plus Pilote, on peut changer de difficulté avec speedrun actif, `mode` transmis au classement speedrun = vraie difficulté jouée)
+- [ ] `node tests/game.smoke.test.mjs` (speedrun garde le mode choisi) + `break.test.mjs` section S (177 assertions : z-order, swipe, voiture doublée qui roule, modes, POST speedrun mode=auto)
+- [ ] CI verte + CACHE sw bumpé (roadtap-v49) + VERSION 1.3.41 + version.json 1.3.41
