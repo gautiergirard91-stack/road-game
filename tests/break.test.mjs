@@ -579,13 +579,10 @@ console.log('Q. v1.3.39 : options d\'accessibilité aussi dans le menu pause (pr
   const fs3 = await import('node:fs');
   const html = fs3.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   const mainSrc = fs3.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
-  // IDs présents UNE SEULE fois (pas de doublon avec la modale) et bien dans le panneau pause
+  // v1.3.52 : les options d'accessibilité ont QUITTÉ la pause (elles vivent dans ⚙️ Paramètres, préfixe s-)
   const pauseHtml = html.slice(html.indexOf('id="pause-overlay"'), html.indexOf('id="continue-overlay"'));
-  for (const id of ['p-opt-widewindows', 'p-opt-colorblind', 'p-opt-zones-h']) {
-    ok(`#${id} présent une seule fois au total ET dans pause-overlay`, (html.match(new RegExp(`id="${id}"`, 'g')) || []).length === 1 && pauseHtml.includes(`id="${id}"`));
-  }
-  ok('main.js : les 2 panneaux câblés (préfixes \'\' et \'p-\')', mainSrc.includes("wireAccessCheckboxes('');") && mainSrc.includes("wireAccessCheckboxes('p-');"));
-  ok('main.js : synchro des cases pause à l\'ouverture de la pause', mainSrc.includes("syncAccessCheckboxes('p-')"));
+  ok('plus de p-opt-* dans la pause (remplacé par le bouton Paramètres)', !pauseHtml.includes('p-opt-') && pauseHtml.includes('btn-pause-settings'));
+  ok('main.js : panneaux câblés (préfixes \'\' modale et \'s-\' paramètres)', mainSrc.includes("wireAccessCheckboxes('');") && mainSrc.includes("wireAccessCheckboxes('s-');"));
   // comportement : les setters persistent et partent dans le snapshot cloud
   mem['roadtap_save_v1'] = '{}';
   store.load();
@@ -1022,6 +1019,19 @@ console.log('AC. v1.3.51 : niveaux déterministes (seed fixe par niveau+mode) �
   g3.start();
   for (let i = 0; i < 30; i++) g3.update(1 / 60);
   ok('30 updates sans crash avec le rand seedé', g3.running === true);
+}
+
+console.log('AD. v1.3.52 : pause embarque Paramètres (plus d\'accessibilité dans la pause) + anti menu contextuel (clic droit) en jeu');
+{
+  const fsB = await import('node:fs');
+  const html = fsB.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const mainSrc = fsB.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  const pauseHtml = html.slice(html.indexOf('id="pause-overlay"'), html.indexOf('id="continue-overlay"'));
+  ok('pause-overlay : bouton ⚙️ Paramètres présent, bloc p-opt-* supprimé', pauseHtml.includes('id="btn-pause-settings"') && !pauseHtml.includes('p-opt-'));
+  ok('plus aucun p-opt-* dans tout le HTML', !html.includes('p-opt-'));
+  ok('settings conserve son panneau accessibilité (s-opt-*)', html.includes('id="s-opt-widewindows"') && html.includes('id="s-opt-colorblind"') && html.includes('id="s-opt-zones-h"'));
+  ok('main.js : plus de câblage p-, btn-pause-settings -> screen-settings, retour pause si settingsFrom=pause', !mainSrc.includes("wireAccessCheckboxes('p-')") && !mainSrc.includes("syncAccessCheckboxes('p-')") && mainSrc.includes("on('btn-pause-settings'") && mainSrc.includes("show('screen-settings')") && mainSrc.includes("settingsFrom === 'pause'"));
+  ok('main.js : contextmenu bloqué en jeu (clic droit ne ouvre plus le menu Windows)', /addEventListener\('contextmenu'[\s\S]*?currentScreen === 'screen-game'[\s\S]*?preventDefault/.test(mainSrc));
 }
 
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);
