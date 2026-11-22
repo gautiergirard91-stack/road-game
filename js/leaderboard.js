@@ -288,8 +288,8 @@ export function submitSpeedrunLocal(entry) {
 }
 
 export async function submitSpeedrun(levelId, entry, idToken) {
-  // v1.3.41 : le speedrun se joue dans toutes les difficultés -> on transmet le vrai mode joué
-  const body = { pseudo: entry.pseudo, uid: entry.uid || '', timeMs: entry.timeMs, level: entry.level, levelId, mode: entry.mode || 'pilote', date: entry.date };
+  // v1.3.54 : le speedrun n'existe qu'en Permis A -> mode par défaut 'permisA' (main.js transmet de toute façon le mode réellement joué)
+  const body = { pseudo: entry.pseudo, uid: entry.uid || '', timeMs: entry.timeMs, level: entry.level, levelId, mode: entry.mode || 'permisA', date: entry.date };
   if (!isOnline()) return submitSpeedrunLocal(body);
   if (!hasAuth(idToken)) {
     lastLbWriteError = ANON_WRITE_MSG;

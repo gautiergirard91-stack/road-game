@@ -88,3 +88,14 @@ Légende : **P0** = à faire avant/après le merge de la branche béton armé ; 
 ## v1.3.51 — niveaux déterministes (speedrun-friendly)
 
 Le même niveau (id + difficulté) produit **exactement le même parcours à chaque partie** : seed fixe `levelSeed(id, mode)` (FNV hash), tronçons suivants seedés (`id#chunkN`), trafic et piétons sur le même PRNG seedé (`this.rand`, reset à chaque `start()`). Le décor et la météo restent aléatoires (cosmétique). Utile pour les speedruns (temps comparables) et pour apprendre le niveau par cœur avec le beat musical (v1.3.46).
+
+## v1.3.54 — speedrun = Permis A uniquement
+
+Le mode speedrun n'existe plus qu'en **Permis A** : verrouillé dans l'UI (picker de difficulté) et dans le moteur (`this.speedrun ? 'permisA' : opts.mode`). Les records et les envois leaderboard utilisent le mode réellement joué (`runMode = game.mode || save.difficulty`).
+
+## v1.3.56 — check de nuit (cohérence / bugs / sécurité / nettoyage)
+
+- Code mort retiré : modale accessibilité du menu principal (`access-modal` + handlers `btn-access`/`btn-access-close`), boutons son/musique du menu (`btn-sound`/`btn-music`), wiring préfixe `''`, CSS `.tagline`/`.pause-access`. **L'accessibilité est désormais 100 % dans ⚙️ Paramètres** (`s-opt-*`).
+- Contrat speedrun corrigé dans `leaderboard.js` : fallback `mode` = `permisA` (cohérence avec v1.3.54).
+- Vérification en profondeur du classement (contrat client ↔ règles RTDB : create-only, `auth != null`, `uid == auth.uid`, rejet `wideWindows`, `.indexOn`, échappement HTML des pseudos) : **conforme**, aucun trou trouvé côté client. À confirmer côté console Firebase que les règles publiées = `database.rules.json` (miroir `docs/FIREBASE.md` §2) et que App Check est passé en **Enforce** sur RTDB.
+- Rappel sécurité : aucun secret hors `js/config.js` (audit §10), en-tête App Check limité aux URLs `firebasedatabase.app`.
