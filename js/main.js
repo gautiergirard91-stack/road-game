@@ -8,6 +8,7 @@ import { Tutorial } from './tutorial.js';
 import * as leaderboard from './leaderboard.js';
 import * as cloudsave from './cloudsave.js';
 import { renderGoogleButton, restoreGoogleSession, setAuthToken, getAuthToken, signOutGoogle, isGoogleAuthConfigured, getLastAuthError, signInWithPopupGoogle } from './auth.js';
+import { initAppCheck, installAppCheckFetch } from './appcheck.js';
 import { logEvent } from './analytics.js';
 import { VERSION } from './config.js';
 
@@ -1319,6 +1320,8 @@ setMusicEnabled(save.music && save.sound);
 renderDifficultyPicker();
 refreshStatus();
 show('screen-menu');
+initAppCheck(); // v1.3.34 : App Check (reCAPTCHA v3) — dégrade gracieusement si indisponible
+installAppCheckFetch(); // pose le header X-Firebase-AppCheck sur tous les appels REST RTDB
 checkServerVersion(); // v1.3.30 : sonde anti-SW-obsolète (démarrage uniquement)
 
 // v1.3.30 : si le serveur sert une version plus récente que la page chargée (vieux SW en cache),

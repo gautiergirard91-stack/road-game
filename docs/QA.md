@@ -266,3 +266,13 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] `database.rules.json` publié (v1.3.32) : `players/<uid>` 200 avec jeton, 401 anonyme ; scores avec `?auth=` + uid → 200, sans uid → 403
 - [ ] `node tests/auth.test.mjs` (nouveau step CI) + `node tests/break.test.mjs` (89) : tout vert
 - [ ] CI verte + CACHE sw bumpé (roadtap-v41) + VERSION 1.3.33 + version.json 1.3.33
+
+## Checklist v1.3.34 (App Check reCAPTCHA v3 côté client — prêt pour l'enforce)
+
+- [ ] `FIREBASE_APP_CHECK_SITE_KEY` (v3, publique) dans `js/config.js` ; `js/appcheck.js` dans ASSETS du SW (audit 3b vérifie que tous les js/ y sont)
+- [ ] Au démarrage : init App Check + `installAppCheckFetch()` → header `X-Firebase-AppCheck` sur tous les appels `*.firebasedatabase.app` UNIQUEMENT (vérifié par `tests/appcheck.test.mjs`)
+- [ ] Hors ligne / gstatic bloqué → aucun header, aucun crash (dégradé gracieux)
+- [ ] Console : app web enregistrée dans App Check (provider reCAPTCHA v3 + secret key), métriques RTDB « verified » OK après déploiement
+- [ ] **Enforce RTDB ensuite seulement** (App Check → APIs → Realtime Database → Enforce, ~15 min) ; après, les requêtes sans token sont rejetées
+- [ ] `node tests/appcheck.test.mjs` (nouveau step CI) + break 89 + auth 13 : tout vert ; audit OK
+- [ ] CI verte + CACHE sw bumpé (roadtap-v42) + VERSION 1.3.34 + version.json 1.3.34
