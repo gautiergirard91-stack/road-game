@@ -21,6 +21,10 @@ Règles RTDB publiées dans `docs/FIREBASE.md` : la racine n'est pas lisible, le
 
 Si tu te connectes avec Google (bouton dans « ✏️ Mon pseudo »), nous recevons de Google ton **uid, e-mail et nom d'affichage** (via le jeton d'identification), utilisés uniquement pour keyer ta sauvegarde cloud (`players/<uid>`) afin de la synchroniser entre tes appareils. Depuis v1.3.32, ce nœud n’est lisible/modifiable **que par toi** (règle `auth.uid == $id`) ; sans compte Google, aucune donnée n’est envoyée (progression 100 % locale). Le jeton de rafraîchissement reste stocké **uniquement sur ton appareil** (localStorage) et n'est jamais transmis à la base. Tu peux te délier à tout moment (« 🔓 Se délier du compte Google »).
 
+## Classement « amis » (v1.3.36)
+
+L'onglet **👥 Amis** du classement repose sur une **liste de pseudos que tu saisis toi-même** (stockée dans ta sauvegarde locale + cloud `players/<uid>`). Le jeu **ne lit jamais tes contacts Google** (pas d'appel à la People API, donc pas de permission « contacts » demandée sur le Play Store) : on ne fait que comparer ton classement aux pseudos que tu as ajoutés.
+
 ## Tes droits (RGPD)
 
 - **Accès / rectification** : change ton pseudo dans le jeu ; tes scores sont visibles publiquement dans le classement.

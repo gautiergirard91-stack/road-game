@@ -162,6 +162,14 @@ export const ENDLESS_LEVEL = {
   gapMin: 400, gapMax: 600, w: { dash: 0.7, band: 0.15, chevron: 0.15 }, pDouble: 0.2, cost: 0, endless: true,
 };
 
+// v1.3.36 : niveau SPÉCIAL de l'événement week-end — visible/jouable UNIQUEMENT samedi/dimanche
+// (voir core.isWeekend). Hors LEVELS : il ne change ni le déblocage de la Survie ∞ ni les succès.
+// cost 0 = gratuit, jamais "achetable" (comme la Survie).
+export const WEEKEND_LEVEL = {
+  id: 100, name: 'Week-end doré', theme: 'sunset', diff: 'pilote', speed: 560, lines: 40,
+  gapMin: 300, gapMax: 430, w: { dash: 0.4, band: 0.3, chevron: 0.3 }, pDouble: 0.4, cost: 0, weekend: true,
+};
+
 export const ACHIEVEMENTS = [
   { id: 'first_perfect', name: 'Premier PARFAIT', desc: 'Réussir un PARFAIT', reward: 50, test: (c) => c.stats.perfects >= 1 },
   { id: 'combo10', name: 'Combo x10', desc: 'Atteindre un combo de 10', reward: 100, test: (c) => c.stats.bestCombo >= 10 },

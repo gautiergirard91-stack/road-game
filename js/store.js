@@ -40,6 +40,7 @@ const defaults = () => ({
   uid: '',
   googleEmail: '',
   googleRefresh: '',
+  friends: [], // v1.3.36 : pseudos des amis pour le classement « amis » (voir core.filterFriendsByPseudo)
 });
 
 let save;
@@ -106,6 +107,20 @@ function sanitize(s) {
   s.uid = str(s.uid);
   s.googleEmail = str(s.googleEmail);
   s.googleRefresh = str(s.googleRefresh);
+  // v1.3.36 : amis = pseudos (16 car. max comme le pseudo), dédupliqués sans tenir compte de la casse
+  {
+    const seenF = new Set();
+    const inputFriends = arrStr(s.friends); // capturer AVANT de réassigner s.friends
+    s.friends = [];
+    for (const x of inputFriends) {
+      const v = x.trim().slice(0, 16);
+      const k = v.toLowerCase();
+      if (v && !seenF.has(k)) {
+        seenF.add(k);
+        s.friends.push(v);
+      }
+    }
+  }
   s.totals = obj(s.totals);
   s.totals.runs = num(s.totals.runs);
   s.totals.perfects = num(s.totals.perfects);
@@ -426,6 +441,27 @@ export function clearGoogleAccount() {
   persist();
 }
 
+// --- v1.3.36 : amis (classement « amis » par pseudo) ---
+// 16 car. max comme le pseudo ; la casse est conservée pour l'affichage, la comparaison
+// se fait en minuscules (add/remove/merge et core.filterFriendsByPseudo).
+export function addFriend(p) {
+  const v = str(p).trim().slice(0, 16);
+  if (!v) return false;
+  if (save.friends.some((f) => f.toLowerCase() === v.toLowerCase())) return false;
+  save.friends.push(v);
+  persist();
+  return true;
+}
+
+export function removeFriend(p) {
+  const v = str(p).trim();
+  const i = save.friends.findIndex((f) => f.toLowerCase() === v.toLowerCase());
+  if (i < 0) return false;
+  save.friends.splice(i, 1);
+  persist();
+  return true;
+}
+
 export function unlockAchievement(id) {
   if (!save.achievements.includes(id)) {
     save.achievements.push(id);
@@ -471,6 +507,7 @@ export function snapshot() {
     challengeDone: save.challengeDone,
     uid: save.uid,
     googleEmail: save.googleEmail,
+    friends: save.friends, // v1.3.36 : liste d'amis synchronisée avec le cloud
     // googleRefresh volontairement EXCLU du snapshot cloud (credential)
   };
 }
@@ -504,6 +541,19 @@ function mergeRemoteBody(remote) {
     }
   }
   save.unlockedLevels = [...new Set([...save.unlockedLevels, ...arr(remote.unlockedLevels)])];
+  // v1.3.36 : union des listes d'amis, dédupliquée sans tenir compte de la casse
+  {
+    const allF = [...save.friends, ...arr(remote.friends).map((x) => String(x).trim().slice(0, 16)).filter(Boolean)];
+    const seenF = new Set();
+    save.friends = [];
+    for (const f of allF) {
+      const k = f.toLowerCase();
+      if (!seenF.has(k)) {
+        seenF.add(k);
+        save.friends.push(f);
+      }
+    }
+  }
   save.cleared = { ...(remote.cleared || {}), ...save.cleared };
   save.skins = [...new Set([...save.skins, ...arr(remote.skins)])];
   save.effects = [...new Set([...save.effects, ...arr(remote.effects)])];

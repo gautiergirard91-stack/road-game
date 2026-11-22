@@ -932,3 +932,114 @@ canvas.swatch.snd-preview {
     font-size: 12px;
   }
 }
+
+/* --- v1.3.36 : bannière événement week-end (menu, visible samedi/dimanche uniquement) --- */
+#weekend-banner {
+  width: 100%;
+  max-width: 560px;
+  background: linear-gradient(90deg, #ffd54a, #ffb020);
+  color: #0d1226;
+  font-weight: 700;
+  font-size: 14px;
+  text-align: center;
+  padding: 9px 12px;
+  border-radius: 12px;
+  box-shadow: 0 0 12px rgba(255, 213, 74, 0.35);
+}
+
+/* --- v1.3.36 : Garage (grille de voitures possédées, aperçus animés plus grands) --- */
+.garage-sub {
+  width: 100%;
+  max-width: 560px;
+}
+
+.garage-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  align-items: stretch;
+}
+
+canvas.swatch.garage-preview {
+  width: 72px;
+  height: 84px;
+  border-radius: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  background: linear-gradient(180deg, #2a3560 0%, #161d3d 100%);
+  flex-shrink: 0;
+}
+
+.garage-card.selected {
+  border-color: #54f0ff;
+  box-shadow: 0 0 10px rgba(84, 240, 255, 0.35);
+}
+
+/* --- v1.3.36 : classement « amis » (onglets + liste d'amis par pseudo) --- */
+#lb-scope {
+  display: flex;
+  gap: 6px;
+  width: 100%;
+  max-width: 560px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+#friends-bar {
+  width: 100%;
+  max-width: 560px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: #1a2142;
+  border: 1px solid #2c3560;
+  border-radius: 16px;
+  padding: 12px;
+}
+
+#friends-bar.hidden {
+  display: none;
+}
+
+.friends-add {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+#friend-input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 15px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid #3a4670;
+  background: #10173a;
+  color: #fff;
+}
+
+#friends-list {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.friend-chip {
+  background: #232c4d;
+  color: #dfe6ff;
+  border: 1px solid #2c3560;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.friend-chip:hover {
+  border-color: #ff5c5c;
+}
+
+.friend-chip b {
+  color: #ff5c5c;
+  margin-left: 4px;
+}

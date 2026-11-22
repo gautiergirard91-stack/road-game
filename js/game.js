@@ -228,6 +228,18 @@ function paintCar(ctx, cx, baseY, m, col, style) {
     hg.addColorStop(1, 'rgba(0,0,0,0.22)');
     ctx.fillStyle = hg;
     ctx.fillRect(cx - bw / 2, top, bw, len);
+    // v1.3.36 : balayage spéculaire lent quand col.time > 0 (aperçus animés boutique/garage) ;
+    // à time = 0 (rendu statique) rien n'est dessiné de plus -> rendu identique à avant
+    const tt = Number.isFinite(col.time) ? col.time : 0;
+    if (tt > 0) {
+      const sx = cx - bw + ((tt * 22) % (bw * 2));
+      const sg = ctx.createLinearGradient(sx - bw * 0.22, 0, sx + bw * 0.22, 0);
+      sg.addColorStop(0, 'rgba(255,255,255,0)');
+      sg.addColorStop(0.5, 'rgba(255,255,255,0.15)');
+      sg.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = sg;
+      ctx.fillRect(cx - bw / 2, top, bw, len);
+    }
     const sg = ctx.createLinearGradient(0, top, 0, hoodR + 10);
     sg.addColorStop(0, 'rgba(255,255,255,0.4)');
     sg.addColorStop(1, 'rgba(255,255,255,0)');
@@ -357,10 +369,12 @@ function paintCar(ctx, cx, baseY, m, col, style) {
 }
 
 // v1.3.13 : aperçu réel de la voiture dans la boutique — mini canvas rendu avec le même paintCar que le jeu
-export function renderCarPreview(canvas, skin) {
+// v1.3.36 : t = temps (s) pour l'aperçu ANIMÉ (petit flottement + shine/rainbow qui bougent via paintCar) ;
+// w/h optionnels (le garage affiche les voitures en plus grand). t=0 -> rendu statique.
+export function renderCarPreview(canvas, skin, t = 0, w = 56, h = 64) {
   const dpr = Math.min((typeof window !== 'undefined' && window.devicePixelRatio) || 1, 2);
-  const cssW = 56;
-  const cssH = 64;
+  const cssW = w;
+  const cssH = h;
   canvas.width = Math.round(cssW * dpr);
   canvas.height = Math.round(cssH * dpr);
   canvas.style.width = cssW + 'px';
@@ -372,8 +386,9 @@ export function renderCarPreview(canvas, skin) {
   const totalH = m.bodyH + 18;
   const s = Math.min((cssW - 12) / m.w, (cssH - 12) / totalH);
   const isHex = (skin.color || '').startsWith('#');
+  const bob = Math.sin(t * 3) * 1.5; // v1.3.36 : flottement quand animé
   ctx.save();
-  ctx.translate(cssW / 2, cssH - 8 - 10 * s);
+  ctx.translate(cssW / 2, cssH - 8 - 10 * s + bob);
   ctx.scale(s, s);
   paintCar(ctx, 0, 0, m, {
     color: skin.rainbow ? '#ff5c8a' : skin.color,
@@ -381,17 +396,18 @@ export function renderCarPreview(canvas, skin) {
     light: skin.shine || !isHex ? 'rgba(255,255,255,0.5)' : shade(skin.color, 48),
     shine: Boolean(skin.shine),
     tier: 3,
-    time: 0,
+    time: t, // v1.3.36 : transmis à paintCar (arc-en-ciel animé, reflets)
   }, skin.style || 'photo');
   ctx.restore();
   ctx.fillStyle = 'rgba(0,0,0,0.3)';
   ctx.beginPath();
-  ctx.ellipse(cssW / 2, cssH - 4, m.w * 0.55 * s, 4, 0, 0, Math.PI * 2);
+  ctx.ellipse(cssW / 2, cssH - 4 + bob * 0.3, m.w * 0.55 * s, 4, 0, 0, Math.PI * 2);
   ctx.fill();
 }
 
-// v1.3.16 : aperçu réel d'un effet visuel dans la boutique (mini scène : route + ligne + voiture + l'effet)
-export function renderEffectPreview(canvas, fx) {
+// v1.3.16 : aperçu réel d'un effet visuel dans la boutique (mini scène : route + ligne + effet)
+// v1.3.36 : t = temps (s) pour l'aperçu ANIMÉ (pluie qui tombe, confettis, flammes…). t=0 -> statique.
+export function renderEffectPreview(canvas, fx, t = 0) {
   const dpr = Math.min((typeof window !== 'undefined' && window.devicePixelRatio) || 1, 2);
   const cssW = 56;
   const cssH = 64;
@@ -401,6 +417,7 @@ export function renderEffectPreview(canvas, fx) {
   canvas.style.height = cssH + 'px';
   const ctx = canvas.getContext('2d');
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const tt = Number.isFinite(t) ? t : 0; // v1.3.36
   const id = fx.id;
   // fond : route verticale sombre
   const bg = ctx.createLinearGradient(0, 0, 0, cssH);
@@ -414,14 +431,15 @@ export function renderEffectPreview(canvas, fx) {
   // ligne pointillée (arc-en-ciel ou lumineuse selon l'effet)
   const lineY = Math.round(cssH * 0.28);
   if (id === 'rainbow') {
-    const rg = ctx.createLinearGradient(8, 0, cssW - 8, 0);
-    ['#ff5c8a', '#ffd54a', '#7ee081', '#54f0ff', '#c792ff'].forEach((c, i, a) => rg.addColorStop(i / (a.length - 1), c));
-    ctx.fillStyle = rg;
-    for (let x = 9; x < cssW - 9; x += 8) ctx.fillRect(x, lineY, 5, 3);
+    // v1.3.36 : les couleurs défilent quand animé
+    for (let x = 9, i = 0; x < cssW - 9; x += 8, i++) {
+      ctx.fillStyle = `hsl(${Math.round((i * 60 + tt * 120) % 360)},90%,65%)`;
+      ctx.fillRect(x, lineY, 5, 3);
+    }
   } else {
     if (id === 'glow') {
       ctx.shadowColor = '#ffd54a';
-      ctx.shadowBlur = 9;
+      ctx.shadowBlur = 9 + Math.sin(tt * 4) * 3; // v1.3.36 : halo qui pulse (9 à t=0)
     }
     ctx.fillStyle = '#f5f7ff';
     for (let x = 9; x < cssW - 9; x += 8) ctx.fillRect(x, lineY, 5, 3);
@@ -429,17 +447,18 @@ export function renderEffectPreview(canvas, fx) {
   }
   // v1.3.17 : PAS de voiture dans l'aperçu — seulement l'effet lui-même
   if (id === 'shake') {
-    // la ligne "vibre" : 2 tracés fantômes décalés
+    // la ligne "vibre" : 2 tracés fantômes décalés (v1.3.36 : le décalage oscille)
+    const dx0 = Math.sin(tt * 20) * 2.5;
     ctx.fillStyle = '#f5f7ff';
-    for (const dx of [-2.5, 2.5]) {
+    for (const dx of [-2.5 + dx0, 2.5 - dx0]) {
       ctx.globalAlpha = 0.35;
       for (let x = 9 + dx; x < cssW - 9; x += 8) ctx.fillRect(x, lineY, 5, 3);
     }
     ctx.globalAlpha = 1;
   }
   if (id === 'ghost') {
-    // silhouette fantôme de l'ancienne position
-    ctx.fillStyle = 'rgba(180,220,255,0.18)';
+    // silhouette fantôme de l'ancienne position (v1.3.36 : opacité qui pulse)
+    ctx.fillStyle = `rgba(180,220,255,${0.18 + 0.1 * Math.abs(Math.sin(tt * 2))})`;
     rr(ctx, cssW / 2 - 20, cssH * 0.55, 13, 26, 6);
     ctx.fill();
   }
@@ -448,15 +467,18 @@ export function renderEffectPreview(canvas, fx) {
     for (let i = 0; i < 6; i++) {
       ctx.fillStyle = `rgba(158,203,255,${0.5 - i * 0.08})`;
       ctx.beginPath();
-      ctx.arc(cssW / 2 + Math.sin(i * 1.7) * 3, cssH - 1 - i * 3.2, Math.max(0.6, 2.2 - i * 0.25), 0, Math.PI * 2);
+      // v1.3.36 : les particules remontent le long de la route quand animé
+      const y = cssH - 1 - ((i * 3.2 + tt * 40) % (cssH * 0.55));
+      ctx.arc(cssW / 2 + Math.sin(tt * 2 + i * 1.7) * 3, y, Math.max(0.6, 2.2 - i * 0.25), 0, Math.PI * 2);
       ctx.fill();
     }
   } else if (id === 'confetti') {
     const cols = ['#ff5c8a', '#ffd54a', '#7ee081', '#54f0ff', '#c792ff'];
     for (let i = 0; i < 9; i++) {
       ctx.save();
-      ctx.translate(10 + ((i * 37) % (cssW - 20)), 6 + ((i * 23) % Math.round(cssH * 0.4)));
-      ctx.rotate(i * 0.7);
+      // v1.3.36 : les confettis tombent et tournent quand animé
+      ctx.translate(10 + ((i * 37) % (cssW - 20)), 6 + ((i * 23 + tt * 26) % Math.round(cssH * 0.4)));
+      ctx.rotate(i * 0.7 + tt * 2);
       ctx.fillStyle = cols[i % cols.length];
       ctx.fillRect(-2, -1, 4, 2);
       ctx.restore();
@@ -466,7 +488,7 @@ export function renderEffectPreview(canvas, fx) {
     ctx.lineWidth = 1;
     for (let i = 0; i < 10; i++) {
       const x = 8 + ((i * 29) % (cssW - 16));
-      const y = (i * 17) % cssH;
+      const y = (i * 17 + tt * 130) % cssH; // v1.3.36 : la pluie tombe
       ctx.beginPath();
       ctx.moveTo(x, y);
       ctx.lineTo(x - 3, y + 7);
@@ -475,14 +497,17 @@ export function renderEffectPreview(canvas, fx) {
   } else if (id === 'snowfall') {
     ctx.fillStyle = 'rgba(255,255,255,0.9)';
     for (let i = 0; i < 12; i++) {
+      // v1.3.36 : les flocons tombent et oscillent quand animé
+      const x = 6 + ((i * 31) % (cssW - 12)) + Math.sin(tt * 2 + i) * 2;
+      const y = (i * 19 + tt * 24) % cssH;
       ctx.beginPath();
-      ctx.arc(6 + ((i * 31) % (cssW - 12)), (i * 19) % cssH, 1.4, 0, Math.PI * 2);
+      ctx.arc(x, y, 1.4, 0, Math.PI * 2);
       ctx.fill();
     }
   } else if (id === 'fire') {
     for (let i = 0; i < 3; i++) {
       const fx0 = cssW / 2 + (i - 1) * 5;
-      const hgt = 8 + ((i * 13) % 6);
+      const hgt = 8 + ((i * 13 + tt * 12) % 6); // v1.3.36 : flammes qui dansent
       ctx.fillStyle = i % 2 ? '#ff9f1c' : '#ff5c1c';
       ctx.beginPath();
       ctx.moveTo(fx0 - 2.5, cssH - 1);
@@ -492,7 +517,8 @@ export function renderEffectPreview(canvas, fx) {
       ctx.fill();
     }
   } else if (id === 'vignette') {
-    const vg = ctx.createRadialGradient(cssW / 2, cssH / 2, 8, cssW / 2, cssH / 2, cssH * 0.75);
+    const vr = cssH * (0.75 + Math.sin(tt * 2) * 0.05); // v1.3.36 : respiration de la vignette
+    const vg = ctx.createRadialGradient(cssW / 2, cssH / 2, 8, cssW / 2, cssH / 2, vr);
     vg.addColorStop(0, 'rgba(0,0,0,0)');
     vg.addColorStop(1, 'rgba(0,0,0,0.6)');
     ctx.fillStyle = vg;
@@ -514,40 +540,44 @@ function previewSetup(canvas, w = 56, h = 64) {
 }
 
 // v1.3.17 : aperçu d'un thème de route (mini route avec les VRAIES couleurs du thème)
-export function renderThemePreview(canvas, themeId, w, h) {
-  const t = THEMES[themeId] || THEMES.autoroute;
+// v1.3.36 : t = temps (s) optionnel — la ligne centrale défile et les étoiles scintillent (t=0 -> statique)
+export function renderThemePreview(canvas, themeId, w, h, t = 0) {
+  const th = THEMES[themeId] || THEMES.autoroute;
   const { ctx, cssW, cssH } = previewSetup(canvas, w, h);
+  const tt = Number.isFinite(t) ? t : 0; // v1.3.36
   const horizon = cssH * 0.42;
   const sky = ctx.createLinearGradient(0, 0, 0, horizon);
-  sky.addColorStop(0, t.skyTop);
-  sky.addColorStop(1, t.skyBottom);
+  sky.addColorStop(0, th.skyTop);
+  sky.addColorStop(1, th.skyBottom);
   ctx.fillStyle = sky;
   ctx.fillRect(0, 0, cssW, horizon);
-  if (t.night) {
-    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  if (th.night) {
     for (let i = 0; i < 8; i++) {
+      // v1.3.36 : scintillement des étoiles quand animé
+      ctx.fillStyle = `rgba(255,255,255,${0.45 + 0.45 * Math.abs(Math.sin(tt * 3 + i))})`;
       ctx.beginPath();
       ctx.arc(4 + ((i * 23) % (cssW - 8)), (i * 11) % Math.round(horizon * 0.9), 1, 0, Math.PI * 2);
       ctx.fill();
     }
   }
   // bas-côté + route
-  ctx.fillStyle = t.shoulder;
+  ctx.fillStyle = th.shoulder;
   ctx.fillRect(0, horizon, cssW, cssH * 0.08);
-  ctx.fillStyle = t.road;
+  ctx.fillStyle = th.road;
   ctx.fillRect(0, horizon + cssH * 0.08, cssW, cssH);
-  // bandes de rive + ligne centrale
-  ctx.fillStyle = t.edge;
+  // bandes de rive + ligne centrale (v1.3.36 : défile vers le bas quand animé)
+  ctx.fillStyle = th.edge;
   ctx.fillRect(0, horizon + cssH * 0.08, 4, cssH);
   ctx.fillRect(cssW - 4, horizon + cssH * 0.08, 4, cssH);
-  ctx.fillStyle = t.centerLine;
-  for (let y = horizon + cssH * 0.1; y < cssH; y += 10) ctx.fillRect(cssW / 2 - 1.5, y, 3, 6);
+  ctx.fillStyle = th.centerLine;
+  const scroll = (tt * 40) % 10;
+  for (let y = horizon + cssH * 0.1 + scroll; y < cssH; y += 10) ctx.fillRect(cssW / 2 - 1.5, y, 3, 6);
   // la ligne blanche du jeu
-  ctx.fillStyle = t.line;
+  ctx.fillStyle = th.line;
   for (let x = 10; x < cssW - 10; x += 8) ctx.fillRect(x, Math.round(cssH * 0.74), 5, 3);
   // décor selon le type de thème
-  if (t.scenery === 'trees' || t.scenery === 'pines') {
-    ctx.fillStyle = t.night ? '#0e2a1e' : '#2e7d46';
+  if (th.scenery === 'trees' || th.scenery === 'pines') {
+    ctx.fillStyle = th.night ? '#0e2a1e' : '#2e7d46';
     for (let i = 0; i < 3; i++) {
       const x = 9 + i * 18;
       const hgt = 9 + ((i * 5) % 5);
@@ -558,19 +588,20 @@ export function renderThemePreview(canvas, themeId, w, h) {
       ctx.closePath();
       ctx.fill();
     }
-  } else if (t.scenery === 'buildings' || t.scenery === 'citynight') {
+  } else if (th.scenery === 'buildings' || th.scenery === 'citynight') {
     for (let i = 0; i < 3; i++) {
       const x = 6 + i * 17;
       const hgt = 10 + ((i * 7) % 8);
-      ctx.fillStyle = t.night ? '#0d1230' : '#7d8698';
+      ctx.fillStyle = th.night ? '#0d1230' : '#7d8698';
       ctx.fillRect(x, horizon - hgt, 12, hgt);
-      if (t.night) {
-        ctx.fillStyle = '#ffd54a';
+      if (th.night) {
+        // v1.3.36 : fenêtres qui scintillent quand animé
+        ctx.fillStyle = `rgba(255,213,74,${0.5 + 0.5 * Math.abs(Math.sin(tt * 2.5 + i * 2))})`;
         ctx.fillRect(x + 2, horizon - hgt + 2, 2, 2);
         ctx.fillRect(x + 7, horizon - hgt + 5, 2, 2);
       }
     }
-  } else if (t.scenery === 'cacti') {
+  } else if (th.scenery === 'cacti') {
     ctx.fillStyle = '#3e8e5a';
     for (let i = 0; i < 2; i++) {
       const x = 12 + i * 30;
@@ -582,10 +613,17 @@ export function renderThemePreview(canvas, themeId, w, h) {
 }
 
 // v1.3.17 : aperçu d'un pack = un cadeau
-export function renderPackPreview(canvas, pack) {
+// v1.3.36 : t = temps (s) — le cadeau pulse doucement et les étincelles scintillent (t=0 -> statique)
+export function renderPackPreview(canvas, pack, t = 0) {
   const { ctx, cssW, cssH } = previewSetup(canvas);
+  const tt = Number.isFinite(t) ? t : 0; // v1.3.36
   ctx.fillStyle = '#1c2450';
   ctx.fillRect(0, 0, cssW, cssH);
+  const pulse = 1 + Math.sin(tt * 2) * 0.05; // v1.3.36 : pulsation (1 à t=0)
+  ctx.save();
+  ctx.translate(cssW / 2, cssH / 2);
+  ctx.scale(pulse, pulse);
+  ctx.translate(-cssW / 2, -cssH / 2);
   const bx = cssW / 2 - 16;
   const by = cssH / 2 - 6;
   const bw2 = 32;
@@ -607,13 +645,19 @@ export function renderPackPreview(canvas, pack) {
   ctx.beginPath();
   ctx.arc(cssW / 2 + 5, by - 8, 5, Math.PI * 1.1, Math.PI * 0.1);
   ctx.stroke();
-  ctx.fillStyle = '#ffffff';
-  for (let i = 0; i < 4; i++) ctx.fillRect(8 + ((i * 29) % (cssW - 16)), 8 + ((i * 17) % (cssH - 16)), 2, 2);
+  ctx.restore();
+  // v1.3.36 : étincelles qui scintillent quand animé
+  for (let i = 0; i < 4; i++) {
+    ctx.fillStyle = `rgba(255,255,255,${0.35 + 0.65 * Math.abs(Math.sin(tt * 3 + i * 1.7))})`;
+    ctx.fillRect(8 + ((i * 29) % (cssW - 16)), 8 + ((i * 17) % (cssH - 16)), 2, 2);
+  }
 }
 
 // v1.3.17 : aperçu d'un pack de sons = haut-parleur + ondes (carrées pour l'arcade)
-export function renderSoundPreview(canvas, sp) {
+// v1.3.36 : t = temps (s) — les ondes oscillent quand animé (t=0 -> statique)
+export function renderSoundPreview(canvas, sp, t = 0) {
   const { ctx, cssW, cssH } = previewSetup(canvas);
+  const tt = Number.isFinite(t) ? t : 0; // v1.3.36
   ctx.fillStyle = '#1c2450';
   ctx.fillRect(0, 0, cssW, cssH);
   const cx = cssW / 2 - 10;
@@ -634,11 +678,16 @@ export function renderSoundPreview(canvas, sp) {
   ctx.lineWidth = 2.5;
   ctx.lineCap = 'round';
   if (sp.id === 'arcade') {
-    for (let i = 0; i < 3; i++) ctx.strokeRect(cx + 8 + i * 7, cy - 4 - i * 3, 5, 8 + i * 6);
+    for (let i = 0; i < 3; i++) {
+      // v1.3.36 : barres d'égaliseur qui dansent quand animé
+      const wob = Math.sin(tt * 4 + i) * 1.5;
+      ctx.strokeRect(cx + 8 + i * 7, cy - 4 - i * 3 - wob, 5, 8 + i * 6);
+    }
   } else {
     for (let i = 0; i < 3; i++) {
       ctx.beginPath();
-      ctx.arc(cx + 7, cy, 6 + i * 6, -0.9, 0.9);
+      // v1.3.36 : rayon des ondes qui oscille quand animé
+      ctx.arc(cx + 7, cy, 6 + i * 6 + Math.sin(tt * 4 - i) * 1.5, -0.9, 0.9);
       ctx.stroke();
     }
   }

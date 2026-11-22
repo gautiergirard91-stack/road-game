@@ -46,9 +46,11 @@
   <section id="screen-menu" class="screen active">
     <h1 class="logo">ROAD<br>TAP</h1>
     <p class="tagline">Touche l'écran au moment exact où les roues atteignent la ligne blanche !</p>
+    <div id="weekend-banner" class="hidden"><span id="weekend-banner-text"></span></div>
     <div class="coins-display">🪙 0</div>
     <button class="btn big" id="btn-play">▶ Jouer</button>
     <button class="btn" id="btn-shop">🛒 Boutique</button>
+    <button class="btn" id="btn-garage">🚗 Garage</button>
     <button class="btn" id="btn-leaderboard">🏆 Classement</button>
     <button class="btn" id="btn-challenges">🎯 Défis</button>
     <button class="btn secondary" id="btn-help">👶 Tutoriel</button>
@@ -87,6 +89,16 @@
     <div id="levels-list" class="cards"></div>
   </section>
 
+  <section id="screen-garage" class="screen">
+    <header class="topbar">
+      <button class="btn back" id="btn-garage-back">←</button>
+      <h2>🚗 Garage</h2>
+      <div class="coins-display">🪙 0</div>
+    </header>
+    <p class="card-sub garage-sub">Toutes tes voitures — touche une carte pour l'équiper.</p>
+    <div id="garage-list" class="cards garage-grid"></div>
+  </section>
+
   <section id="screen-leaderboard" class="screen">
     <header class="topbar">
       <button class="btn back" id="btn-leaderboard-back">←</button>
@@ -96,6 +108,16 @@
     <p id="lb-source" class="lb-source"></p>
     <div class="lb-actions">
       <button class="btn small" id="btn-pseudo">✏️ Mon pseudo</button>
+    </div>
+    <div class="picker-label">Classement</div>
+    <div id="lb-scope"></div>
+    <div id="friends-bar" class="hidden">
+      <div class="friends-add">
+        <input id="friend-input" maxlength="16" placeholder="Pseudo d'un ami…" autocomplete="off">
+        <button class="btn small" id="btn-friend-add">+ Ajouter</button>
+      </div>
+      <p class="card-sub">Compare tes scores à ceux de tes amis (par pseudo — on ne lit jamais tes contacts Google).</p>
+      <div id="friends-list"></div>
     </div>
     <div class="picker-label">Filtrer par difficulté</div>
     <div id="lb-filter"></div>

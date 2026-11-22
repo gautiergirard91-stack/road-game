@@ -441,4 +441,77 @@ console.log('M. v1.3.35 : étoiles par niveau + paliers Survie ∞ + skin récom
   ok('mergeRemote fusionne stars (max) et endlessBest', (store.mergeRemote({ stars: { 2: 1, 5: 3 }, endlessBest: 10 }), store.get().stars[2] === 3 && store.get().stars[5] === 3 && store.get().endlessBest === 80));
 }
 
+console.log('N. v1.3.36 : garage / événement week-end / classement amis / aperçus animés (purs + store + leaderboard)');
+{
+  // --- week-end : dates fixes (21/11/2026 = samedi, 22 = dimanche, 23 = lundi) ---
+  const sat = new Date(2026, 10, 21);
+  const sun = new Date(2026, 10, 22);
+  const mon = new Date(2026, 10, 23);
+  ok('isWeekend samedi -> true', core.isWeekend(sat) === true);
+  ok('isWeekend dimanche -> true', core.isWeekend(sun) === true);
+  ok('isWeekend lundi -> false', core.isWeekend(mon) === false);
+  ok('isWeekend entrée invalide -> false (PAS de fallback sur "maintenant")', core.isWeekend(new Date('nope')) === false && core.isWeekend('samedi') === false && core.isWeekend(null) === false);
+  ok('weekendCoinMultiplier samedi/dimanche -> 2', core.weekendCoinMultiplier(sat) === 2 && core.weekendCoinMultiplier(sun) === 2);
+  ok('weekendCoinMultiplier lundi -> 1', core.weekendCoinMultiplier(mon) === 1);
+
+  // --- WEEKEND_LEVEL (niveau spécial week-end) ---
+  const dataMod = await import('../js/data.js');
+  ok('WEEKEND_LEVEL : id 100, coût 0, flag weekend', dataMod.WEEKEND_LEVEL.id === 100 && dataMod.WEEKEND_LEVEL.cost === 0 && dataMod.WEEKEND_LEVEL.weekend === true);
+  ok('WEEKEND_LEVEL hors de LEVELS (ne change ni le déblocage Survie ∞ ni les succès)', !dataMod.LEVELS.some((l) => l.id === 100));
+  ok('le thème du niveau week-end existe dans THEMES', !!dataMod.THEMES[dataMod.WEEKEND_LEVEL.theme]);
+
+  // --- filterFriendsByPseudo (classement amis, casse/espaces ignorés, robuste) ---
+  const entries = [
+    { pseudo: 'Speedy', score: 100 },
+    { pseudo: 'speedy2', score: 90 },
+    { pseudo: 'Bob', score: 80 },
+    { pseudo: 'alice', score: 70 },
+    { pseudo: '', score: 1 },
+    null,
+  ];
+  const fr = core.filterFriendsByPseudo(entries, ['Speedy', ' ALICE ']);
+  ok('filterFriendsByPseudo insensible à la casse + trim', fr.length === 2 && fr[0].pseudo === 'Speedy' && fr[1].pseudo === 'alice');
+  ok('filterFriendsByPseudo entrées corrompues -> [] sans plantage', core.filterFriendsByPseudo(null, null).length === 0 && core.filterFriendsByPseudo('x', 'y').length === 0 && core.filterFriendsByPseudo(entries, 'pasuntableau').length === 0);
+
+  // --- store.friends ---
+  mem['roadtap_save_v1'] = JSON.stringify({ friends: ['Speedy', 'speedy', '  Bob  ', 42, 'x'.repeat(30)] });
+  store.load();
+  ok('sanitize friends : dédup insensible à la casse, trim, 16 car. max, non-string virés', store.get().friends.join('|') === 'Speedy|Bob|' + 'x'.repeat(16));
+  ok('addFriend nouveau -> true', store.addFriend('Alice') === true && store.get().friends.includes('Alice'));
+  ok('addFriend doublon (casse différente) -> false', store.addFriend('ALICE') === false);
+  ok('addFriend vide -> false', store.addFriend('   ') === false);
+  ok('removeFriend existant -> true, puis -> false', store.removeFriend('bob') === true && store.removeFriend('bob') === false);
+  ok('snapshot inclut friends (synchro cloud)', Array.isArray(store.snapshot().friends) && store.snapshot().friends.includes('Alice'));
+  store.mergeRemote({ friends: ['alice', 'Zoe'] });
+  ok('mergeRemote : union des amis, dédup insensible à la casse', store.get().friends.includes('Alice') && store.get().friends.includes('Zoe') && store.get().friends.filter((f) => f.toLowerCase() === 'alice').length === 1);
+
+  // --- leaderboard.getAll / getSpeedrunAll (stub fetch) ---
+  mem['roadtap_leaderboard_local_v1'] = '[]';
+  mem['roadtap_speedrun_local_v1'] = '[]';
+  globalThis.fetch = async (url) => {
+    const u = String(url);
+    if (u.includes('/scores/auto.json')) {
+      const data = {};
+      for (let i = 0; i < 25; i++) data['k' + i] = { pseudo: 'P' + i, score: i * 10, mode: 'auto', levelId: 1, level: 'L1', date: i };
+      return { ok: true, json: async () => data };
+    }
+    if (u.includes('/speedrun.json')) {
+      return { ok: true, json: async () => ({ 1: { a: { pseudo: 'A', timeMs: 5000, levelId: 1 }, b: { pseudo: 'B', timeMs: 3000, levelId: 1 } }, 2: { c: { pseudo: 'C', timeMs: 4000, levelId: 2 } } }) };
+    }
+    return { ok: true, json: async () => null };
+  };
+  const all = await lb.getAll('all');
+  ok('getAll : 25 entrées retournées (> TOP=20, SANS limite) triées desc', all.length === 25 && all[0].score === 240 && all[24].score === 0);
+  ok('getAll : statut firebase renseigné', lb.getLbStatus().source === 'firebase' && lb.getLbStatus().count === 25);
+  ok('getAll filtre par mode', (await lb.getAll('pilote')).length === 0);
+  const frAll = core.filterFriendsByPseudo(await lb.getAll('auto'), ['p5']);
+  ok('getAll + filterFriendsByPseudo : P5 retrouvé dans le classement amis', frAll.length === 1 && frAll[0].pseudo === 'P5');
+  const srAll = await lb.getSpeedrunAll();
+  ok('getSpeedrunAll : tri croissant, sans limite', srAll.length === 3 && srAll[0].pseudo === 'B' && srAll[2].pseudo === 'A');
+  ok('filterLevel exporté (filtrage par levelId)', lb.filterLevel([{ levelId: 1 }, { levelId: 2 }], '1').length === 1);
+  globalThis.fetch = async () => { throw new Error('offline'); };
+  ok('getAll hors ligne -> repli local sans plantage', Array.isArray(await lb.getAll('auto')));
+  delete globalThis.fetch;
+}
+
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);

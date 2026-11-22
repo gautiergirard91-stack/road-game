@@ -1,5 +1,5 @@
 import { FIREBASE_DB_URL, FIREBASE_DB_SECRET } from './config.js';
-import { LEVELS, ENDLESS_LEVEL } from './data.js';
+import { LEVELS, ENDLESS_LEVEL, WEEKEND_LEVEL } from './data.js';
 
 const LOCAL_KEY = 'roadtap_leaderboard_local_v1';
 const TOP = 20;
@@ -84,10 +84,11 @@ function filterMode(arr, mode) {
   return mode === 'all' ? arr : arr.filter((e) => modeOf(e) === mode);
 }
 
-const LEVEL_NAMES = { ...Object.fromEntries(LEVELS.map((l) => [l.id, l.name])), [ENDLESS_LEVEL.id]: ENDLESS_LEVEL.name };
+const LEVEL_NAMES = { ...Object.fromEntries(LEVELS.map((l) => [l.id, l.name])), [ENDLESS_LEVEL.id]: ENDLESS_LEVEL.name, [WEEKEND_LEVEL.id]: WEEKEND_LEVEL.name };
 
 // filtre par niveau : levelId (nouveaux scores) ou nom de niveau (anciens scores)
-function filterLevel(arr, levelFilter) {
+// v1.3.36 : exporté pour le classement « amis » (filtrage client après getAll)
+export function filterLevel(arr, levelFilter) {
   if (levelFilter === 'all' || levelFilter === null || levelFilter === undefined) return arr;
   const id = Number(levelFilter);
   return arr.filter((e) => e.levelId === id || e.level === LEVEL_NAMES[id]);
@@ -155,6 +156,39 @@ export async function getTop(mode = 'all', levelFilter = 'all') {
   return sortDesc(filterLevel(filterMode(localList(), mode), levelFilter));
 }
 
+// --- v1.3.36 : classement « amis » — TOUTES les entrées (sans limite TOP), triées, pour
+// filtrage client par pseudo (core.filterFriendsByPseudo). Utilise le même nœud /scores/<mode>.
+export async function getAll(mode = 'all') {
+  const fetchMode = async (m) => {
+    const base = FIREBASE_DB_URL.replace(/\/$/, '');
+    const auth = FIREBASE_DB_SECRET ? `?auth=${FIREBASE_DB_SECRET}` : '';
+    const res = await fetch(`${base}/scores/${m}.json${auth}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status} sur scores/${m}`);
+    const data = await res.json();
+    return data && typeof data === 'object' ? Object.values(data) : [];
+  };
+  if (!isOnline()) {
+    setLbStatus('local', 0);
+    return filterMode(localList(), mode).map(cleanEntry).filter(Boolean).sort((a, b) => b.score - a.score);
+  }
+  const modes = mode === 'all' ? MODES : [mode];
+  const all = [];
+  const errors = [];
+  for (const m of modes) {
+    try {
+      all.push(...(await fetchMode(m)));
+    } catch (e) {
+      errors.push(String((e && e.message) || e));
+    }
+  }
+  if (all.length) {
+    setLbStatus('firebase', all.length, errors.length ? errors.join(' ; ') : null);
+    return all.map(cleanEntry).filter(Boolean).sort((a, b) => b.score - a.score);
+  }
+  setLbStatus('local', 0, errors.length ? errors.join(' ; ') : 'aucun score en ligne');
+  return filterMode(localList(), mode).map(cleanEntry).filter(Boolean).sort((a, b) => b.score - a.score);
+}
+
 // --- Classement du défi du jour (nœud /challenges/<dayKey>) ---
 export async function submitChallengeScore(dayId, entry, idToken) {
   if (!isOnline()) return false;
@@ -212,11 +246,15 @@ function cleanTimeEntry(e) {
 }
 
 function sortAscTime(arr) {
+  return sortAscTimeUnbounded(arr).slice(0, TOP);
+}
+
+// v1.3.36 : tri croissant SANS slice — utilisé par getSpeedrunAll (classement amis)
+function sortAscTimeUnbounded(arr) {
   return arr
     .map(cleanTimeEntry)
     .filter(Boolean)
-    .sort((a, b) => a.timeMs - b.timeMs)
-    .slice(0, TOP);
+    .sort((a, b) => a.timeMs - b.timeMs);
 }
 
 export function submitSpeedrunLocal(entry) {
@@ -252,6 +290,39 @@ export async function submitSpeedrun(levelId, entry, idToken) {
     return submitSpeedrunLocal(body);
   }
   return getSpeedrunTop('all');
+}
+
+// v1.3.36 : idem pour le classement speedrun — toutes les entrées, tri croissant, sans limite
+export async function getSpeedrunAll() {
+  const readAll = async () => {
+    const base = FIREBASE_DB_URL.replace(/\/$/, '');
+    const auth = FIREBASE_DB_SECRET ? `?auth=${FIREBASE_DB_SECRET}` : '';
+    const res = await fetch(`${base}/speedrun.json${auth}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status} sur speedrun`);
+    const data = await res.json();
+    const all = [];
+    if (data && typeof data === 'object') {
+      for (const entries of Object.values(data)) {
+        if (entries && typeof entries === 'object') all.push(...Object.values(entries));
+      }
+    }
+    return all;
+  };
+  if (!isOnline()) {
+    setLbStatus('local', 0);
+    return sortAscTimeUnbounded(localSrList());
+  }
+  try {
+    const all = await readAll();
+    if (all.length) {
+      setLbStatus('firebase', all.length, null);
+      return sortAscTimeUnbounded(all);
+    }
+    setLbStatus('local', 0, 'aucun temps speedrun en ligne');
+  } catch (e) {
+    setLbStatus('local', 0, `speedrun: ${(e && e.message) || e}`);
+  }
+  return sortAscTimeUnbounded(localSrList());
 }
 
 export async function getSpeedrunTop(levelFilter = 'all') {
