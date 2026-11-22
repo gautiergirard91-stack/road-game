@@ -357,3 +357,12 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] `node tests/break.test.mjs` : section U (clamp, tap validé à l'arrêt, stray sans piéton, miss normal sans autoStop)
 - [ ] Test manuel : niveau ville en speedrun (vitesse max) -> la voiture s'arrête avant le passage, roues AV PAS dessus ; tap AV à l'arrêt = validé, 0 cœur perdu
 - [ ] CI verte + CACHE sw bumpé (roadtap-v51) + VERSION 1.3.43 + version.json 1.3.43
+
+## Checklist v1.3.44 (score/record isolé par difficulté)
+
+- [ ] `js/store.js` : records `best`/`bestTime` keyés `"mode:levelId"` (`bestKey`, `getBest/setBest(mode,…)`, `getBestTime/setBestTime(mode,…)`), `bestFlat()` pour les succès ; migration des anciennes clés `levelId` copiées dans les 3 modes au `sanitize`
+- [ ] `main.js` : carte niveau + `onGameEnd` utilisent `save.difficulty` comme mode ; `checkAchievements` reçoit `bestFlat()`
+- [ ] `mergeRemote`/`snapshot` inchangés (max/min génériques sur les clés composites)
+- [ ] `node tests/break.test.mjs` : section V (migration, isolation, max/min, mergeRemote, bestFlat)
+- [ ] Test manuel : record niveau 3 en Auto école ≠ record en Pilote (cartes selon la difficulté choisie) ; ancienne save migrée sans perte
+- [ ] CI verte + CACHE sw bumpé (roadtap-v52) + VERSION 1.3.44 + version.json 1.3.44

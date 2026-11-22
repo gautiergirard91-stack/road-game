@@ -107,20 +107,20 @@ console.log('A. localStorage corrompu');
   );
   // les setters doivent rester sûrs après une save corrompue
   assert.doesNotThrow(() => {
-    store.setBest(3, 100);
+    store.setBest('auto', 3, 100); // v1.3.44 : signature (mode, levelId, score)
     store.setTrophy(3);
     store.markCleared(3);
     store.addCoins('auto', 50);
     store.addCoins('auto', NaN); // ne doit pas rendre le wallet NaN
     store.spend('pilote', 10); // fonds insuffisants -> false
-    store.setBestTime(3, 12345);
+    store.setBestTime('auto', 3, 12345); // v1.3.44 : (mode, levelId, ms)
     store.setSpeedrun(true);
     store.setHorizontalZones(true);
     store.setPseudo(98765);
   });
   ok('setters sûrs après save corrompue', store.getWallet('auto') === 50 && Number.isFinite(store.getWallet('auto')));
   ok('markCleared/isCleared', store.isCleared(3) === true && store.isCleared(4) === false);
-  ok('setBest/setTrophy persistés', store.get().best[3] === 100 && store.get().trophies[3] === true);
+  ok('setBest/setTrophy persistés (clé "auto:3")', store.get().best['auto:3'] === 100 && store.get().trophies[3] === true);
   ok('pseudo tronqué et stringifié', store.get().pseudo === '' || typeof store.get().pseudo === 'string');
 
   mem['roadtap_save_v1'] = 'null';
@@ -778,6 +778,25 @@ console.log('U. v1.3.43 : passage piéton à haute vitesse — arrêt AVANT le p
     g.update(1 / 60);
     ok('ligne piéton manquée SANS autoStop -> miss (règle normale conservée)', g.stats.misses >= 1);
   }
+}
+
+console.log('V. v1.3.44 : records best/bestTime isolés par difficulté (clé "mode:levelId") + migration des anciennes clés + mergeRemote');
+{
+  mem['roadtap_save_v1'] = JSON.stringify({ best: { 3: 5000 }, bestTime: { 3: 42000 } }); // legacy : clé = levelId seul
+  store.load();
+  const s = store.get();
+  ok('migration best : ancienne clé copiée dans les 3 difficultés, clé legacy supprimée', s.best['auto:3'] === 5000 && s.best['permisA:3'] === 5000 && s.best['pilote:3'] === 5000 && s.best['3'] === undefined);
+  ok('migration bestTime (min) copiée dans les 3 difficultés', s.bestTime['auto:3'] === 42000 && s.bestTime['permisA:3'] === 42000 && s.bestTime['pilote:3'] === 42000 && s.bestTime['3'] === undefined);
+  store.setBest('auto', 3, 6000);
+  store.setBest('pilote', 3, 4000); // inférieur au migré (5000) -> pas de record
+  ok('setBest isolé par mode + max', store.getBest('auto', 3) === 6000 && store.getBest('pilote', 3) === 5000 && store.getBest('permisA', 3) === 5000);
+  ok('setBest refuse un score inférieur (retour false)', store.setBest('auto', 3, 100) === false && store.getBest('auto', 3) === 6000);
+  store.setBestTime('auto', 3, 40000);
+  ok('setBestTime isolé par mode + min', store.getBestTime('auto', 3) === 40000 && store.getBestTime('pilote', 3) === 42000 && store.getBestTime('permisA', 3) === 42000);
+  ok('bestFlat : max de toutes les difficultés par niveau (vue succès)', store.bestFlat()['3'] === 6000);
+  store.mergeRemote({ best: { 'auto:3': 9000, 'pilote:3': 1000 }, bestTime: { 'auto:3': 30000 } });
+  ok('mergeRemote cloud : best max / bestTime min sur clés "mode:level"', store.getBest('auto', 3) === 9000 && store.getBest('pilote', 3) === 5000 && store.getBestTime('auto', 3) === 30000);
+  ok('bestKey compose "mode:levelId"', store.bestKey('pilote', 7) === 'pilote:7');
 }
 
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);
