@@ -21,5 +21,7 @@ jobs:
         run: node tests/tutorial.test.mjs
       - name: "Test adversarial (casser le jeu : save corrompue, réseau down, NaN…)"
         run: node tests/break.test.mjs
+      - name: Test auth (échange de jeton, restore session)
+        run: node tests/auth.test.mjs
       - name: Audit statique (IDs HTML↔JS, imports↔exports, assets SW, manifest)
         run: node tools/audit.mjs

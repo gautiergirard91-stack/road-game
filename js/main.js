@@ -7,7 +7,7 @@ import { watchRewarded } from './ads.js';
 import { Tutorial } from './tutorial.js';
 import * as leaderboard from './leaderboard.js';
 import * as cloudsave from './cloudsave.js';
-import { renderGoogleButton, restoreGoogleSession, setAuthToken, getAuthToken, signOutGoogle, isGoogleAuthConfigured, getLastAuthError } from './auth.js';
+import { renderGoogleButton, restoreGoogleSession, setAuthToken, getAuthToken, signOutGoogle, isGoogleAuthConfigured, getLastAuthError, signInWithPopupGoogle } from './auth.js';
 import { logEvent } from './analytics.js';
 import { VERSION } from './config.js';
 
@@ -973,9 +973,39 @@ on('btn-leaderboard-back', 'click', () => {
   sfx.click();
   show('screen-menu');
 });
+// v1.3.33 : termine la connexion Google (bouton GIS OU popup) : compte lié + jeton +
+// chargement immédiat de la sauvegarde cloud et fusion (sinon la progression ne change
+// pas à la connexion — bug « la page reste inchangée après connexion »).
+async function completeGoogleSignIn(sess) {
+  setAuthToken(sess.idToken);
+  store.setGoogleAccount(sess.uid, sess.email, sess.refreshToken);
+  sfx.coin();
+  toast(`🔗 Compte Google lié : ${sess.email || sess.uid}`);
+  updateGoogleStatus();
+  const gsi = $('#gsi-btn');
+  if (gsi) gsi.innerHTML = ''; // le bouton officiel disparaît une fois lié
+  if (leaderboard.isOnline() && save.uid) {
+    try {
+      const remote = await cloudsave.load(save.uid, getAuthToken());
+      if (remote && store.mergeRemote(remote)) {
+        refreshCoins();
+        renderLevels();
+        renderShop();
+        renderDifficultyPicker();
+        toast('☁️ Progression synchronisée avec le cloud');
+      }
+    } catch (e) {
+      console.warn('[auth] chargement cloud après connexion:', e);
+    }
+  }
+  pushCloud();
+}
+
 function updateGoogleStatus() {
   const el = $('#google-status');
   const out = $('#btn-google-out');
+  const popup = $('#btn-google-popup');
+  if (popup) popup.classList.toggle('hidden', !isGoogleAuthConfigured() || !!save.uid);
   if (el) {
     el.textContent = save.uid
       ? `🔗 Compte Google lié : ${save.googleEmail || save.uid}`
@@ -1008,16 +1038,10 @@ function openPseudoModal(forced) {
     renderGoogleButton(gsi)
       .then((sess) => {
         if (sess && sess.uid) {
-          setAuthToken(sess.idToken);
-          store.setGoogleAccount(sess.uid, sess.email, sess.refreshToken);
-          gsi.innerHTML = ''; // le bouton Google disparaît une fois lié
-          sfx.coin();
-          toast(`🔗 Compte Google lié : ${sess.email || sess.uid}`);
-          updateGoogleStatus();
-          pushCloud();
+          completeGoogleSignIn(sess); // v1.3.33 : inclut le chargement cloud + synchro
         } else {
           const why = getLastAuthError();
-          toast(`❌ Connexion Google refusée${why ? ' : ' + why : ' — réessaie (F12 console + onglet Réseau pour le détail)'}`, );
+          toast(`❌ Bouton Google bloqué/annulé${why ? ' : ' + why : ''} — essaie le bouton « popup » en dessous (F12 console pour le détail)`, );
         }
       })
       .catch((err) => {
@@ -1044,6 +1068,19 @@ function ensurePseudoThen(fn) {
 on('btn-pseudo', 'click', () => {
   sfx.click();
   openPseudoModal(false);
+});
+// v1.3.33 : repli si le bouton officiel GIS est bloqué (uBlock/Privacy Badger…) : popup SDK Firebase
+on('btn-google-popup', 'click', () => {
+  sfx.click();
+  signInWithPopupGoogle()
+    .then((sess) => {
+      if (sess && sess.uid) completeGoogleSignIn(sess);
+      else toast('❌ Connexion Google annulée');
+    })
+    .catch((err) => {
+      console.error('[auth] popup error:', err);
+      toast('❌ Connexion Google impossible : ' + (err && err.message ? err.message : 'erreur inconnue') + ' — vérifie les domaines autorisés (docs/FIREBASE.md §5)');
+    });
 });
 on('btn-google-out', 'click', () => {
   signOutGoogle();
