@@ -966,4 +966,28 @@ console.log('AA. v1.3.49 : touche « recommencer » bindable + boutons de souris
   ok('main.js : retry câblé (settings + keydown + souris) et garage effets/thèmes rendus', mainSrc.includes("'btn-key-retry', 'retry'") && mainSrc.includes('MOUSE_CODES') && mainSrc.includes("action === 'retry'") && mainSrc.includes("$('#garage-effects')") && mainSrc.includes("$('#garage-themes')"));
 }
 
+console.log('AB. v1.3.50 : « Photo réaliste » supprimé, tagline supprimée, btn-access hors du menu, accessibilité lisible (CSS), filtres « Tous » retirés du classement + bug filtre niveau 2 corrigé');
+{
+  const fsA = await import('node:fs');
+  const html = fsA.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const mainSrc = fsA.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  const gameSrc = fsA.readFileSync(new URL('../js/game.js', import.meta.url), 'utf8');
+  const lbSrc = fsA.readFileSync(new URL('../js/leaderboard.js', import.meta.url), 'utf8');
+  const css = fsA.readFileSync(new URL('../css/style.css', import.meta.url), 'utf8');
+
+  ok('plus de « Photo réaliste » (game.js label vide + templates filtrent)', !gameSrc.includes('Photo réaliste') && !mainSrc.includes('Photo réaliste') && mainSrc.includes('filter(Boolean).join'));
+  const menuHtml = html.slice(html.indexOf('id="screen-menu"'), html.indexOf('id="screen-levels"'));
+  ok('menu principal : tagline supprimée + bouton ♿ Accessibilité retiré', !menuHtml.includes('tagline') && !menuHtml.includes('id="btn-access"'));
+  ok('access-modal toujours présent (handlers JS valides)', html.includes('id="access-modal"'));
+  ok('CSS : options accessibilité lisibles dans Paramètres (16px + fond + case agrandie)', css.includes('.settings-panel label.lb-optin') && css.includes('font-size: 16px') && css.includes('scale(1.3)'));
+
+  ok('main.js : plus d\'option « Tous » ni « Tous niveaux » dans les filtres LB', !mainSrc.includes("name: 'Tous niveaux'") && !mainSrc.includes("{ id: 'all', name: 'Tous' }"));
+  ok('main.js : ouverture du classement = difficulté courante + aucun filtre niveau', mainSrc.includes('lbFilter = save.difficulty;') && mainSrc.includes("lbLevelFilter = 'all';"));
+  ok('main.js : filtre par niveau => fetch de TOUS les modes (bug testeur niveau 2)', mainSrc.includes("lbLevelFilter !== 'all' ? 'all' : lbFilter"));
+  ok('leaderboard.js : filterLevel tolérant (levelId string ou number)', lbSrc.includes('Number(e.levelId) === id'));
+
+  // fonctionnel : filterLevel avec levelId en string fonctionne (cause possible du bug testeur)
+  ok('filterLevel("2") matche levelId 2 (number) ET "2" (string)', lb.filterLevel([{ levelId: 2, score: 1 }, { levelId: '2', score: 2 }, { levelId: 3, score: 3 }], '2').length === 2);
+}
+
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);

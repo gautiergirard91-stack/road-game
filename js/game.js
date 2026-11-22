@@ -56,7 +56,7 @@ function rr(ctx, x, y, w, h, r) {
 // v1.3.12 : styles de rendu de la voiture (du photoréaliste au "blocs")
 export const CAR_STYLES = ['photo', 'flat', 'neon', 'pixel', 'retro', 'toy', 'holo'];
 export const CAR_STYLE_LABEL = {
-  photo: 'Photo réaliste',
+  photo: '', // v1.3.50 : libellé 'photo' vidé — la boutique/garage n'affichent plus que le modèle
   flat: 'Blocs (classique)',
   neon: 'Néon',
   pixel: 'Pixel 8-bit',
