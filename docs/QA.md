@@ -314,3 +314,10 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] Connexion → pseudo pré-rempli depuis le compte, bouton Enregistrer activé, cloud chargé + fusionné immédiatement
 - [ ] `node tests/break.test.mjs` : section P (plus de « (popup) »/gsi-btn/continue_with dans HTML/JS, popup SDK toujours câblé)
 - [ ] CI verte + CACHE sw bumpé (roadtap-v46) + VERSION 1.3.38 + version.json 1.3.38
+
+## Checklist v1.3.39 (options d'accessibilité dans le menu pause)
+
+- [ ] Menu pause (⏸) : section « ♿ Accessibilité » sous les boutons, avec les 3 mêmes options que la modale menu (fenêtres élargies, symboles daltonien, zones gauche/droite) — IDs `p-opt-*`, panneau scrollable si petit écran
+- [ ] Les cases pause sont synchronisées à l'ouverture de la pause ; changer une option dans la pause met aussi à jour la modale menu (et inversement), effet immédiat + toast
+- [ ] `node tests/break.test.mjs` : section Q (IDs `p-opt-*` uniques et dans `pause-overlay`, câblage préfixe `p-`, persistance des setters + snapshot cloud)
+- [ ] CI verte + CACHE sw bumpé (roadtap-v47) + VERSION 1.3.39 + version.json 1.3.39

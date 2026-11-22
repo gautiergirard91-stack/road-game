@@ -574,4 +574,31 @@ console.log('P. v1.3.38 : UN SEUL bouton Google « Connexion Google » (plus de 
   ok('main.js : le bouton btn-google-popup reste câblé', mainSrc.includes("on('btn-google-popup'"));
 }
 
+console.log('Q. v1.3.39 : options d\'accessibilité aussi dans le menu pause (préfixe p-, synchronisées avec la modale)');
+{
+  const fs3 = await import('node:fs');
+  const html = fs3.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const mainSrc = fs3.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  // IDs présents UNE SEULE fois (pas de doublon avec la modale) et bien dans le panneau pause
+  const pauseHtml = html.slice(html.indexOf('id="pause-overlay"'), html.indexOf('id="continue-overlay"'));
+  for (const id of ['p-opt-widewindows', 'p-opt-colorblind', 'p-opt-zones-h']) {
+    ok(`#${id} présent une seule fois au total ET dans pause-overlay`, (html.match(new RegExp(`id="${id}"`, 'g')) || []).length === 1 && pauseHtml.includes(`id="${id}"`));
+  }
+  ok('main.js : les 2 panneaux câblés (préfixes \'\' et \'p-\')', mainSrc.includes("wireAccessCheckboxes('');") && mainSrc.includes("wireAccessCheckboxes('p-');"));
+  ok('main.js : synchro des cases pause à l\'ouverture de la pause', mainSrc.includes("syncAccessCheckboxes('p-')"));
+  // comportement : les setters persistent et partent dans le snapshot cloud
+  mem['roadtap_save_v1'] = '{}';
+  store.load();
+  store.setWideWindows(true);
+  store.setColorblind(true);
+  store.setHorizontalZones(true);
+  ok('setters accessibilité persistés (wideWindows/colorblind/horizontalZones)', store.get().wideWindows === true && store.get().colorblind === true && store.get().horizontalZones === true);
+  ok('horizontalZones part dans le snapshot cloud (synchro multi-appareils)', store.snapshot().horizontalZones === true);
+  ok('wideWindows/colorblind restent des préférences d\'appareil locales (par design, pas dans le snapshot)', !('wideWindows' in store.snapshot()) && !('colorblind' in store.snapshot()));
+  store.setWideWindows(false);
+  store.setColorblind(false);
+  store.setHorizontalZones(false);
+  ok('désactivation persistée', store.get().wideWindows === false && store.get().colorblind === false && store.get().horizontalZones === false);
+}
+
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);

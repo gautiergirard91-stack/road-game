@@ -1102,6 +1102,7 @@ function togglePause(force) {
   if (!game || !game.running) return;
   game.paused = force !== undefined ? force : !game.paused;
   $('#pause-overlay').classList.toggle('active', game.paused);
+  if (game.paused) syncAccessCheckboxes('p-'); // v1.3.39 : cases accessibilité de la pause à jour à l'ouverture
 }
 
 function loop(t) {
@@ -1150,12 +1151,35 @@ on('btn-achievements-back', 'click', () => {
   sfx.click();
   show('screen-menu');
 });
+// v1.3.39 : les options d'accessibilité existent à DEUX endroits (modale menu "♿ Accessibilité" et
+// menu pause) — préfixe '' pour la modale, 'p-' pour la pause. Les deux panneaux restent synchronisés.
+const ACCESS_OPTS = [
+  { id: 'opt-widewindows', key: 'wideWindows', set: (v) => store.setWideWindows(v), on: 'Fenêtres de timing élargies (accessibilité)', off: 'Fenêtres de timing standard' },
+  { id: 'opt-colorblind', key: 'colorblind', set: (v) => store.setColorblind(v), on: 'Symboles ajoutés sur les lignes (mode daltonien)', off: 'Mode standard' },
+  { id: 'opt-zones-h', key: 'horizontalZones', set: (v) => store.setHorizontalZones(v), on: '🔄 Zones gauche/droite : gauche = roues AV, droite = roues AR', off: 'Zones haut/bas rétablies (haut = AV, bas = AR)' },
+];
+function syncAccessCheckboxes(prefix) {
+  for (const o of ACCESS_OPTS) {
+    const el = document.getElementById(prefix + o.id);
+    if (el) el.checked = !!save[o.key];
+  }
+}
+function wireAccessCheckboxes(prefix) {
+  for (const o of ACCESS_OPTS) {
+    on(prefix + o.id, 'change', (e) => {
+      o.set(e.target.checked);
+      toast(e.target.checked ? o.on : o.off);
+      syncAccessCheckboxes('');
+      syncAccessCheckboxes('p-'); // modale ↔ pause synchronisées
+    });
+  }
+}
+wireAccessCheckboxes('');
+wireAccessCheckboxes('p-'); // v1.3.39 : options d'accessibilité aussi dans le menu pause
+
 on('btn-access', 'click', () => {
   sfx.click();
-  for (const [id, key] of [['opt-widewindows', 'wideWindows'], ['opt-colorblind', 'colorblind'], ['opt-zones-h', 'horizontalZones']]) {
-    const el = document.getElementById(id);
-    if (el) el.checked = !!save[key];
-  }
+  syncAccessCheckboxes('');
   $('#access-modal').classList.remove('hidden');
   $('#access-modal').classList.add('active');
 });
@@ -1163,18 +1187,6 @@ on('btn-access-close', 'click', () => {
   sfx.click();
   $('#access-modal').classList.add('hidden');
   $('#access-modal').classList.remove('active');
-});
-on('opt-widewindows', 'change', (e) => {
-  store.setWideWindows(e.target.checked);
-  toast(e.target.checked ? 'Fenêtres de timing élargies (accessibilité)' : 'Fenêtres de timing standard');
-});
-on('opt-colorblind', 'change', (e) => {
-  store.setColorblind(e.target.checked);
-  toast(e.target.checked ? 'Symboles ajoutés sur les lignes (mode daltonien)' : 'Mode standard');
-});
-on('opt-zones-h', 'change', (e) => {
-  store.setHorizontalZones(e.target.checked);
-  toast(e.target.checked ? '🔄 Zones gauche/droite : gauche = roues AV, droite = roues AR' : 'Zones haut/bas rétablies (haut = AV, bas = AR)');
 });
 on('btn-music', 'click', () => {
   store.setMusic(!save.music);
