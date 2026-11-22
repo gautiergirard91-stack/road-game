@@ -207,6 +207,22 @@ export function keyToAction(code, horizontal, keys) {
   return null;
 }
 
+// v1.3.48 : bonus de pièces selon la réactivité du résultat (temps de réaction moyen + précision).
+// Le meilleur joueur fait full parfait (déjà médaillé en v1.3.35) ET a le meilleur temps de réaction.
+export function reactionBonus(coins, stats) {
+  const avg = avgReaction(stats); // ms (moyenne des |dtMs|), null si aucune réaction
+  const acc = accuracy(stats); // 0..100
+  if (!Number.isFinite(coins) || coins <= 0 || avg === null || !Number.isFinite(avg)) {
+    return { coins: 0, pct: 0, avgMs: avg, acc };
+  }
+  let pct = 0;
+  if (avg <= 40) pct += 25; // réflexes de fou
+  else if (avg <= 70) pct += 15;
+  else if (avg <= 110) pct += 5;
+  if (acc >= 100) pct += 10; // précision parfaite
+  return { coins: Math.round((coins * pct) / 100), pct, avgMs: avg, acc };
+}
+
 export function avgReaction(stats) {
   if (!stats.reactions.length) return null;
   return Math.round(stats.reactions.reduce((a, b) => a + b, 0) / stats.reactions.length);

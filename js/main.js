@@ -2,7 +2,7 @@ import { LEVELS, THEMES, SKINS, EFFECTS, DIFFICULTIES, CURRENCIES, WINDOWS, ACHI
 import { Game, CAR_STYLE_LABEL, renderCarPreview, renderEffectPreview, renderThemePreview, renderPackPreview, renderSoundPreview } from './game.js';
 import * as store from './store.js';
 import { sfx, setEnabled, setMusicEnabled, unlockAudio, applySoundPack, setMusicCombo, musicSting, musicVictory, scheduleLineBeat, clearLineBeats } from './audio.js';
-import { coinsForResult, accuracy, avgReaction, continueCost, maxMissesFor, firstClearBonus, isPerfectClear, perfectClearBonus, dailyChallenge, weeklyQuests, fmtTime, zoneFromPoint, keyToAction, isNewerVersion, starsFor, endlessMilestones, isWeekend, weekendCoinMultiplier, filterFriendsByPseudo, canSubmitToLeaderboard, keyLabel } from './core.js';
+import { coinsForResult, accuracy, avgReaction, continueCost, maxMissesFor, firstClearBonus, isPerfectClear, perfectClearBonus, dailyChallenge, weeklyQuests, fmtTime, zoneFromPoint, keyToAction, isNewerVersion, starsFor, endlessMilestones, isWeekend, weekendCoinMultiplier, filterFriendsByPseudo, canSubmitToLeaderboard, keyLabel, reactionBonus } from './core.js';
 import { watchRewarded } from './ads.js';
 import { Tutorial } from './tutorial.js';
 import * as leaderboard from './leaderboard.js';
@@ -204,7 +204,7 @@ function renderLbFilter() {
   const el = $('#lb-filter');
   if (!el) return;
   el.innerHTML = '';
-  const opts = [{ id: 'all', name: 'Tous' }, ...DIFFICULTIES, { id: 'speedrun', name: '⏱ Speedrun' }]; // v1.3.31 : classement temps dédié
+  const opts = [{ id: 'all', name: 'Tous' }, ...DIFFICULTIES, { id: 'speedrun', name: '⏱ Speedrun' }, { id: 'reaction', name: '⚡ Réaction' }]; // v1.3.31/v1.3.48
   for (const d of opts) {
     const b = document.createElement('button');
     b.className = 'btn small diff-btn' + (lbFilter === d.id ? ' active' : '');
@@ -223,9 +223,17 @@ async function renderLeaderboard() {
   const list = $('#leaderboard-list');
   list.innerHTML = '<div class="card-sub">Chargement…</div>';
   const isSr = lbFilter === 'speedrun'; // v1.3.31 : classement speedrun (temps, tri croissant)
+  const isReact = lbFilter === 'reaction'; // v1.3.48 : classement par temps de réaction moyen (croissant)
   let top = [];
   try {
-    if (lbScope === 'friends') {
+    if (isReact) {
+      // v1.3.48 : « ⚡ Réaction » — meilleur temps de réaction moyen de tout le monde (tri croissant avgMs)
+      const all = await leaderboard.getAll('all');
+      let arr = all.filter((e) => typeof e.avgMs === 'number' && Number.isFinite(e.avgMs));
+      arr = leaderboard.filterLevel(arr, lbLevelFilter);
+      if (lbScope === 'friends') arr = filterFriendsByPseudo(arr, save.friends);
+      top = arr.sort((a, b) => a.avgMs - b.avgMs).slice(0, 50);
+    } else if (lbScope === 'friends') {
       // v1.3.36 : on récupère TOUT le classement (sans limite) puis on filtre par pseudos d'amis côté client
       const all = isSr ? await leaderboard.getSpeedrunAll() : await leaderboard.getAll(lbFilter);
       top = filterFriendsByPseudo(leaderboard.filterLevel(all, lbLevelFilter), save.friends).slice(0, 50);
@@ -241,11 +249,11 @@ async function renderLeaderboard() {
   if (!leaderboard.isOnline()) {
     srcEl.textContent = 'Classement local — configure Firebase dans js/config.js pour un classement en ligne (voir README)';
   } else if (st && st.source === 'firebase') {
-    srcEl.textContent = `${isSr ? '⏱ Classement speedrun' : 'Classement'} en ligne (Firebase) — ${st.count} ${isSr ? 'temps' : 'score(s)'} chargé(s)` + (st.error ? ` — ⚠ ${st.error}` : '');
+    srcEl.textContent = `${isSr ? '⏱ Classement speedrun' : isReact ? '⚡ Classement réaction' : 'Classement'} en ligne (Firebase) — ${st.count} ${isSr ? 'temps' : isReact ? 'réactions' : 'score(s)'} chargé(s)` + (st.error ? ` — ⚠ ${st.error}` : '');
   } else if (st && st.error) {
     srcEl.textContent = `⚠ ${isSr ? 'Speedrun' : 'Firebase'} injoignable ou refusé : ${st.error} — affichage local`;
   } else {
-    srcEl.textContent = `${isSr ? '⏱ Classement speedrun' : 'Classement'} en ligne (Firebase) — aucun ${isSr ? 'temps' : 'score'} en ligne pour ce filtre, affichage local`;
+    srcEl.textContent = `${isSr ? '⏱ Classement speedrun' : isReact ? '⚡ Classement réaction' : 'Classement'} en ligne (Firebase) — aucun ${isSr ? 'temps' : isReact ? 'réactions' : 'score'} en ligne pour ce filtre, affichage local`;
   }
   // v1.3.28 : si les envois sont refusés (403…), on le dit aussi — sinon on croit que le nœud est juste vide
   if (st && st.writeError) srcEl.textContent += ` — ⚠ ${st.writeError}`;
@@ -268,7 +276,7 @@ async function renderLeaderboard() {
       ? (isSr
         ? 'Aucun temps speedrun en ligne — finis un niveau en mode ⏱ Speedrun ! (règles RTDB : nœud /speedrun, voir docs/FIREBASE.md)'
         : 'Vérifie les règles RTDB : ouvre ' + 'https://realtime-database-5fd49-default-rtdb.europe-west1.firebasedatabase.app/scores.json' + ' (doit répondre 200 avec des données ou null).')
-      : (isSr ? 'Aucun temps pour l\'instant — joue en mode ⏱ Speedrun !' : 'Aucun score pour l\'instant — joue une partie !');
+      : (isSr ? 'Aucun temps pour l\'instant — joue en mode ⏱ Speedrun !' : isReact ? 'Aucune réaction enregistrée — joue une partie !' : 'Aucun score pour l\'instant — joue une partie !');
     list.innerHTML = `<div class="card-sub">${hint}</div>`;
     return;
   }
@@ -276,7 +284,7 @@ async function renderLeaderboard() {
     const row = document.createElement('div');
     row.className = 'card lb-row';
     const me = save.pseudo && e.pseudo === save.pseudo;
-    const right = isSr ? `⏱ ${fmtTime((e.timeMs || 0) / 1000)}` : e.score; // v1.3.31 : speedrun = temps formaté
+    const right = isSr ? `⏱ ${fmtTime((e.timeMs || 0) / 1000)}` : isReact ? `⚡ ${e.avgMs} ms` : (typeof e.avgMs === 'number' ? `${e.score} · ⚡${e.avgMs}ms` : e.score); // v1.3.31/v1.3.48
     row.innerHTML = `<span class="lb-rank">${i + 1}</span><span class="lb-name${me ? ' me' : ''}">${escapeHtml(e.pseudo || 'Anonyme')}</span><span class="lb-level">${escapeHtml(e.level || '')}</span><span class="lb-score">${right}</span>`;
     list.appendChild(row);
   });
@@ -1007,7 +1015,7 @@ function onGameEnd(stats, level) {
     // v1.3.19 : en speedrun le score est un temps -> pas de classement global (record local bestTime)
     leaderboard
       // v1.3.32 : uid + jeton -> règles RTDB vérifient uid == auth.uid (anti-usurpation)
-      .submitScore({ pseudo: save.pseudo, uid: save.uid || '', score: stats.score, level: level.name, levelId: level.id, mode: save.difficulty, date: Date.now() }, getAuthToken())
+      .submitScore({ pseudo: save.pseudo, uid: save.uid || '', score: stats.score, level: level.name, levelId: level.id, mode: save.difficulty, date: Date.now(), avgMs: avgReaction(stats) ?? undefined }, getAuthToken()) // v1.3.48 : avgMs envoyé au classement
       .catch(() => {});
   }
   if (sr && stats.completed && canSubmitToLeaderboard(save)) { // v1.3.45 : idem speedrun
@@ -1026,6 +1034,9 @@ function onGameEnd(stats, level) {
   // v1.3.36 : événement week-end — TOUTES les pièces de la partie sont doublées samedi/dimanche
   const weMult = weekendCoinMultiplier();
   if (weMult > 1) coins = Math.round(coins * weMult);
+  // v1.3.48 : récompense selon le taux de réaction du résultat (avg ms + précision)
+  const rb = reactionBonus(coins, stats);
+  if (rb.coins > 0) coins += rb.coins;
   const perfectClear = !!stats.completed && isPerfectClear(stats);
   if (perfectClear) store.setTrophy(level.id);
   if (coins > 0) {
@@ -1092,7 +1103,6 @@ function onGameEnd(stats, level) {
     <div><b>${stats.passables}</b><span>OK</span></div>
     <div><b>${stats.misses}/${maxMissesFor(save.difficulty)}</b><span>Manquées</span></div>
     <div><b>${stats.overtakes || 0}</b><span>Dépassements</span></div>
-    <div><b>${stats.bestCombo}</b><span>Meilleur combo</span></div>
     <div><b>${avg !== null ? avg + ' ms' : '—'}</b><span>Réaction moy.</span></div>
     <div><b>${accuracy(stats)} %</b><span>Précision</span></div>
     ${level.endless
@@ -1103,6 +1113,7 @@ function onGameEnd(stats, level) {
     `+${coins} ${ci} gagnées` +
     (firstClear ? ` (dont +${clearBonus} ${ci} de premier clear ! 🎉)` : '') +
     (perfectClear ? ` — 🥇 FULL PARFAIT ! +${perfectClearBonus(level)} ${ci} et médaille du niveau !` : '') +
+    (rb.pct > 0 ? ` — ⚡ réactivité +${rb.pct}% (${rb.avgMs} ms moy., ${rb.acc}%)` : '') + // v1.3.48
     (weMult > 1 ? ` — 🎉 week-end : pièces ×${weMult} !` : '');
   setTimeout(() => {
     refreshCoins();
