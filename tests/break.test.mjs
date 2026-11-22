@@ -990,4 +990,38 @@ console.log('AB. v1.3.50 : « Photo réaliste » supprimé, tagline supprimée, 
   ok('filterLevel("2") matche levelId 2 (number) ET "2" (string)', lb.filterLevel([{ levelId: 2, score: 1 }, { levelId: '2', score: 2 }, { levelId: 3, score: 3 }], '2').length === 2);
 }
 
+console.log('AC. v1.3.51 : niveaux déterministes (seed fixe par niveau+mode) — speedrun-friendly');
+{
+  const core = await import('../js/core.js');
+  ok('levelSeed stable + dépend du niveau et du mode', core.levelSeed(3, 'auto') === core.levelSeed(3, 'auto') && core.levelSeed(3, 'auto') !== core.levelSeed(3, 'pilote') && core.levelSeed(3, 'auto') !== core.levelSeed(4, 'auto'));
+  const p1 = core.buildPattern(LEVELS[2], core.levelSeed(3, 'permisA'), 'permisA');
+  const p2 = core.buildPattern(LEVELS[2], core.levelSeed(3, 'permisA'), 'permisA');
+  ok('buildPattern : même seed -> pattern identique', JSON.stringify(p1) === JSON.stringify(p2));
+  const p3 = core.buildPattern(LEVELS[2], core.levelSeed(3, 'permisA') + 1, 'permisA');
+  ok('buildPattern : seed différent -> pattern différent', JSON.stringify(p1) !== JSON.stringify(p3));
+
+  const g1 = makeGame(LEVELS[2], 'permisA');
+  const g2 = makeGame(LEVELS[2], 'permisA');
+  g1.start();
+  g2.start();
+  const sig = (g) => JSON.stringify(g.lines.map((l) => [l.type, l.dist, l.axle]));
+  ok('2 parties même niveau+mode -> lignes identiques', sig(g1) === sig(g2));
+  g1.extendPattern();
+  g2.extendPattern();
+  ok('tronçons suivants identiques aussi', sig(g1) === sig(g2));
+
+  const t1 = makeGame(LEVELS[10], 'pilote');
+  const t2 = makeGame(LEVELS[10], 'pilote');
+  t1.start();
+  t2.start();
+  t1.tOncoming = 0; t2.tOncoming = 0; t1.tSame = 0; t2.tSame = 0;
+  for (let i = 0; i < 120; i++) { t1.updateTraffic(1 / 60); t2.updateTraffic(1 / 60); }
+  ok('trafic déterministe (mêmes voitures après les mêmes updates)', JSON.stringify(t1.oncoming) === JSON.stringify(t2.oncoming) && JSON.stringify(t1.sameDir) === JSON.stringify(t2.sameDir));
+
+  const g3 = makeGame(LEVELS[0], 'auto');
+  g3.start();
+  for (let i = 0; i < 30; i++) g3.update(1 / 60);
+  ok('30 updates sans crash avec le rand seedé', g3.running === true);
+}
+
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);

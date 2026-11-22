@@ -83,3 +83,8 @@ Légende : **P0** = à faire avant/après le merge de la branche béton armé ; 
 3. **Bloqueurs de pub/trackers** (uBlock, Privacy Badger) cassent Google Sign-In : prévoir un message « désactive ton bloqueur pour la connexion Google » (déjà partiellement géré via `getLastAuthError`).
 4. **Facturation Google Cloud** : projet parasite supprimé, budget à 1 €, plan Spark envisagé — RTDB + Auth restent gratuits à notre échelle.
 5. **Données personnelles** : jamais de secret commité (`FIREBASE_DB_SECRET` vide, refresh token jamais envoyé à la DB) — relire `PRIVACY.md` avant chaque release store.
+
+
+## v1.3.51 — niveaux déterministes (speedrun-friendly)
+
+Le même niveau (id + difficulté) produit **exactement le même parcours à chaque partie** : seed fixe `levelSeed(id, mode)` (FNV hash), tronçons suivants seedés (`id#chunkN`), trafic et piétons sur le même PRNG seedé (`this.rand`, reset à chaque `start()`). Le décor et la météo restent aléatoires (cosmétique). Utile pour les speedruns (temps comparables) et pour apprendre le niveau par cœur avec le beat musical (v1.3.46).
