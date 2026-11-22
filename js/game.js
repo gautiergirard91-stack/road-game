@@ -731,7 +731,7 @@ export class Game {
     this.score = 0;
     this.combo = 0;
     this.bestCombo = 0;
-    this.stats = { perfects: 0, goods: 0, passables: 0, misses: 0, overtakes: 0, reactions: [], score: 0 };
+    this.stats = { perfects: 0, goods: 0, passables: 0, misses: 0, overtakes: 0, reactions: [], score: 0, lines: 0 }; // v1.3.35 : lignes résolues (paliers Survie ∞)
     this.popups = [];
     this.particles = [];
     this.confetti = [];
@@ -847,6 +847,7 @@ export class Game {
         if (this.axles.every((a) => line.hits[a])) {
           line.state = 'resolved';
           this.remaining--;
+          this.stats.lines++; // v1.3.35
         }
         return;
       }
@@ -1234,7 +1235,10 @@ export class Game {
     }
     best.hits[axle] = result;
     best.state = this.axles.every((a) => best.hits[a]) ? 'resolved' : 'pending';
-    if (best.state === 'resolved') this.remaining--;
+    if (best.state === 'resolved') {
+      this.remaining--;
+      this.stats.lines++; // v1.3.35
+    }
     best.result = result;
     best.flash = 0.3;
     if (this.hasEffect('glow')) best.glow = 0.4;

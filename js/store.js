@@ -5,6 +5,8 @@ const KEY = 'roadtap_save_v1';
 const defaults = () => ({
   wallets: { auto: 0, permisA: 0, pilote: 0 },
   trophies: {},
+  stars: {}, // v1.3.35 : étoiles par niveau (1..3), clé = id du niveau
+  endlessBest: 0, // v1.3.35 : record de lignes résolues en Survie ∞
   unlockedLevels: [1],
   cleared: {}, // niveaux TERMINÉS en entier (clé = id du niveau) — requis pour acheter le suivant
   skins: ['default'],
@@ -64,6 +66,8 @@ const boolMap = (v) => {
 function sanitize(s) {
   s.wallets = { auto: num(s.wallets && s.wallets.auto), permisA: num(s.wallets && s.wallets.permisA), pilote: num(s.wallets && s.wallets.pilote) };
   s.trophies = boolMap(s.trophies);
+  s.stars = numMap(s.stars);
+  s.endlessBest = num(s.endlessBest);
   s.cleared = boolMap(s.cleared);
   s.best = numMap(s.best);
   s.bestTime = numMap(s.bestTime);
@@ -164,6 +168,22 @@ export function spend(diff, n) {
   return true;
 }
 
+export function setStars(levelId, n) {
+  const v = num(n);
+  if (v > (save.stars[levelId] || 0)) {
+    save.stars[levelId] = v;
+    persist();
+  }
+}
+
+export function setEndlessBest(n) {
+  const v = num(n);
+  if (v > save.endlessBest) {
+    save.endlessBest = v;
+    persist();
+  }
+}
+
 export function setTrophy(levelId) {
   if (!save.trophies[levelId]) {
     save.trophies[levelId] = true;
@@ -214,6 +234,8 @@ export function setBestTime(levelId, ms) {
 }
 
 export function buySkin(id, cost, currency = 'auto') {
+  // v1.3.35 : les skins "récompense" (coût 0, ex. Survie d'or) ne s'achètent pas
+  if ((num(cost)) <= 0 && id !== 'default') return false;
   if (save.skins.includes(id) || !spend(currency, cost)) return false;
   save.skins.push(id);
   persist();
@@ -422,6 +444,8 @@ export function snapshot() {
   return {
     wallets: save.wallets,
     trophies: save.trophies,
+    stars: save.stars,
+    endlessBest: save.endlessBest,
     unlockedLevels: save.unlockedLevels,
     cleared: save.cleared,
     skins: save.skins,
@@ -460,6 +484,10 @@ function mergeRemoteBody(remote) {
     save.wallets[k] = Math.max(save.wallets[k] || 0, num(rw[k]));
   }
   save.trophies = { ...(remote.trophies || {}), ...save.trophies };
+  for (const [k, v] of Object.entries((remote.stars && typeof remote.stars === 'object') ? remote.stars : {})) {
+    save.stars[k] = Math.max(save.stars[k] || 0, num(v));
+  }
+  save.endlessBest = Math.max(save.endlessBest || 0, num(remote.endlessBest));
   save.packs = [...new Set([...save.packs, ...arr(remote.packs)])];
   save.soundPacks = [...new Set([...save.soundPacks, 'default', ...arr(remote.soundPacks)])];
   if (remote.soundPack && save.soundPacks.includes(remote.soundPack)) save.soundPack = remote.soundPack;

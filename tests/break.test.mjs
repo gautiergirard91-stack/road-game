@@ -405,4 +405,40 @@ console.log('K. v1.3.32 : anti-usurpation — idToken en ?auth= et uid dans le c
   delete globalThis.fetch;
 }
 
+console.log('M. v1.3.35 : étoiles par niveau + paliers Survie ∞ + skin récompense non achetable');
+{
+  // starsFor : 0 si pas terminé, 1 terminé, 2 si >=60% PARFAIT, 3 si full parfait
+  ok('starsFor non terminé -> 0', core.starsFor({ completed: false, perfects: 10 }) === 0);
+  ok('starsFor terminé sans parfait -> 1', core.starsFor({ completed: true, perfects: 0, goods: 5, passables: 5, misses: 0 }) === 1);
+  ok('starsFor terminé 60% parfaits -> 2', core.starsFor({ completed: true, perfects: 6, goods: 4, passables: 0, misses: 0 }) === 2);
+  ok('starsFor full parfait -> 3', core.starsFor({ completed: true, perfects: 10, goods: 0, passables: 0, misses: 0 }) === 3);
+  ok('starsFor stats NaN -> sûr', core.starsFor({ completed: true, perfects: NaN }) === 1);
+
+  // endlessMilestones : paliers franchis entre prev et next
+  const ms = core.endlessMilestones(5, 55);
+  ok('paliers 5->55 = [10,25,50]', ms.length === 3 && ms.map((x) => x.m).join(',') === '10,25,50');
+  ok('palier 50 = skin + coins 250', ms[2].skin === true && ms[2].coins === 250);
+  ok('aucun palier si record inchangé', core.endlessMilestones(60, 60).length === 0);
+  ok('paliers NaN sûrs', core.endlessMilestones(NaN, Infinity).length === 0);
+
+  // store : setStars/setEndlessBest gardent le max ; skin récompense non achetable
+  mem['roadtap_save_v1'] = JSON.stringify({ stars: { 1: 2 }, endlessBest: 30 });
+  store.load();
+  ok('sanitize garde stars/endlessBest', store.get().stars[1] === 2 && store.get().endlessBest === 30);
+  store.setStars(1, 1);
+  ok('setStars garde le max (1 -> reste 2)', store.get().stars[1] === 2);
+  store.setStars(2, 3);
+  ok('setStars nouveau niveau -> 3', store.get().stars[2] === 3);
+  store.setEndlessBest(20);
+  ok('setEndlessBest garde le max', store.get().endlessBest === 30);
+  store.setEndlessBest(80);
+  ok('setEndlessBest nouveau record', store.get().endlessBest === 80);
+  ok('buySkin coût 0 (récompense) refusé', store.buySkin('endless_or', 0, 'auto') === false && !store.get().skins.includes('endless_or'));
+  store.grantSkin('endless_or');
+  ok('grantSkin débloque la récompense', store.get().skins.includes('endless_or'));
+  // snapshot/mergeRemote incluent stars + endlessBest
+  ok('snapshot inclut stars/endlessBest', store.snapshot().stars[2] === 3 && store.snapshot().endlessBest === 80);
+  ok('mergeRemote fusionne stars (max) et endlessBest', (store.mergeRemote({ stars: { 2: 1, 5: 3 }, endlessBest: 10 }), store.get().stars[2] === 3 && store.get().stars[5] === 3 && store.get().endlessBest === 80));
+}
+
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);
