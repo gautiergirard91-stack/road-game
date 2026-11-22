@@ -69,6 +69,32 @@ Symptôme : chaque joueur ne voit que ses scores (fallback local silencieux). Ca
 
 Vérification rapide en console (F12) : `fetch('https://realtime-database-5fd49-default-rtdb.europe-west1.firebasedatabase.app/scores/auto.json').then(r=>r.status)` → `200` attendu.
 
+### Test d'écriture exact (terminal) — pourquoi `GET …/scores/auto/test.json` renvoie `null`
+
+`null` en GET signifie juste « rien n'a jamais été écrit à ce chemin » — et **ouvrir l'URL dans le navigateur ne fait qu'un GET**, qui n'écrit rien. Le jeu, lui, fait un **POST push** sur `/scores/<mode>.json` (l'entrée atterrit sous `/scores/<mode>/<pushId>`). Teste donc comme le jeu, depuis un terminal :
+
+```bash
+BASE="https://realtime-database-5fd49-default-rtdb.europe-west1.firebasedatabase.app"
+
+# 1) lecture : 200 + null si vide = NORMAL
+curl -s -w '\nHTTP %{http_code}\n' "$BASE/scores.json"
+
+# 2) écriture de test = POST push (comme le jeu) -> 200 + {"name":"-…"} attendu
+#    401/403 = règles non publiées (ou anciennes) -> voir la bannière "Publier" dans l'onglet Règles
+curl -s -w '\nHTTP %{http_code}\n' -X POST -H 'Content-Type: application/json' \
+  -d '{"pseudo":"Test","score":1,"level":"L","mode":"auto","date":1}' "$BASE/scores/auto.json"
+
+# 3) relecture : doit contenir l'entrée de test
+curl -s "$BASE/scores/auto.json"
+
+# 4) nettoyage du test
+curl -s -X DELETE "$BASE/scores/auto/<PUSH_ID_DU_TEST>.json"
+```
+
+Astuce console : l'onglet **Simulateur** de la page Règles permet de valider sans écrire — chemin `/scores/auto/-test`, méthode **POST**, données = le JSON ci-dessus → « autorisé » attendu (sinon la règle ne matche pas au bon niveau).
+
+Signal définitif côté jeu (v1.3.29) : après une partie avec pseudo, la ligne de statut du classement affiche « N score(s) chargé(s) » (OK) ou « ⚠ écriture HTTP 403 … » (règles toujours non publiées).
+
 ## 3. Remplir la config
 
 Projet de production : `realtime-database-5fd49`, instance `realtime-database-5fd49-default-rtdb` (région **europe-west1**, Belgique).
