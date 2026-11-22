@@ -85,7 +85,8 @@
       <div class="key-row"><span class="key-name">Roues AV (tap)</span><button class="btn small" id="btn-key-front">↑ Haut</button></div>
       <div class="key-row"><span class="key-name">Roues AR (tap)</span><button class="btn small" id="btn-key-rear">Espace</button></div>
       <div class="key-row"><span class="key-name">Dépasser (swipe)</span><button class="btn small" id="btn-key-swipe">← Gauche</button></div>
-      <div class="card-sub" id="key-capture-hint">Clique sur une touche puis appuie sur la touche de ton choix. Échap = annuler.</div>
+      <div class="key-row"><span class="key-name">Recommencer le niveau</span><button class="btn small" id="btn-key-retry">R</button></div>
+      <div class="card-sub" id="key-capture-hint">Clique sur une action puis appuie sur une touche clavier ou un bouton de souris. Échap = annuler.</div>
 
       <div class="picker-label">ℹ️ Infos</div>
       <div class="settings-info" id="set-version">v…</div>
@@ -127,6 +128,10 @@
     </header>
     <p class="card-sub garage-sub">Toutes tes voitures — touche une carte pour l'équiper.</p>
     <div id="garage-list" class="cards garage-grid"></div>
+    <p class="card-sub garage-sub">Effets achetés — touche une carte pour activer/désactiver.</p>
+    <div id="garage-effects" class="cards garage-grid"></div>
+    <p class="card-sub garage-sub">Thèmes achetés — touche une carte pour l'activer (sinon le thème du niveau).</p>
+    <div id="garage-themes" class="cards garage-grid"></div>
   </section>
 
   <section id="screen-leaderboard" class="screen">

@@ -401,3 +401,11 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] `node tests/break.test.mjs` : section Z (tiers reactionBonus, NaN, combo supprimé, POST avgMs, onglet)
 - [ ] Test manuel : full parfait + réaction rapide = plus de pièces (label ⚡) ; classement → ⚡ Réaction → top = meilleurs temps moyens
 - [ ] CI verte + CACHE sw bumpé (roadtap-v56) + VERSION 1.3.48 + version.json 1.3.48
+
+## Checklist v1.3.49 (touche « recommencer » + souris bindable + garage enrichi)
+
+- [ ] Paramètres : 4e action « Recommencer le niveau » (défaut `R`) ; en jeu, la touche relance le niveau direct (même en pause)
+- [ ] Boutons de souris bindables (`MouseLeft/Middle/Right`) : capture dans Paramètres (clic = bind) + en jeu, le clic bindé déclenche l'action sans double-tap de zone (capture pointerdown)
+- [ ] Garage : sections « Effets achetés » (activer/désactiver) et « Thèmes achetés » (activer) avec aperçus animés
+- [ ] `node tests/break.test.mjs` : section AA (retry/souris purs, setKey/sanitize, IDs HTML, câblage)
+- [ ] CI verte + CACHE sw bumpé (roadtap-v57) + VERSION 1.3.49 + version.json 1.3.49

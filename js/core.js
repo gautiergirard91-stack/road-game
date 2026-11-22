@@ -150,11 +150,11 @@ export function isNewerVersion(a, b) {
 // Avant, avec les zones horizontales ON, ArrowLeft faisait tap AV **et** swipe en même temps.
 // En mode horizontal, le swipe passe sur ArrowDown / KeyS (le swipe tactile reste sur le geste).
 // --- v1.3.47 : touches personnalisables (menu Paramètres) ---
-export const KEY_ACTIONS = ['front', 'rear', 'swipe'];
-export const DEFAULT_KEYS = { front: 'ArrowUp', rear: 'Space', swipe: 'ArrowLeft' };
+export const KEY_ACTIONS = ['front', 'rear', 'swipe', 'retry']; // v1.3.49 : retry = recommencer le niveau
+export const DEFAULT_KEYS = { front: 'ArrowUp', rear: 'Space', swipe: 'ArrowLeft', retry: 'KeyR' };
 
 // codes clavier plausibles (KeyboardEvent.code) — évite de garder une chaîne invalide
-const KEY_CODE_RE = /^(Key[A-Z]|Digit\d|Numpad\d|Numpad(Add|Subtract|Multiply|Divide|Decimal|Enter)|Arrow(Up|Down|Left|Right)|F([1-9]|1[0-2])|Space|Enter|Escape|Tab|Backspace|Delete|Insert|Home|End|PageUp|PageDown|Shift(Left|Right)|Control(Left|Right)|Alt(Left|Right)|Meta(Left|Right)|CapsLock|[A-Za-z0-9;=,./'\\[\\]\\-`])$/;
+const KEY_CODE_RE = /^(Key[A-Z]|Digit\d|Numpad\d|Numpad(Add|Subtract|Multiply|Divide|Decimal|Enter)|Arrow(Up|Down|Left|Right)|F([1-9]|1[0-2])|Mouse(Left|Middle|Right)|Space|Enter|Escape|Tab|Backspace|Delete|Insert|Home|End|PageUp|PageDown|Shift(Left|Right)|Control(Left|Right)|Alt(Left|Right)|Meta(Left|Right)|CapsLock|[A-Za-z0-9;=,./'\\[\\]\\-`])$/;
 export function isValidKeyCode(c) {
   return typeof c === 'string' && c.length > 0 && c.length <= 24 && KEY_CODE_RE.test(c);
 }
@@ -169,7 +169,7 @@ export function sanitizeKeys(k) {
 
 // libellé lisible d'un code clavier ("ArrowUp" -> "↑ Haut", "KeyA" -> "A", "Space" -> "Espace")
 export function keyLabel(code) {
-  const map = { ArrowUp: '↑ Haut', ArrowDown: '↓ Bas', ArrowLeft: '← Gauche', ArrowRight: '→ Droite', Space: 'Espace', Enter: 'Entrée', Escape: 'Échap', Tab: 'Tab' };
+  const map = { ArrowUp: '↑ Haut', ArrowDown: '↓ Bas', ArrowLeft: '← Gauche', ArrowRight: '→ Droite', Space: 'Espace', Enter: 'Entrée', Escape: 'Échap', Tab: 'Tab', MouseLeft: '🖱️ Clic gauche', MouseMiddle: '🖱️ Clic milieu', MouseRight: '🖱️ Clic droit' }; // v1.3.49
   if (map[code]) return map[code];
   if (/^Key[A-Z]$/.test(code)) return code.slice(3);
   if (/^Digit\d$/.test(code)) return code.slice(5);
@@ -194,16 +194,19 @@ export function keyToAction(code, horizontal, keys) {
   if (isCustom('front')) return 'front';
   if (isCustom('rear')) return 'rear';
   if (isCustom('swipe')) return 'swipe';
+  if (isCustom('retry')) return 'retry'; // v1.3.49
   if (horizontal) {
     if (code === 'ArrowLeft') return 'front';
     if (code === 'ArrowRight') return 'rear';
     if (code === 'ArrowDown' || code === 'KeyS') return 'swipe';
     if (code === 'Space' || code === 'Enter') return 'rear';
+    if (code === 'KeyR') return 'retry'; // v1.3.49
     return null;
   }
   if (code === 'ArrowUp') return 'front';
   if (code === 'Space' || code === 'ArrowDown' || code === 'Enter') return 'rear';
   if (code === 'ArrowLeft') return 'swipe';
+  if (code === 'KeyR') return 'retry'; // v1.3.49
   return null;
 }
 
