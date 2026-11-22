@@ -451,3 +451,10 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] `node tests/game.smoke.test.mjs` (speedrun force permisA) + `break.test.mjs` section AF (276+ assertions)
 - [ ] Test manuel : ⏱ Speedrun depuis n'importe quelle difficulté → partie en Permis A ; classement ⏱ enregistre permisA ; changer de difficulté en speedrun → reste Permis A
 - [ ] CI verte + CACHE sw bumpé (roadtap-v62) + VERSION 1.3.54 + version.json 1.3.54
+
+## Checklist v1.3.55 (scroll des écrans longs — garage, boutique, niveaux…)
+
+- [ ] CSS : `.screen.active { overflow-y: auto; justify-content: safe center; }` (centré si ça tient, scrollable sinon) + `.topbar { position: sticky; top: 0; background: #0d1226; }` → le bouton ← reste cliquable même avec beaucoup de contenu
+- [ ] `node tests/break.test.mjs` : section AG (regex CSS)
+- [ ] Test manuel : téléphone petit écran → Garage avec plein de voitures/effets/thèmes → on peut scroller et le bouton ← reste visible en haut ; idem boutique/niveaux/paramètres
+- [ ] CI verte + CACHE sw bumpé (roadtap-v63) + VERSION 1.3.55 + version.json 1.3.55

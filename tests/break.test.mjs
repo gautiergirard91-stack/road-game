@@ -1058,4 +1058,12 @@ console.log('AF. v1.3.54 : speedrun = une seule difficulté (Permis A), verrouil
   ok('index.html : title du bouton speedrun = Permis A seule', html.includes('seule difficulté du mode speedrun'));
 }
 
+console.log('AG. v1.3.55 : écrans scrollables (safe center + overflow-y) et topbar sticky -> bouton retour toujours accessible (garage)');
+{
+  const fsE = await import('node:fs');
+  const css = fsE.readFileSync(new URL('../css/style.css', import.meta.url), 'utf8');
+  ok('CSS : .screen.active scrollable (overflow-y auto + safe center)', /\.screen\.active\s*\{[^}]*overflow-y:\s*auto/.test(css) && css.includes('justify-content: safe center'));
+  ok('CSS : .topbar sticky top 0 avec fond opaque (bouton retour visible en scrollant)', /\.topbar\s*\{[^}]*position:\s*sticky[^}]*top:\s*0/s.test(css) && /\.topbar\s*\{[^}]*background:\s*#0d1226/s.test(css));
+}
+
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);
