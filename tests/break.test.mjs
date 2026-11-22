@@ -560,4 +560,18 @@ console.log('O. v1.3.37 : compte Google obligatoire (anonyme retiré) + synchro 
   delete globalThis.fetch;
 }
 
+console.log('P. v1.3.38 : UN SEUL bouton Google « Connexion Google » (plus de « Continuer en tant que », plus de « (popup) » et plus de gsi-btn)');
+{
+  const fs2 = await import('node:fs');
+  const html = fs2.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const mainSrc = fs2.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  const authSrc = fs2.readFileSync(new URL('../js/auth.js', import.meta.url), 'utf8');
+  ok('index.html : bouton libellé « Connexion Google » SANS « (popup) »', html.includes('Connexion Google') && !html.includes('(popup)'));
+  ok('index.html : plus de conteneur gsi-btn', !html.includes('gsi-btn'));
+  ok('main.js : plus aucune référence gsi-btn / renderGoogleButton / getLastAuthError', !mainSrc.includes('gsi-btn') && !mainSrc.includes('renderGoogleButton') && !mainSrc.includes('getLastAuthError'));
+  ok('auth.js : plus de rendu GIS one-tap (continue_with / renderButton)', !authSrc.includes('continue_with') && !authSrc.includes('renderGoogleButton') && !authSrc.includes('accounts.google.com/gsi'));
+  ok('auth.js : le popup SDK (signInWithPopupGoogle) reste le seul chemin de connexion', authSrc.includes('signInWithPopupGoogle') && mainSrc.includes('signInWithPopupGoogle'));
+  ok('main.js : le bouton btn-google-popup reste câblé', mainSrc.includes("on('btn-google-popup'"));
+}
+
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);
