@@ -2,7 +2,7 @@ import { LEVELS, THEMES, SKINS, EFFECTS, DIFFICULTIES, CURRENCIES, WINDOWS, ACHI
 import { Game, CAR_STYLE_LABEL, renderCarPreview, renderEffectPreview, renderThemePreview, renderPackPreview, renderSoundPreview } from './game.js';
 import * as store from './store.js';
 import { sfx, setEnabled, setMusicEnabled, unlockAudio, applySoundPack } from './audio.js';
-import { coinsForResult, accuracy, avgReaction, continueCost, maxMissesFor, firstClearBonus, isPerfectClear, perfectClearBonus, dailyChallenge, weeklyQuests, fmtTime, zoneFromPoint, keyToAction, isNewerVersion } from './core.js';
+import { coinsForResult, accuracy, avgReaction, continueCost, maxMissesFor, firstClearBonus, isPerfectClear, perfectClearBonus, dailyChallenge, weeklyQuests, fmtTime, zoneFromPoint, keyToAction, isNewerVersion, starsFor, endlessMilestones } from './core.js';
 import { watchRewarded } from './ads.js';
 import { Tutorial } from './tutorial.js';
 import * as leaderboard from './leaderboard.js';
@@ -448,12 +448,13 @@ function renderLevels() {
     const best = save.best[l.id];
     const bt = save.bestTime[l.id]; // v1.3.19 : record speedrun
     const medal = save.trophies[l.id] ? ' 🥇' : '';
+    const starsTxt = save.stars[l.id] ? ' ' + '⭐'.repeat(Math.min(3, save.stars[l.id])) : ''; // v1.3.35
     const card = document.createElement('div');
     card.className = 'card';
     card.innerHTML = `
       <canvas class="card-theme level-preview" aria-label="Aperçu ${l.name}"></canvas>
       <div class="card-body">
-        <div class="card-title">${l.endless ? '∞' : l.id}. ${l.name}${medal}</div>
+        <div class="card-title">${l.endless ? '∞' : l.id}. ${l.name}${medal}${starsTxt}</div>
         <div class="card-sub">${THEMES[l.theme].name} · ${l.endless ? 'vitesse croissante' : `vitesse ${l.speed} · ${l.lines} lignes`}</div>
         <div class="card-best">${best ? `🏆 Record : ${best}` : ''}${bt ? `${best ? ' · ' : ''}⏱ ${fmtTime(bt / 1000)}` : ''}</div>
       </div>
@@ -518,12 +519,15 @@ function renderShop() {
         <div class="card-title">${s.name}</div>
         <div class="card-sub">${MODEL_LABEL[s.model] || 'Berline'} · ${CAR_STYLE_LABEL[s.style || 'photo']}</div>
       </div>
-      <button class="btn small">${selected ? '✓ Équipée' : owned ? 'Équiper' : `${s.cost} ${cur(s.currency || 'auto').icon}`}</button>`;
+      <button class="btn small">${selected ? '✓ Équipée' : owned ? 'Équiper' : (s.cost > 0 ? `${s.cost} ${cur(s.currency || 'auto').icon}` : '🏆 Survie ∞ 50 lignes')}</button>`;
     card.querySelector('button').addEventListener('click', () => {
       if (selected) return;
       if (owned) {
         store.selectSkin(s.id);
         sfx.click();
+      } else if ((s.cost || 0) <= 0 && s.id !== 'default') {
+        toast('🏆 Atteins 50 lignes en Survie ∞ pour débloquer cette voiture');
+        return;
       } else if (store.buySkin(s.id, s.cost, s.currency || 'auto')) {
         store.selectSkin(s.id);
         sfx.coin();
@@ -770,6 +774,27 @@ function onGameEnd(stats, level) {
   store.addTotals({ runs: 1, perfects: stats.perfects, overtakes: stats.overtakes || 0 });
   // v1.3.17 : niveau "terminé" = partie complétée en entier (débloque l'achat du suivant)
   if (stats.completed) store.markCleared(level.id);
+  // v1.3.35 : étoiles du niveau (1 terminé / 2 si >=60% PARFAIT / 3 full parfait) — on garde le max
+  const stars = stats.completed ? starsFor(stats) : 0;
+  if (stars > (save.stars[level.id] || 0)) store.setStars(level.id, stars);
+  // v1.3.35 : paliers Survie ∞ — pièces à chaque palier de lignes, skin or + médaille à 50
+  if (level.endless) {
+    const prevBest = save.endlessBest || 0;
+    const nowLines = Math.max(prevBest, stats.lines || 0);
+    if (nowLines > prevBest) {
+      store.setEndlessBest(nowLines);
+      for (const ms of endlessMilestones(prevBest, nowLines)) {
+        store.addCoins('auto', ms.coins);
+        toast(`🏁 Survie ∞ : palier ${ms.m} lignes atteint ! +${ms.coins} 🪙`);
+        if (ms.skin) {
+          store.grantSkin('endless_or');
+          store.setTrophy(99);
+          toast('🏆 50 lignes en Survie ∞ : voiture « Survie d’or » + médaille débloquées ! 🎉');
+        }
+      }
+      refreshCoins();
+    }
+  }
   checkAchievements(stats, level);
   logEvent('game_over', { score: stats.score, level: level.id, mode: save.difficulty, completed: !!stats.completed, reason: stats.reason });
   if (!sr && save.pseudo) {
@@ -861,7 +886,10 @@ function onGameEnd(stats, level) {
     <div><b>${stats.overtakes || 0}</b><span>Dépassements</span></div>
     <div><b>${stats.bestCombo}</b><span>Meilleur combo</span></div>
     <div><b>${avg !== null ? avg + ' ms' : '—'}</b><span>Réaction moy.</span></div>
-    <div><b>${accuracy(stats)} %</b><span>Précision</span></div>`;
+    <div><b>${accuracy(stats)} %</b><span>Précision</span></div>
+    ${level.endless
+      ? `<div><b>${stats.lines || 0}</b><span>Lignes (record ${Math.max(save.endlessBest || 0, stats.lines || 0)})</span></div>`
+      : `<div><b>${stars > 0 ? '⭐'.repeat(stars) : '—'}</b><span>Étoiles du niveau</span></div>`}`;
   const ci = cur(save.difficulty).icon;
   $('#over-coins').textContent =
     `+${coins} ${ci} gagnées` +

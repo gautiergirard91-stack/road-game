@@ -20,10 +20,10 @@ Légende : **P0** = à faire avant/après le merge de la branche béton armé ; 
 
 **État** : 15 niveaux, survie ∞, speedrun, défi du jour, quêtes hebdo, streak, succès (13), tutoriel forcé.
 **Limites** : peu de raisons de revenir après les 15 niveaux ; la survie ∞ n'a pas de fin ni de récompense de palier.
-- **P1** Paliers de Survie ∞ avec récompenses cosmétiques tous les 10 niveaux (ex: skin « or » à 50 lignes).
+- **✅ fait v1.3.35** Paliers de Survie ∞ (10/25/50/100/150/200/300/500 lignes → pièces ; skin « 🏆 Survie d'or » + médaille à 50).
 - **P1** Événements week-end (double pièces, niveau spécial « pluie de météores »…).
 - **P2** Mode « contre-la-montre quotidien » (= défi du jour mais avec classement temps, cf. §1).
-- **P2** Progression visible : carte du monde avec les niveaux en chaîne (au lieu d'une grille), étoiles (parfait/combo) par niveau.
+- **✅ fait v1.3.35** Étoiles par niveau sur les cartes (1/2/3). Reste : carte du monde en chaîne.
 
 ## 3. Économie & boutique
 

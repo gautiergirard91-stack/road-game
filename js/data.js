@@ -87,6 +87,8 @@ export const SKINS = [
   { id: 'or', name: 'Berline or', color: '#f5c542', cost: 1200, currency: 'pilote', model: 'berline', shine: true },
   { id: 'arc', name: 'Sport arc-en-ciel', color: '#ff5c8a', cost: 2000, currency: 'pilote', model: 'sport', rainbow: true },
   { id: 'police', name: 'Police', color: '#eef2f7', cost: 3000, currency: 'pilote', model: 'berline' },
+  // v1.3.35 : récompense Survie ∞ (50 lignes) — coût 0 = jamais achetable (voir store.buySkin)
+  { id: 'endless_or', name: '🏆 Survie d’or', color: '#ffd700', cost: 0, currency: 'auto', model: 'limo', style: 'holo', shine: true },
   { id: 'f1rouge', name: 'F1 rouge', color: '#d21f2b', cost: 5000, currency: 'pilote', model: 'f1' },
   { id: 'f1noire', name: 'F1 noire', color: '#15171c', cost: 6500, currency: 'pilote', model: 'f1', shine: true },
   // v1.3.12 : styles de rendu variés (du photoréaliste aux blocs)

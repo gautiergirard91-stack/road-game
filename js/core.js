@@ -63,6 +63,26 @@ export function buildPattern(level, seed, mode = 'auto') {
   return lines;
 }
 
+// v1.3.35 : étoiles par niveau — 0 si pas terminé, 1 si terminé, 2 si >= 60 % de PARFAIT, 3 si full parfait
+export function starsFor(stats) {
+  const s = stats || {};
+  const n = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
+  if (!s.completed) return 0;
+  if (isPerfectClear(s)) return 3;
+  const judged = n(s.perfects) + n(s.goods) + n(s.passables);
+  if (judged > 0 && n(s.perfects) / judged >= 0.6) return 2;
+  return 1;
+}
+
+// v1.3.35 : paliers de la Survie ∞ (lignes résolues) — récompense en pièces à chaque palier,
+// skin exclusive à 50 lignes
+export const ENDLESS_MILESTONES = [10, 25, 50, 100, 150, 200, 300, 500];
+export function endlessMilestones(prev, next) {
+  const p = Number.isFinite(prev) ? prev : 0;
+  const n = Number.isFinite(next) ? next : 0;
+  return ENDLESS_MILESTONES.filter((m) => p < m && m <= n).map((m) => ({ m, coins: m * 5, skin: m === 50 }));
+}
+
 export function isPerfectClear(stats) {
   const s = stats || {};
   const n = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);

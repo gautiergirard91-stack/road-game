@@ -276,3 +276,12 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] **Enforce RTDB ensuite seulement** (App Check → APIs → Realtime Database → Enforce, ~15 min) ; après, les requêtes sans token sont rejetées
 - [ ] `node tests/appcheck.test.mjs` (nouveau step CI) + break 89 + auth 13 : tout vert ; audit OK
 - [ ] CI verte + CACHE sw bumpé (roadtap-v42) + VERSION 1.3.34 + version.json 1.3.34
+
+## Checklist v1.3.35 (gameplay : étoiles par niveau + paliers Survie ∞)
+
+- [ ] Carte niveau : ⭐ à côté du nom (1 terminé / 2 ≥60 % PARFAIT / 3 full parfait 🥇), on garde le max entre les parties ; synchro cloud (stars dans snapshot/merge)
+- [ ] Écran de fin : cellule « ⭐ Étoiles du niveau » (niveaux) ou « Lignes (record) » en Survie ∞
+- [ ] Survie ∞ : paliers 10/25/50/100/150/200/300/500 lignes → +5×palier 🪙 + toast ; à 50 lignes → skin « 🏆 Survie d'or » + médaille ∞ débloquées (boutique : label « 🏆 Survie ∞ 50 lignes », non achetable)
+- [ ] `buySkin` refuse les skins coût 0 (hors 'default') — pas d'achat gratuit déguisé
+- [ ] `node tests/break.test.mjs` : +12 assertions (starsFor, endlessMilestones, setStars/setEndlessBest max, buySkin garde, sanitize/snapshot/merge)
+- [ ] CI verte + CACHE sw bumpé (roadtap-v43) + VERSION 1.3.35 + version.json 1.3.35
