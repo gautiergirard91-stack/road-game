@@ -697,4 +697,30 @@ console.log('S. v1.3.41 : dépassement retravaillé (z-order ahead/behind + voit
   delete globalThis.fetch;
 }
 
+console.log('T. v1.3.42 : musique adaptative — tempo/intensité/couches selon le combo, bit de tap qui monte, sting/victoire sans crash headless');
+{
+  const audio = await import('../js/audio.js');
+  ok('comboIntensity : 0->0, 8->0.5, 16+->1 (capé), NaN/négatif->0', audio.comboIntensity(0) === 0 && audio.comboIntensity(8) === 0.5 && audio.comboIntensity(99) === 1 && audio.comboIntensity(NaN) === 0 && audio.comboIntensity(-5) === 0);
+  ok('musicTempo : monte avec le combo, borné 96..160 BPM', audio.musicTempo(0) === 96 && audio.musicTempo(8) === 128 && audio.musicTempo(16) === 160 && audio.musicTempo(999) === 160);
+  ok('tapFreq : le bit de chaque pression monte (300 -> 600 -> 1200 Hz capé)', audio.tapFreq(0) === 300 && audio.tapFreq(12) === 600 && audio.tapFreq(999) === audio.tapFreq(24) && audio.tapFreq(24) === 1200);
+  const l0 = audio.musicLayers(0);
+  const lMax = audio.musicLayers(30);
+  ok('musicLayers : combo 0 -> aucune couche, combo max -> tout', l0.kick === false && l0.bass === false && l0.arp === false && lMax.kick === true && lMax.hat16 === true && lMax.snare === true && lMax.bass === true && lMax.pad === true && lMax.arp === true);
+  audio.setMusicCombo(10);
+  ok('setMusicCombo + getMusicState cohérents', audio.getMusicState().combo === 10 && audio.getMusicState().tempo === audio.musicTempo(10));
+  audio.setMusicCombo(999);
+  ok('setMusicCombo clamp à 99', audio.getMusicState().combo === 99);
+  audio.musicSting();
+  ok('musicSting remet le combo à 0 (la musique se calme après un raté)', audio.getMusicState().combo === 0);
+  // headless : pas d'AudioContext -> aucun crash, aucun timer qui fuit
+  audio.setMusicEnabled(true);
+  audio.setMusicEnabled(false);
+  audio.musicSting();
+  audio.musicVictory();
+  audio.sfx.tap();
+  audio.sfx.perfect();
+  ok('setMusicEnabled/sting/victory/sfx headless (sans AudioContext) -> pas de crash', true);
+  ok('getMusicState expose on=false après arrêt', audio.getMusicState().on === false);
+}
+
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);

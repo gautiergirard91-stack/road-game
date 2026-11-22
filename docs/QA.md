@@ -338,3 +338,13 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] Speedrun : dispo en Auto école / Permis A / Pilote (`btn-mode-speedrun` ne force plus Pilote, on peut changer de difficulté avec speedrun actif, `mode` transmis au classement speedrun = vraie difficulté jouée)
 - [ ] `node tests/game.smoke.test.mjs` (speedrun garde le mode choisi) + `break.test.mjs` section S (177 assertions : z-order, swipe, voiture doublée qui roule, modes, POST speedrun mode=auto)
 - [ ] CI verte + CACHE sw bumpé (roadtap-v49) + VERSION 1.3.41 + version.json 1.3.41
+
+## Checklist v1.3.42 (musique adaptative réactive — WebAudio procédurale, zéro asset)
+
+- [ ] `js/audio.js` : sequencer 16 pas/mesure (lookahead 25 ms/0.15 s), progression Am-F-C-G ; **tempo 96→160 BPM** et couches (kick/hats/caisse/basse/pad/arpège) selon `comboIntensity(combo)` ; filtre du bus musique qui s'ouvre avec l'intensité
+- [ ] **bit à chaque pression** : `sfx.tap` = `tapBeat()` dont la hauteur monte avec le combo (300→1200 Hz) + mini-kick
+- [ ] **combo → musique** : `setMusicCombo(e.combo)` dans onJudge (partie + tuto) ; **raté** = `musicSting()` (3 notes descendantes dissonantes + boom) + combo 0 ; **fin** : victoire = `musicVictory()` (arpège Am montant), défaite = sting
+- [ ] Robuste headless : `ac()` null-safe, `startMusic()` ne crée pas de timer sans AudioContext ; musique stoppée si onglet caché ou son OFF
+- [ ] `node tests/break.test.mjs` : section T (comboIntensity/musicTempo/tapFreq/musicLayers purs, setMusicCombo clamp, sting reset, pas de crash headless)
+- [ ] Écoute : chaque tap = bit ; combo de PARFAIT = musique qui accélère/devient plus intense ; raté = sting puis calme ; niveau terminé = arpège de victoire
+- [ ] CI verte + CACHE sw bumpé (roadtap-v50) + VERSION 1.3.42 + version.json 1.3.42
