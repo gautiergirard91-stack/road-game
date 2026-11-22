@@ -1,7 +1,7 @@
 import { LEVELS, THEMES, SKINS, EFFECTS, DIFFICULTIES, CURRENCIES, WINDOWS, ACHIEVEMENTS, THEME_SHOP, ENDLESS_LEVEL, WEEKEND_LEVEL, PACKS, SOUND_PACKS } from './data.js';
 import { Game, CAR_STYLE_LABEL, renderCarPreview, renderEffectPreview, renderThemePreview, renderPackPreview, renderSoundPreview } from './game.js';
 import * as store from './store.js';
-import { sfx, setEnabled, setMusicEnabled, unlockAudio, applySoundPack, setMusicCombo, musicSting, musicVictory } from './audio.js';
+import { sfx, setEnabled, setMusicEnabled, unlockAudio, applySoundPack, setMusicCombo, musicSting, musicVictory, scheduleLineBeat, clearLineBeats } from './audio.js';
 import { coinsForResult, accuracy, avgReaction, continueCost, maxMissesFor, firstClearBonus, isPerfectClear, perfectClearBonus, dailyChallenge, weeklyQuests, fmtTime, zoneFromPoint, keyToAction, isNewerVersion, starsFor, endlessMilestones, isWeekend, weekendCoinMultiplier, filterFriendsByPseudo, canSubmitToLeaderboard } from './core.js';
 import { watchRewarded } from './ads.js';
 import { Tutorial } from './tutorial.js';
@@ -184,6 +184,7 @@ function renderLbLevelFilter() {
     { id: 'all', name: 'Tous niveaux' },
     ...LEVELS.map((l) => ({ id: String(l.id), name: `${l.id}. ${l.name}` })),
     { id: String(ENDLESS_LEVEL.id), name: '∞ Survie' },
+    { id: String(WEEKEND_LEVEL.id), name: '🎉 Week-end' }, // v1.3.46 : l'événement week-end a son propre filtre dans le classement
   ];
   for (const o of opts) {
     const b = document.createElement('button');
@@ -344,7 +345,7 @@ function startTutorial() {
     windows: effWindows(),
     access: { colorblind: save.colorblind, horizontalZones: save.horizontalZones },
     effects: save.selectedEffects,
-    audio: { tap: sfx.tap, perfect: sfx.perfect, good: sfx.good, passable: sfx.passable, fail: sfx.fail, win: sfx.win, miss: sfx.miss },
+    audio: { tap: sfx.tap, perfect: sfx.perfect, good: sfx.good, passable: sfx.passable, fail: sfx.fail, win: sfx.win, miss: sfx.miss, lineBeat: scheduleLineBeat }, // v1.3.46 : beat GD calé sur chaque ligne
     onJudge: (e) => {
       hudScore.textContent = String(e.score);
       hudCombo.textContent = e.combo >= 2 ? `COMBO x${e.combo}` : '';
@@ -888,6 +889,7 @@ function renderGarage() {
 function startLevel(level) {
   currentLevel = level;
   setMusicCombo(0); // v1.3.42 : nouvelle partie -> intensité musicale à 0
+  clearLineBeats(); // v1.3.46 : on annule les beats de ligne de la partie précédente
   show('screen-game');
   $('#pause-overlay').classList.remove('active');
   hudLevel.textContent = `${level.id}. ${level.name}`;
@@ -906,7 +908,7 @@ function startLevel(level) {
     windows: effWindows(),
     access: { colorblind: save.colorblind, horizontalZones: save.horizontalZones },
     effects: save.selectedEffects,
-    audio: { tap: sfx.tap, perfect: sfx.perfect, good: sfx.good, passable: sfx.passable, fail: sfx.fail, win: sfx.win, miss: sfx.miss },
+    audio: { tap: sfx.tap, perfect: sfx.perfect, good: sfx.good, passable: sfx.passable, fail: sfx.fail, win: sfx.win, miss: sfx.miss, lineBeat: scheduleLineBeat }, // v1.3.46 : beat GD calé sur chaque ligne
     onJudge: (e) => {
       hudScore.textContent = save.speedrun && game ? fmtTime(game.elapsed) : String(e.score);
       hudCombo.textContent = e.combo >= 2 ? `COMBO x${e.combo}` : '';

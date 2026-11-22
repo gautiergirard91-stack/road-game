@@ -891,6 +891,18 @@ export class Game {
         if (this.distance > maxDist) this.distance = maxDist;
       }
     }
+    // v1.3.46 : beat style Geometry Dash — un « tic » audio est calé EXACTEMENT sur l'arrivée de
+    // chaque ligne à l'essieu (t = (dist - axleDelta - distance) / effSpeed) -> on peut jouer à l'oreille
+    if (this.effSpeed > 1 && typeof this.audio.lineBeat === 'function') {
+      for (const line of this.lines) {
+        if (line.state !== 'pending') continue;
+        for (const axle of this.axles) {
+          if (line.hits[axle]) continue;
+          const t = (line.dist - this.axleDelta(axle) - this.distance) / this.effSpeed;
+          if (t > -0.05 && t < 0.7) this.audio.lineBeat(t, line.dist + ':' + axle);
+        }
+      }
+    }
     const missPx = (this.effSpeed * this.windows.passable) / 1000;
     for (const line of this.lines) {
       if (line.state !== 'pending') continue;

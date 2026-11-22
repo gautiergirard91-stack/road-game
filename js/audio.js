@@ -234,6 +234,43 @@ export function musicSting() {
   }
 }
 
+// --- v1.3.46 : beat calé sur chaque ligne (style Geometry Dash) ---
+// Le jeu appelle scheduleLineBeat(tSec, key) à chaque frame avec le temps restant avant
+// qu'une ligne atteigne un essieu : un « tic » est joué EXACTEMENT à ce moment -> un joueur
+// confirmé peut jouer rien qu'à l'oreille. Si la vitesse change, le tic est re-calé (stop + re-programmé).
+const beatSched = new Map(); // key -> { osc, at }
+export function scheduleLineBeat(tSec, key) {
+  if (!enabled || !hasAudio()) return;
+  if (!(tSec > -0.05 && tSec < 0.7)) return;
+  const prev = beatSched.get(key);
+  if (prev && Math.abs(prev.at - tSec) < 0.06) return; // déjà calé à peu près juste
+  if (prev) {
+    try { prev.osc.stop(); } catch { /* déjà arrêté */ }
+    beatSched.delete(key);
+  }
+  const c = ac();
+  if (!c) return;
+  const t0 = c.currentTime + Math.max(0, tSec);
+  const o = c.createOscillator();
+  const g = c.createGain();
+  o.type = 'square';
+  o.frequency.setValueAtTime(1250, t0);
+  o.frequency.exponentialRampToValueAtTime(620, t0 + 0.045);
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(0.22, t0 + 0.004);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.09);
+  o.connect(g).connect(c.destination);
+  o.start(t0);
+  o.stop(t0 + 0.12);
+  beatSched.set(key, { osc: o, at: tSec });
+}
+export function clearLineBeats() {
+  for (const [, v] of beatSched) {
+    try { v.osc.stop(); } catch { /* ignore */ }
+  }
+  beatSched.clear();
+}
+
 // thème de victoire : arpège de La mineur montant
 export function musicVictory() {
   if (!enabled) return;

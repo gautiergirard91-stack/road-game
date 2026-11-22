@@ -1,4 +1,4 @@
-const CACHE = 'roadtap-v53';
+const CACHE = 'roadtap-v54';
 
 const ASSETS = [
   './',

@@ -375,3 +375,11 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] Menu pause : nouveau bouton « 🔄 Recommencer » (`btn-pause-retry`) → `startLevel(currentLevel)`
 - [ ] `node tests/break.test.mjs` : section W (garde pur, 3 sites, filtres local+speedrun, règles, bouton pause)
 - [ ] CI verte + CACHE sw bumpé (roadtap-v53) + VERSION 1.3.45 + version.json 1.3.45
+
+## Checklist v1.3.46 (beat musical façon Geometry Dash + week-end visible dans le classement)
+
+- [ ] `audio.js` : `scheduleLineBeat(tSec, key)` joue un tic EXACTEMENT à `currentTime + t` (re-calé si la vitesse change, `clearLineBeats()` au lancement d'un niveau) ; `game.js` appelle `audio.lineBeat(t, dist:axle)` pour chaque ligne/essieu pending à t < 0.7 s
+- [ ] Écoute : chaque ligne = un tic au moment exact où il faut taper → jouable à l'oreille (comme GD) ; la musique adaptative v1.3.42 reste en fond
+- [ ] Classement : filtre de niveau inclut « 🎉 Week-end » (WEEKEND_LEVEL id 100) — les scores de l'événement week-end sont filtrables
+- [ ] `node tests/break.test.mjs` : section X (beats AV/AR calés, essieu tapé = plus de beat, headless sans crash, filtre 100)
+- [ ] CI verte + CACHE sw bumpé (roadtap-v54) + VERSION 1.3.46 + version.json 1.3.46
