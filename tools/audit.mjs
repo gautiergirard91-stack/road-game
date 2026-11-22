@@ -151,5 +151,19 @@ if (fs.existsSync(wfDir)) {
   }
 }
 
+// 11) version.json (sonde anti-SW-obsolète, JAMAIS cachée par le SW) doit matcher VERSION de js/config.js
+try {
+  const vj = JSON.parse(fs.readFileSync(path.join(root, 'version.json'), 'utf8'));
+  const cfg = fs.readFileSync(path.join(root, 'js', 'config.js'), 'utf8');
+  const m = cfg.match(/VERSION\s*=\s*'([^']+)'/);
+  if (!m || vj.version !== m[1]) {
+    console.log(`❌ version.json (${vj.version}) != VERSION de js/config.js (${m ? m[1] : '??'}) — bumper les deux ensemble à chaque déploiement`);
+    problems++;
+  }
+} catch (e) {
+  console.log(`❌ version.json illisible: ${e.message}`);
+  problems++;
+}
+
 console.log(problems === 0 ? '✅ AUDIT STATIQUE: aucun problème trouvé' : `❌ ${problems} problème(s) trouvé(s)`);
 process.exit(problems === 0 ? 0 : 1);

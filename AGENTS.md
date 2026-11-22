@@ -12,7 +12,7 @@ Ce fichier est lu automatiquement par les outils d'IA (Claude Code, etc.). Le su
 - Branche de travail unique : `vibe/road-tap-pwa-264a24`. Ne jamais créer de nouveau dépôt.
 - Fusionner sur `main` UNIQUEMENT quand l'utilisateur le demande (« push sur main pour les testeurs ») :
   `git checkout main && git merge --no-ff vibe/road-tap-pwa-264a24 && git push origin main && git checkout vibe/road-tap-pwa-264a24`
-- **À chaque déploiement** : bumper `VERSION` dans `js/config.js` (x.y.z) ET `CACHE` dans `sw.js` (`roadtap-vN`, +1 à chaque fois) — les testeurs doivent faire Ctrl+Shift+R pour vider le cache du service worker.
+- **À chaque déploiement** : bumper `VERSION` dans `js/config.js` (x.y.z), `CACHE` dans `sw.js` (`roadtap-vN`, +1 à chaque fois) ET `version.json` à la racine (même version que `VERSION`) — v1.3.30 : `version.json` sert de sonde anti-SW-obsolète (jamais caché par le SW, lu au démarrage ; si le serveur est plus récent, le jeu propose/force un reset SW une fois par session : unregister + caches vidés + reload). L'audit CI vérifie que `version.json` == `VERSION`.
 - **Avant chaque commit** : `node --check` sur chaque fichier JS modifié + `node tests/core.test.mjs` + `node tests/game.smoke.test.mjs`. CI (`.github/workflows/ci.yml`) relance les deux suites.
 - Ne jamais modifier le projet Google Cloud parasite (`project-f6b7d7eb`) ; le vrai projet est `realtime-database-5fd49` (ROADTAP, europe-west1).
 

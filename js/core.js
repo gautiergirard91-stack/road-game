@@ -112,6 +112,20 @@ export function zoneFromPoint(x, y, w, h, horizontal) {
   return horizontal ? (x < w / 2 ? 'front' : 'rear') : y < h / 2 ? 'front' : 'rear';
 }
 
+// v1.3.30 : comparaison de versions "x.y.z" (sonde anti-SW-obsolète, voir main.js)
+export function parseVersion(v) {
+  const m = String(v || '').match(/(\d+)\.(\d+)\.(\d+)/);
+  return m ? [Number(m[1]), Number(m[2]), Number(m[3])] : [0, 0, 0];
+}
+export function isNewerVersion(a, b) {
+  const pa = parseVersion(a);
+  const pb = parseVersion(b);
+  for (let i = 0; i < 3; i++) {
+    if (pa[i] !== pb[i]) return pa[i] > pb[i];
+  }
+  return false;
+}
+
 // v1.3.28 : touche clavier -> UNE SEULE action ('front' | 'rear' | 'swipe' | null).
 // Avant, avec les zones horizontales ON, ArrowLeft faisait tap AV **et** swipe en même temps.
 // En mode horizontal, le swipe passe sur ArrowDown / KeyS (le swipe tactile reste sur le geste).

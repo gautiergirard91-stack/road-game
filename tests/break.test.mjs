@@ -327,4 +327,16 @@ console.log('H. v1.3.29 : contrat des règles RTDB (corps du POST) + nœud score
   delete globalThis.fetch;
 }
 
+console.log('I. v1.3.30 : comparaison de versions (sonde anti-SW-obsolète)');
+{
+  ok('parseVersion("1.3.30") = [1,3,30]', JSON.stringify(core.parseVersion('1.3.30')) === '[1,3,30]');
+  ok('parseVersion("abc") = [0,0,0] (pas de crash)', JSON.stringify(core.parseVersion('abc')) === '[0,0,0]');
+  ok('isNewerVersion("1.3.30","1.3.29") = true', core.isNewerVersion('1.3.30', '1.3.29') === true);
+  ok('isNewerVersion("1.3.29","1.3.30") = false', core.isNewerVersion('1.3.29', '1.3.30') === false);
+  ok('isNewerVersion("1.3.29","1.3.29") = false (pas de boucle de reload)', core.isNewerVersion('1.3.29', '1.3.29') === false);
+  ok('isNewerVersion("2.0.0","1.9.9") = true', core.isNewerVersion('2.0.0', '1.9.9') === true);
+  ok('isNewerVersion("1.3.29","abc") = true (serveur connu > version illisible)', core.isNewerVersion('1.3.29', 'abc') === true);
+  ok('isNewerVersion("abc","1.3.29") = false', core.isNewerVersion('abc', '1.3.29') === false);
+}
+
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);

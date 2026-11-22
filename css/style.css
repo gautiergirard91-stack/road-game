@@ -768,6 +768,33 @@ canvas.swatch.snd-preview {
   transform: translateX(-50%) translateY(0);
 }
 
+/* v1.3.30 : bannière "version obsolète" -> reset SW auto (unregister + caches vidés + reload) */
+#version-banner {
+  position: fixed;
+  top: calc(8px + env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #4d3a12;
+  border: 1px solid #a97b2f;
+  color: #ffe9c4;
+  font-weight: 600;
+  font-size: 13px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  z-index: 90;
+  max-width: min(92vw, 480px);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
+}
+#version-banner.hidden {
+  display: none;
+}
+#version-banner .btn {
+  flex-shrink: 0;
+}
+
 /* --- v1.3.4 : monnaies par difficulté, HUD, tutoriel en pause à curseur --- */
 #hud {
   touch-action: none;

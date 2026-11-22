@@ -1,4 +1,4 @@
-const CACHE = 'roadtap-v37';
+const CACHE = 'roadtap-v38';
 
 const ASSETS = [
   './',
@@ -61,6 +61,9 @@ self.addEventListener('fetch', (e) => {
   }
   const url = new URL(e.request.url);
   const sameOrigin = url.origin === self.location.origin;
+  // v1.3.30 : version.json n'est JAMAIS intercepté ni caché -> la sonde de version
+  // (main.js) voit toujours la version réelle du serveur, même avec un vieux SW
+  if (url.pathname.endsWith('/version.json')) return;
   // v1.3.24 : le CODE (js/css/html/manifest) vient d'abord du réseau, cache en repli hors-ligne.
   // Évite les mélanges de versions (nouveau HTML + vieux JS = page morte, clics inactifs).
   const isCode = sameOrigin && /\.(js|css|html|webmanifest)$/.test(url.pathname);
