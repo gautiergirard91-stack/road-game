@@ -863,4 +863,42 @@ console.log('X. v1.3.46 : beat GD calé sur chaque ligne (lineBeat) + niveau wee
   ok('filterLevel("100") garde les entrées week-end du classement', lb.filterLevel([{ levelId: 100, score: 5 }, { levelId: 3, score: 9 }], '100').length === 1);
 }
 
+console.log('Y. v1.3.47 : menu Paramètres (accessibilité/audio/version/serveur) + touches personnalisables (save.keys)');
+{
+  const core = await import('../js/core.js');
+  ok('DEFAULT_KEYS = front ↑ / rear Espace / swipe ←', core.DEFAULT_KEYS.front === 'ArrowUp' && core.DEFAULT_KEYS.rear === 'Space' && core.DEFAULT_KEYS.swipe === 'ArrowLeft');
+  ok('sanitizeKeys : corrompu -> défauts, partiel -> complété', core.sanitizeKeys(null).front === 'ArrowUp' && core.sanitizeKeys({ front: 'KeyA', rear: 42 }).front === 'KeyA' && core.sanitizeKeys({ front: 'KeyA' }).rear === 'Space');
+  ok('keyLabel lisible', core.keyLabel('ArrowUp') === '↑ Haut' && core.keyLabel('Space') === 'Espace' && core.keyLabel('KeyZ') === 'Z' && core.keyLabel('Digit5') === '5');
+  ok('bindKey : rebind OK', core.bindKey(core.DEFAULT_KEYS, 'front', 'KeyA').front === 'KeyA');
+  ok('bindKey : doublon refusé (null)', core.bindKey(core.DEFAULT_KEYS, 'front', 'Space') === null && core.bindKey(core.DEFAULT_KEYS, 'front', 'ArrowLeft') === null);
+  ok('keyToAction : touches perso priment', core.keyToAction('KeyA', false, { front: 'KeyA', rear: 'Space', swipe: 'ArrowLeft' }) === 'front');
+  ok('keyToAction : repli mapping intégré si touche non perso', core.keyToAction('ArrowUp', false, { front: 'KeyA', rear: 'Space', swipe: 'ArrowLeft' }) === 'front' && core.keyToAction('ArrowRight', true, undefined) === 'rear');
+
+  mem['roadtap_save_v1'] = '{}';
+  store.load();
+  ok('save.keys défauts après load vide', store.get().keys.front === 'ArrowUp' && store.get().keys.rear === 'Space');
+  ok('setKey persiste (save + localStorage)', store.setKey('front', 'KeyZ') === true && store.get().keys.front === 'KeyZ' && JSON.parse(mem['roadtap_save_v1']).keys.front === 'KeyZ');
+  ok('setKey doublon -> false, inchangé', store.setKey('rear', 'KeyZ') === false && store.get().keys.rear === 'Space');
+  ok('snapshot inclut keys (cloud)', store.snapshot().keys.front === 'KeyZ');
+  mem['roadtap_save_v1'] = JSON.stringify({ keys: { front: 'KeyP', rear: 'bogus' } });
+  store.load();
+  ok('sanitize keys : invalide -> défaut', store.get().keys.front === 'KeyP' && store.get().keys.rear === 'Space' && store.get().keys.swipe === 'ArrowLeft');
+  store.mergeRemote({ keys: { front: 'KeyQ', rear: 'Enter', swipe: 'KeyX' } });
+  ok('mergeRemote applique les touches du cloud', store.get().keys.front === 'KeyQ' && store.get().keys.swipe === 'KeyX');
+
+  const fs7 = await import('node:fs');
+  const html = fs7.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const mainSrc = fs7.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  let allIds = true;
+  for (const id of ['screen-settings', 'btn-settings', 'btn-settings-back', 's-opt-widewindows', 's-opt-colorblind', 's-opt-zones-h', 'btn-set-sound', 'btn-set-music', 'btn-key-front', 'btn-key-rear', 'btn-key-swipe', 'key-capture-hint', 'set-version', 'set-server', 'btn-set-refresh']) {
+    if ((html.match(new RegExp(`id="${id}"`, 'g')) || []).length !== 1) { allIds = false; console.log('  id manquant ou en double:', id); }
+  }
+  ok('index.html : les 15 IDs du menu Paramètres présents une fois', allIds);
+  ok('main.js : btn-settings ouvre screen-settings', mainSrc.includes("on('btn-settings'") && mainSrc.includes("show('screen-settings')"));
+  ok('main.js : 3e panneau accessibilité câblé (s-)', mainSrc.includes("wireAccessCheckboxes('s-')") && mainSrc.includes("syncAccessCheckboxes('s-')"));
+  ok('main.js : capture de touche dans keydown + keyToAction(save.keys)', mainSrc.includes('keyCapture') && mainSrc.includes('keyToAction(e.code, save.horizontalZones, save.keys)'));
+  ok('main.js : 3 boutons de rebinding câblés', mainSrc.includes("'btn-key-front'") && mainSrc.includes("'btn-key-rear'") && mainSrc.includes("'btn-key-swipe'"));
+  ok('main.js : version + état serveur (ping) dans les paramètres', mainSrc.includes("$('#set-version')") && mainSrc.includes("$('#set-server')") && mainSrc.includes('leaderboard.ping()'));
+}
+
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);

@@ -383,3 +383,12 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] Classement : filtre de niveau inclut « 🎉 Week-end » (WEEKEND_LEVEL id 100) — les scores de l'événement week-end sont filtrables
 - [ ] `node tests/break.test.mjs` : section X (beats AV/AR calés, essieu tapé = plus de beat, headless sans crash, filtre 100)
 - [ ] CI verte + CACHE sw bumpé (roadtap-v54) + VERSION 1.3.46 + version.json 1.3.46
+
+## Checklist v1.3.47 (menu Paramètres + touches personnalisables)
+
+- [ ] Menu : nouveau bouton « ⚙️ Paramètres » → écran `screen-settings` (accessibilité s-*, son/musique, touches, version, état serveur avec `leaderboard.ping()` + « 🔄 Revérifier »)
+- [ ] Accessibilité : 3e panneau synchronisé avec modale et pause (`wireAccessCheckboxes('s-')`)
+- [ ] Touches : `save.keys {front,rear,swipe}` persisté + cloud ; UI de capture (clic → keydown, Échap annule, doublon refusé) ; `keyToAction(code, horizontal, save.keys)` — touches perso prioritaires, repli sur le mapping intégré
+- [ ] `node tests/break.test.mjs` : section Y (helpers purs, bindKey doublon, setKey persist, sanitize/mergeRemote/snapshot keys, 15 IDs HTML, câblage)
+- [ ] Test manuel : Paramètres → rebind « Roues AV » sur A → en partie, A = tap AV ; doublon refusé ; Échap annule ; version + pastille serveur affichées
+- [ ] CI verte + CACHE sw bumpé (roadtap-v55) + VERSION 1.3.47 + version.json 1.3.47

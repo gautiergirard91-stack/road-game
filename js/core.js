@@ -149,7 +149,51 @@ export function isNewerVersion(a, b) {
 // v1.3.28 : touche clavier -> UNE SEULE action ('front' | 'rear' | 'swipe' | null).
 // Avant, avec les zones horizontales ON, ArrowLeft faisait tap AV **et** swipe en même temps.
 // En mode horizontal, le swipe passe sur ArrowDown / KeyS (le swipe tactile reste sur le geste).
-export function keyToAction(code, horizontal) {
+// --- v1.3.47 : touches personnalisables (menu Paramètres) ---
+export const KEY_ACTIONS = ['front', 'rear', 'swipe'];
+export const DEFAULT_KEYS = { front: 'ArrowUp', rear: 'Space', swipe: 'ArrowLeft' };
+
+// codes clavier plausibles (KeyboardEvent.code) — évite de garder une chaîne invalide
+const KEY_CODE_RE = /^(Key[A-Z]|Digit\d|Numpad\d|Numpad(Add|Subtract|Multiply|Divide|Decimal|Enter)|Arrow(Up|Down|Left|Right)|F([1-9]|1[0-2])|Space|Enter|Escape|Tab|Backspace|Delete|Insert|Home|End|PageUp|PageDown|Shift(Left|Right)|Control(Left|Right)|Alt(Left|Right)|Meta(Left|Right)|CapsLock|[A-Za-z0-9;=,./'\\[\\]\\-`])$/;
+export function isValidKeyCode(c) {
+  return typeof c === 'string' && c.length > 0 && c.length <= 24 && KEY_CODE_RE.test(c);
+}
+
+export function sanitizeKeys(k) {
+  const out = { ...DEFAULT_KEYS };
+  if (k && typeof k === 'object') {
+    for (const a of KEY_ACTIONS) if (isValidKeyCode(k[a])) out[a] = k[a];
+  }
+  return out;
+}
+
+// libellé lisible d'un code clavier ("ArrowUp" -> "↑ Haut", "KeyA" -> "A", "Space" -> "Espace")
+export function keyLabel(code) {
+  const map = { ArrowUp: '↑ Haut', ArrowDown: '↓ Bas', ArrowLeft: '← Gauche', ArrowRight: '→ Droite', Space: 'Espace', Enter: 'Entrée', Escape: 'Échap', Tab: 'Tab' };
+  if (map[code]) return map[code];
+  if (/^Key[A-Z]$/.test(code)) return code.slice(3);
+  if (/^Digit\d$/.test(code)) return code.slice(5);
+  return String(code);
+}
+
+// retourne une copie de keys avec action->code, ou null si code est déjà prise par une autre action
+export function bindKey(keys, action, code) {
+  if (!KEY_ACTIONS.includes(action) || !isValidKeyCode(code)) return null;
+  const next = { ...sanitizeKeys(keys) };
+  for (const a of KEY_ACTIONS) if (a !== action && next[a] === code) return null; // doublon
+  next[action] = code;
+  return next;
+}
+
+export function keyToAction(code, horizontal, keys) {
+  // v1.3.47 : les touches choisies par le joueur priment, puis repli sur le mapping intégré.
+  // Une touche laissée AU DÉFAUT ne masque pas le mapping intégré selon l'orientation
+  // (ex. ArrowLeft = front en horizontal, swipe en vertical — comportement v1.3.28 conservé).
+  const k = sanitizeKeys(keys);
+  const isCustom = (a) => code === k[a] && k[a] !== DEFAULT_KEYS[a];
+  if (isCustom('front')) return 'front';
+  if (isCustom('rear')) return 'rear';
+  if (isCustom('swipe')) return 'swipe';
   if (horizontal) {
     if (code === 'ArrowLeft') return 'front';
     if (code === 'ArrowRight') return 'rear';

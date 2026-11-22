@@ -1,4 +1,4 @@
-import { dayKey, weekKey, weeklyQuests } from './core.js';
+import { dayKey, weekKey, weeklyQuests, DEFAULT_KEYS, sanitizeKeys, bindKey } from './core.js';
 
 const KEY = 'roadtap_save_v1';
 
@@ -18,6 +18,7 @@ const defaults = () => ({
   speedrun: false,
   horizontalZones: false, // v1.3.21 : zones gauche/droite (gauche=AV, droite=AR) au lieu de haut/bas
   sound: true,
+  keys: { ...DEFAULT_KEYS }, // v1.3.47 : touches personnalisables (menu Paramètres)
   difficulty: 'auto',
   pseudo: '',
   leaderboardOptIn: false,
@@ -113,6 +114,7 @@ function sanitize(s) {
   s.themeOverride = str(s.themeOverride);
   s.tutorialDone = bool(s.tutorialDone);
   s.speedrun = bool(s.speedrun);
+  s.keys = sanitizeKeys(s.keys); // v1.3.47 : touches valides, défauts sinon
   s.horizontalZones = bool(s.horizontalZones);
   s.lastLogin = str(s.lastLogin);
   s.streak = num(s.streak);
@@ -327,6 +329,20 @@ export function bestFlat() {
   return out;
 }
 
+// v1.3.47 : rebinding d'une touche (menu Paramètres) — false si la touche est déjà prise
+export function setKey(action, code) {
+  const next = bindKey(save.keys, action, code);
+  if (!next) return false;
+  save.keys = next;
+  persist();
+  return true;
+}
+
+export function setKeys(keys) {
+  save.keys = sanitizeKeys(keys);
+  persist();
+}
+
 export function setSound(on) {
   save.sound = on;
   persist();
@@ -531,6 +547,7 @@ export function addTotals(t) {
 
 export function snapshot() {
   return {
+    keys: save.keys, // v1.3.47
     wallets: save.wallets,
     trophies: save.trophies,
     stars: save.stars,
@@ -622,6 +639,7 @@ function mergeRemoteBody(remote) {
   }
   if (remote.speedrun === true) save.speedrun = true;
   if (remote.horizontalZones === true) save.horizontalZones = true;
+  if (remote.keys && typeof remote.keys === 'object') save.keys = sanitizeKeys(remote.keys); // v1.3.47 : touches du cloud (dernier appareil gagne)
   save.totals = {
     runs: Math.max(save.totals.runs, remote.totals?.runs || 0),
     perfects: Math.max(save.totals.perfects, remote.totals?.perfects || 0),
