@@ -606,7 +606,7 @@ function renderLevels() {
           toast(`Il te manque ${l.cost - store.getWallet(l.diff || 'auto')} ${c.icon} (${c.name})`);
         }
       } else {
-        ensureAccountThen(() => startLevel(l)); // v1.3.29 : pseudo obligatoire avant de jouer
+        ensurePseudoThen(() => startLevel(l)); // v1.3.29 : pseudo obligatoire avant de jouer
       }
     });
     // v1.3.18 : aperçu réel du thème du niveau (mini route canvas, comme en boutique)
@@ -1135,7 +1135,7 @@ window.addEventListener('error', (e) => {
 on('btn-play', 'click', () => {
   sfx.click();
   if (!save.tutorialDone) {
-    ensureAccountThen(() => startTutorial()); // v1.3.29 : pseudo obligatoire avant la 1ʳᵉ partie
+    ensurePseudoThen(() => startTutorial()); // v1.3.29 : pseudo obligatoire avant la 1ʳᵉ partie
     return;
   }
   renderDifficultyPicker();
@@ -1236,9 +1236,11 @@ on('btn-leaderboard-back', 'click', () => {
   sfx.click();
   show('screen-menu');
 });
-// v1.3.33 : termine la connexion Google (bouton GIS OU popup) : compte lié + jeton +
-// chargement immédiat de la sauvegarde cloud et fusion (sinon la progression ne change
-// pas à la connexion — bug « la page reste inchangée après connexion »).
+// v1.3.33/v1.3.40 : termine la connexion Google : compte lié + jeton + chargement immédiat
+// de la sauvegarde cloud et FUSION avec la progression locale (anonyme) — mergeRemote fait
+// max/union par champ. Il n'existe pas de « profil anonyme » côté serveur (players est keyed
+// par uid et auth-only depuis v1.3.32) : la save locale devient simplement la copie de travail
+// du compte, et on renvoie le snapshot fusionné (pushCloud en pull-merge-push).
 async function completeGoogleSignIn(sess) {
   setAuthToken(sess.idToken);
   store.setGoogleAccount(sess.uid, sess.email, sess.refreshToken);
@@ -1303,10 +1305,12 @@ function openPseudoModal(forced) {
   setTimeout(() => $('#pseudo-input').focus(), 50);
 }
 
-// v1.3.37 : compte Google OBLIGATOIRE (plus d'accès anonyme) + pseudo obligatoire avant de jouer.
-// Sans compte Google : pas de sauvegarde cloud (donc pas de synchro tel ↔ PC) et pas de classement.
-function ensureAccountThen(fn) {
-  if (save.pseudo && save.uid) {
+// v1.3.40 : on peut JOUER SANS compte Google (progression 100 % locale sur l'appareil).
+// Google n'est obligatoire QUE pour (a) garder sa progression dans le cloud (synchro tel ↔ PC)
+// et (b) apparaître dans le classement (règles RTDB auth != null, envois réservés aux comptes liés).
+// Le pseudo reste obligatoire avant de jouer.
+function ensurePseudoThen(fn) {
+  if (save.pseudo) {
     fn();
     return;
   }
@@ -1314,18 +1318,19 @@ function ensureAccountThen(fn) {
   openPseudoModal(true);
 }
 
-// v1.3.37 : état du bouton "Enregistrer" de la modale pseudo — en mode forcé, il faut Google + pseudo
+// v1.3.40 : état du bouton "Enregistrer" — en mode forcé, seul le PSEUDO est requis pour jouer
+// (Google reste facultatif : cloud + classement uniquement)
 function updatePseudoSaveState() {
   const btn = $('#btn-pseudo-save');
   const inp = $('#pseudo-input');
-  if (btn) btn.disabled = Boolean(pseudoForced && (!save.uid || !String(inp && inp.value || '').trim()));
+  if (btn) btn.disabled = Boolean(pseudoForced && !String(inp && inp.value || '').trim());
   const hint = $('#pseudo-hint');
   if (hint) {
     hint.textContent = pseudoForced
       ? save.uid
         ? '✔ Compte Google lié — choisis un pseudo (16 car. max) pour apparaître dans le classement 🌍'
-        : '🔒 Connexion Google REQUISE pour jouer : sauvegarde cloud synchronisée (téléphone ↔ PC) + classement mondial. Clique sur « 🔑 Connexion Google » ci-dessus.'
-      : 'Ton pseudo est public dans le classement 🌍 — pour y figurer, connecte aussi ton compte Google (« 🔑 Connexion Google » ci-dessus).';
+        : 'Choisis un pseudo (16 car. max) pour jouer. Facultatif : « 🔑 Connexion Google » ci-dessus pour garder ta progression dans le cloud (téléphone ↔ PC) et apparaître dans le classement 🌍.'
+      : 'Ton pseudo est public dans le classement 🌍 — connecte ton compte Google (« 🔑 Connexion Google » ci-dessus) pour y figurer et synchroniser ta progression.';
   }
 }
 
@@ -1349,9 +1354,19 @@ on('btn-google-popup', 'click', () => {
 on('btn-google-out', 'click', () => {
   signOutGoogle();
   store.clearGoogleAccount();
+  // v1.3.40 : à la déconnexion, on repart de 0 EN LOCAL (le cloud players/<uid> est conservé
+  // tel quel : à la reconnexion, la save locale fusionne avec, mergeRemote = max par champ)
+  store.resetProgress();
   sfx.click();
   updateGoogleStatus();
-  toast('Compte Google délié — sauvegarde cloud désactivée, ta progression reste en local sur cet appareil.');
+  updatePseudoSaveState();
+  refreshCoins();
+  renderDifficultyPicker();
+  renderLevels();
+  renderShop();
+  $('#pseudo-modal').classList.add('hidden');
+  $('#pseudo-modal').classList.remove('active');
+  toast('🔓 Compte Google délié — progression locale remise à 0. Reconnecte-toi pour retrouver ton cloud.');
 });
 on('btn-pseudo-cancel', 'click', () => {
   if (pseudoForced) return; // v1.3.29 : pseudo obligatoire -> pas d'annulation
@@ -1361,12 +1376,7 @@ on('btn-pseudo-cancel', 'click', () => {
 });
 on('pseudo-input', 'input', () => updatePseudoSaveState()); // v1.3.37 : réactive Enregistrer dès qu'un pseudo est tapé
 on('btn-pseudo-save', 'click', () => {
-  // v1.3.37 : en mode forcé, Google est OBLIGATOIRE (plus d'accès anonyme)
-  if (pseudoForced && !save.uid) {
-    toast("Connecte-toi d'abord avec ton compte Google (bouton ci-dessus ou popup)");
-    sfx.miss?.();
-    return;
-  }
+  // v1.3.40 : plus besoin de Google pour jouer — seul le pseudo est obligatoire en mode forcé
   const p = $('#pseudo-input').value.trim().slice(0, 16);
   if (pseudoForced && !p) {
     toast('Choisis un pseudo pour jouer 🙂 (16 caractères max)');
@@ -1377,7 +1387,7 @@ on('btn-pseudo-save', 'click', () => {
   $('#pseudo-modal').classList.add('hidden');
   $('#pseudo-modal').classList.remove('active');
   sfx.coin();
-  toast(p ? `Pseudo enregistré : ${p} — tu apparaîtras dans le classement 🌍` : 'Pseudo vide — il te sera redemandé à la prochaine partie');
+  toast(p ? (save.uid ? `Pseudo enregistré : ${p} — tu apparaîtras dans le classement 🌍` : `Pseudo enregistré : ${p} — connecte Google (🔑) pour apparaître dans le classement 🌍 et garder ta progression dans le cloud`) : 'Pseudo vide — il te sera redemandé à la prochaine partie');
   pushCloud();
   const fn = pendingAfterPseudo;
   pendingAfterPseudo = null;
@@ -1404,7 +1414,7 @@ on('btn-mode-speedrun', 'click', () => {
 });
 on('btn-help', 'click', () => {
   sfx.click();
-  ensureAccountThen(() => startTutorial()); // v1.3.29 : pseudo obligatoire avant le tuto aussi
+  ensurePseudoThen(() => startTutorial()); // v1.3.29 : pseudo obligatoire avant le tuto aussi
 });
 // v1.3.22 : replier/déplier la bannière du tutoriel (le texte ne bloque plus le haut de l'écran)
 on('tut-fold', 'click', () => {
