@@ -1246,8 +1246,8 @@ on('btn-achievements-back', 'click', () => {
   sfx.click();
   show('screen-menu');
 });
-// v1.3.39 : les options d'accessibilité existent à DEUX endroits (modale menu "♿ Accessibilité" et
-// menu pause) — préfixe '' pour la modale, 'p-' pour la pause. Les deux panneaux restent synchronisés.
+// v1.3.56 : les options d'accessibilité n'existent plus qu'à UN seul endroit : le menu Paramètres (préfixe 's-').
+// (La modale "♿ Accessibilité" du menu et le bloc pause ont été supprimés : v1.3.50 / v1.3.52.)
 const ACCESS_OPTS = [
   { id: 'opt-widewindows', key: 'wideWindows', set: (v) => store.setWideWindows(v), on: 'Fenêtres de timing élargies (accessibilité)', off: 'Fenêtres de timing standard' },
   { id: 'opt-colorblind', key: 'colorblind', set: (v) => store.setColorblind(v), on: 'Symboles ajoutés sur les lignes (mode daltonien)', off: 'Mode standard' },
@@ -1264,25 +1264,11 @@ function wireAccessCheckboxes(prefix) {
     on(prefix + o.id, 'change', (e) => {
       o.set(e.target.checked);
       toast(e.target.checked ? o.on : o.off);
-      syncAccessCheckboxes('');
       syncAccessCheckboxes('s-');
     });
   }
 }
-wireAccessCheckboxes('');
-wireAccessCheckboxes('s-'); // v1.3.47 : aussi dans le menu Paramètres
-
-on('btn-access', 'click', () => {
-  sfx.click();
-  syncAccessCheckboxes('');
-  $('#access-modal').classList.remove('hidden');
-  $('#access-modal').classList.add('active');
-});
-on('btn-access-close', 'click', () => {
-  sfx.click();
-  $('#access-modal').classList.add('hidden');
-  $('#access-modal').classList.remove('active');
-});
+wireAccessCheckboxes('s-'); // v1.3.47 : menu Paramètres (seul endroit depuis v1.3.56)
 
 // --- v1.3.47 : menu Paramètres (accessibilité + audio + touches + version + serveur) ---
 const ACTION_NAMES = { front: 'Roues AV', rear: 'Roues AR', swipe: 'Dépasser (swipe)', retry: 'Recommencer le niveau' }; // v1.3.49 : retry
@@ -1381,12 +1367,6 @@ for (const [btnId, action] of [['btn-key-front', 'front'], ['btn-key-rear', 'rea
   });
 }
 
-on('btn-music', 'click', () => {
-  store.setMusic(!save.music);
-  setMusicEnabled(save.music && save.sound);
-  updateMusicBtn();
-  sfx.click();
-});
 on('btn-leaderboard', 'click', () => {
   sfx.click();
   lbFilter = save.difficulty; // v1.3.50 : filtre difficulté = difficulté courante (plus d'option « Tous »)
@@ -1619,13 +1599,6 @@ on('tut-fold', 'click', () => {
   const f = !b.classList.contains('folded');
   b.classList.toggle('folded', f);
   $('#tut-fold').textContent = f ? '▴' : '▾';
-});
-on('btn-sound', 'click', () => {
-  store.setSound(!save.sound);
-  setEnabled(save.sound);
-  setMusicEnabled(save.music && save.sound);
-  updateSoundBtn();
-  sfx.click();
 });
 on('btn-levels-back', 'click', () => {
   sfx.click();

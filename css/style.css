@@ -144,11 +144,6 @@ body {
     font-size: 42px;
   }
 
-  .tagline {
-    font-size: 13px;
-    max-width: 280px;
-  }
-
   #screen-menu {
     gap: 8px;
   }
@@ -232,14 +227,6 @@ body {
   background-clip: text;
   color: transparent;
   text-shadow: 0 6px 30px rgba(255, 138, 60, 0.25);
-}
-
-.tagline {
-  max-width: 320px;
-  text-align: center;
-  color: #aeb8d8;
-  font-size: 15px;
-  margin-bottom: 4px;
 }
 
 .coins-display {
@@ -1054,26 +1041,6 @@ canvas.swatch.garage-preview {
 #pause-overlay .panel {
   max-height: 92vh;
   overflow-y: auto;
-}
-
-.pause-access {
-  width: 100%;
-  margin-top: 12px;
-  padding-top: 10px;
-  border-top: 1px solid #2c3560;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  align-items: flex-start;
-}
-
-.pause-access .picker-label {
-  margin: 0;
-}
-
-.pause-access .lb-optin {
-  font-size: 14px;
-  text-align: left;
 }
 
 /* v1.3.47 : menu Paramètres */

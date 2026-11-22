@@ -351,7 +351,7 @@ console.log('J. v1.3.31 : classement speedrun dédié (contrat POST, tri croissa
   await lb.submitSpeedrun(3, { pseudo: 'Test', uid: 'uidT', timeMs: 45320, level: 'Double file', date: 9 }, 'TOK_J'); // v1.3.37 : jeton requis
   const post = calls.find((c) => c.method === 'POST');
   ok('POST vers /speedrun/3.json', post && post.url.includes('/speedrun/3.json'));
-  ok('corps = contrat règles speedrun (pseudo/timeMs/level/date + bornes)', post && ['pseudo', 'timeMs', 'level', 'date'].every((k) => k in post.body) && post.body.timeMs >= 1000 && post.body.timeMs <= 3600000 && post.body.mode === 'pilote');
+  ok('corps = contrat règles speedrun (pseudo/timeMs/level/date + bornes, mode fallback = permisA depuis v1.3.56)', post && ['pseudo', 'timeMs', 'level', 'date'].every((k) => k in post.body) && post.body.timeMs >= 1000 && post.body.timeMs <= 3600000 && post.body.mode === 'permisA');
 
   // tri CROISSANT sur timeMs + entrées corrompues filtrées + filtre par niveau
   globalThis.fetch = async () => ({
@@ -582,7 +582,7 @@ console.log('Q. v1.3.39 : options d\'accessibilité aussi dans le menu pause (pr
   // v1.3.52 : les options d'accessibilité ont QUITTÉ la pause (elles vivent dans ⚙️ Paramètres, préfixe s-)
   const pauseHtml = html.slice(html.indexOf('id="pause-overlay"'), html.indexOf('id="continue-overlay"'));
   ok('plus de p-opt-* dans la pause (remplacé par le bouton Paramètres)', !pauseHtml.includes('p-opt-') && pauseHtml.includes('btn-pause-settings'));
-  ok('main.js : panneaux câblés (préfixes \'\' modale et \'s-\' paramètres)', mainSrc.includes("wireAccessCheckboxes('');") && mainSrc.includes("wireAccessCheckboxes('s-');"));
+  ok("main.js : panneau câblé UNIQUEMENT sur 's-' Paramètres (v1.3.56 : plus de préfixe '' modale)", !mainSrc.includes("wireAccessCheckboxes('');") && mainSrc.includes("wireAccessCheckboxes('s-');"));
   // comportement : les setters persistent et partent dans le snapshot cloud
   mem['roadtap_save_v1'] = '{}';
   store.load();
@@ -975,7 +975,7 @@ console.log('AB. v1.3.50 : « Photo réaliste » supprimé, tagline supprimée, 
   ok('plus de « Photo réaliste » (game.js label vide + templates filtrent)', !gameSrc.includes('Photo réaliste') && !mainSrc.includes('Photo réaliste') && mainSrc.includes('filter(Boolean).join'));
   const menuHtml = html.slice(html.indexOf('id="screen-menu"'), html.indexOf('id="screen-levels"'));
   ok('menu principal : tagline supprimée + bouton ♿ Accessibilité retiré', !menuHtml.includes('tagline') && !menuHtml.includes('id="btn-access"'));
-  ok('access-modal toujours présent (handlers JS valides)', html.includes('id="access-modal"'));
+  ok('access-modal retiré du HTML (v1.3.56 : modale morte nettoyée, accessibilité uniquement dans ⚙️ Paramètres)', !html.includes('id="access-modal"'));
   ok('CSS : options accessibilité lisibles dans Paramètres (16px + fond + case agrandie)', css.includes('.settings-panel label.lb-optin') && css.includes('font-size: 16px') && css.includes('scale(1.3)'));
 
   ok('main.js : plus d\'option « Tous » ni « Tous niveaux » dans les filtres LB', !mainSrc.includes("name: 'Tous niveaux'") && !mainSrc.includes("{ id: 'all', name: 'Tous' }"));
@@ -1064,6 +1064,40 @@ console.log('AG. v1.3.55 : écrans scrollables (safe center + overflow-y) et top
   const css = fsE.readFileSync(new URL('../css/style.css', import.meta.url), 'utf8');
   ok('CSS : .screen.active scrollable (overflow-y auto + safe center)', /\.screen\.active\s*\{[^}]*overflow-y:\s*auto/.test(css) && css.includes('justify-content: safe center'));
   ok('CSS : .topbar sticky top 0 avec fond opaque (bouton retour visible en scrollant)', /\.topbar\s*\{[^}]*position:\s*sticky[^}]*top:\s*0/s.test(css) && /\.topbar\s*\{[^}]*background:\s*#0d1226/s.test(css));
+}
+
+console.log('AH. v1.3.56 : nettoyage check de nuit (modale/boutons/CSS morts retirés, contrat speedrun = permisA)');
+{
+  const fsF = await import('node:fs');
+  const html = fsF.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const mainSrc = fsF.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  const css = fsF.readFileSync(new URL('../css/style.css', import.meta.url), 'utf8');
+  const lbSrc = fsF.readFileSync(new URL('../js/leaderboard.js', import.meta.url), 'utf8');
+
+  ok('HTML : modale access-modal + opt-* (préfixe vide) + btn-access-close supprimés', !html.includes('id="access-modal"') && !html.includes('id="opt-widewindows"') && !html.includes('id="opt-colorblind"') && !html.includes('id="opt-zones-h"') && !html.includes('id="btn-access-close"'));
+  ok('HTML : btn-access / btn-sound / btn-music absents (menu principal épuré, réglages dans ⚙️ Paramètres)', !html.includes('id="btn-access"') && !html.includes('id="btn-sound"') && !html.includes('id="btn-music"'));
+  ok('HTML : accessibilité UNIQUEMENT via s-opt-* dans Paramètres', html.includes('id="s-opt-widewindows"') && html.includes('id="s-opt-colorblind"') && html.includes('id="s-opt-zones-h"'));
+  ok('main.js : handlers morts supprimés (btn-access, btn-access-close, btn-sound, btn-music, #access-modal)', !mainSrc.includes("on('btn-access'") && !mainSrc.includes("on('btn-access-close'") && !mainSrc.includes("on('btn-sound'") && !mainSrc.includes("on('btn-music'") && !mainSrc.includes("$('#access-modal')"));
+  ok("main.js : wiring accessibilité uniquement sur préfixe 's-' (plus de '' )", !mainSrc.includes("wireAccessCheckboxes('')") && !mainSrc.includes("syncAccessCheckboxes('')") && mainSrc.includes("wireAccessCheckboxes('s-')"));
+  ok('CSS : .tagline et .pause-access supprimés', !css.includes('.tagline') && !css.includes('.pause-access'));
+  ok("leaderboard.js : fallback mode speedrun = 'permisA' (v1.3.54), plus de 'pilote'", lbSrc.includes("mode: entry.mode || 'permisA'") && !lbSrc.includes("mode: entry.mode || 'pilote'"));
+
+  // fonctionnel : submitSpeedrun sans entry.mode envoie bien mode=permisA dans le POST
+  {
+    const calls = [];
+    const origFetch = globalThis.fetch;
+    globalThis.fetch = async (url, opts) => {
+      calls.push({ url: String(url), body: opts && opts.body ? JSON.parse(opts.body) : null });
+      return { ok: true, status: 200, json: async () => ({}) };
+    };
+    try {
+      await lb.submitSpeedrun(3, { pseudo: 'Testeur', uid: 'u1', timeMs: 12345, level: 'Accélération', date: 1 }, 'TOK');
+    } finally {
+      if (origFetch === undefined) delete globalThis.fetch; else globalThis.fetch = origFetch;
+    }
+    const post = calls.find((c) => c.body && typeof c.body.timeMs === 'number');
+    ok('submitSpeedrun(3, sans entry.mode) -> POST /speedrun/3.json avec body.mode === "permisA"', !!post && post.body.mode === 'permisA' && post.body.timeMs === 12345 && post.url.includes('/speedrun/3.json'));
+  }
 }
 
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);

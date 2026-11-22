@@ -1,5 +1,7 @@
 # ✅ Assurance qualité
 
+> **Note (v1.3.56)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.56**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
+
 ## Processus de test
 
 1. **CI automatique** : `.github/workflows/ci.yml` lance `node tests/core.test.mjs` à chaque push/PR (jugement de timing, scoring, génération des niveaux, jouabilité des écarts, crosswalks, fenêtres élargies, vies par mode).
@@ -458,3 +460,12 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] `node tests/break.test.mjs` : section AG (regex CSS)
 - [ ] Test manuel : téléphone petit écran → Garage avec plein de voitures/effets/thèmes → on peut scroller et le bouton ← reste visible en haut ; idem boutique/niveaux/paramètres
 - [ ] CI verte + CACHE sw bumpé (roadtap-v63) + VERSION 1.3.55 + version.json 1.3.55
+
+## Checklist v1.3.56 (check de nuit : nettoyage + cohérence, branche `vibe/check-nuit-v1356-264a24`)
+
+- [ ] Code mort supprimé : modale `access-modal` (index.html), handlers `btn-access` / `btn-access-close` / `btn-sound` / `btn-music` + wiring `wireAccessCheckboxes('')` / `syncAccessCheckboxes('')` (main.js), CSS `.tagline` / `.pause-access` → l'accessibilité vit UNIQUEMENT dans ⚙️ Paramètres (`s-opt-*`)
+- [ ] `leaderboard.js` : fallback mode speedrun = `permisA` (cohérence v1.3.54), plus de `'pilote'` en fallback
+- [ ] `node tests/break.test.mjs` : section AH (8 assertions : absences HTML/JS/CSS + POST speedrun avec `mode: "permisA"`)
+- [ ] Test manuel : menu principal sans tagline ni boutons ♿/🔊/🎵 ; ⚙️ Paramètres ouvre bien l'accessibilité (s-opt-*) ; pause → ⚙️ Paramètres fonctionne et revient à la pause ; aucun `id` orphelin (audit §1)
+- [ ] Check de nuit complet : 6 fichiers de tests + `node tools/audit.mjs` verts ; triple bump cohérent (VERSION 1.3.56 = version.json, CACHE roadtap-v64)
+- [ ] CI verte + CACHE sw bumpé (roadtap-v64) + VERSION 1.3.56 + version.json 1.3.56
