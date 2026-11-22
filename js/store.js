@@ -47,6 +47,11 @@ let save;
 
 // v1.3.27 : sanitizers — une sauvegarde corrompue (JSON cassé, mauvais types, vieille version)
 // ne doit JAMAIS faire planter le jeu
+// v1.3.44 : les records par niveau (score / temps speedrun) sont ISOLÉS PAR DIFFICULTÉ :
+// clé "mode:levelId" (ex. "pilote:3"). Les anciennes clés (levelId seul) sont migrées dans sanitize.
+const MODES = ['auto', 'permisA', 'pilote'];
+export const bestKey = (mode, levelId) => `${mode}:${levelId}`;
+
 const num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const str = (v, d = '') => (typeof v === 'string' ? v : d);
 const bool = (v, d = false) => (typeof v === 'boolean' ? v : d);
@@ -72,6 +77,19 @@ function sanitize(s) {
   s.cleared = boolMap(s.cleared);
   s.best = numMap(s.best);
   s.bestTime = numMap(s.bestTime);
+  // v1.3.44 : migration — anciennes clés "levelId" (partagées entre difficultés) copiées dans chaque mode
+  for (const field of ['best', 'bestTime']) {
+    const m = s[field];
+    for (const k of Object.keys(m)) {
+      if (k.includes(':')) continue;
+      for (const mode of MODES) {
+        const nk = bestKey(mode, k);
+        if (field === 'best') m[nk] = Math.max(m[nk] || 0, m[k]);
+        else m[nk] = m[nk] === undefined ? m[k] : Math.min(m[nk], m[k]);
+      }
+      delete m[k];
+    }
+  }
   s.unlockedLevels = arrNum(s.unlockedLevels);
   if (!s.unlockedLevels.includes(1)) s.unlockedLevels.push(1);
   s.skins = arrStr(s.skins);
@@ -237,11 +255,15 @@ export function setHorizontalZones(on) {
   persist();
 }
 
-// v1.3.19 : record de temps (ms) — retourne true si nouveau record
-export function setBestTime(levelId, ms) {
-  const prev = save.bestTime[levelId];
+// v1.3.44 : record de temps (ms), isolé par difficulté — retourne true si nouveau record
+export function getBestTime(mode, levelId) {
+  return save.bestTime[bestKey(mode, levelId)];
+}
+export function setBestTime(mode, levelId, ms) {
+  const k = bestKey(mode, levelId);
+  const prev = save.bestTime[k];
   if (prev === undefined || ms < prev) {
-    save.bestTime[levelId] = ms;
+    save.bestTime[k] = ms;
     persist();
     return true;
   }
@@ -279,14 +301,30 @@ export function toggleEffect(id) {
   persist();
 }
 
-export function setBest(levelId, score) {
-  const prev = save.best[levelId] || 0;
+// v1.3.44 : record de score, isolé par difficulté — retourne true si nouveau record
+export function getBest(mode, levelId) {
+  return save.best[bestKey(mode, levelId)] || 0;
+}
+export function setBest(mode, levelId, score) {
+  const k = bestKey(mode, levelId);
+  const prev = save.best[k] || 0;
   if (score > prev) {
-    save.best[levelId] = score;
+    save.best[k] = score;
     persist();
     return true;
   }
   return false;
+}
+
+// v1.3.44 : vue aplatie (max de toutes les difficultés par niveau) — utilisée par les succès (champion)
+export function bestFlat() {
+  const out = {};
+  for (const [k, v] of Object.entries(save.best)) {
+    const i = k.indexOf(':');
+    const lid = i >= 0 ? k.slice(i + 1) : k;
+    out[lid] = Math.max(out[lid] || 0, v);
+  }
+  return out;
 }
 
 export function setSound(on) {

@@ -404,7 +404,7 @@ function renderAchievements() {
 }
 
 function checkAchievements(stats, level) {
-  const ctx = { stats, level, totals: store.get().totals, mode: save.difficulty, best: save.best, trophies: store.get().trophies || {} };
+  const ctx = { stats, level, totals: store.get().totals, mode: save.difficulty, best: store.bestFlat(), trophies: store.get().trophies || {} }; // v1.3.44 : best aplati (succès tous modes)
   const newly = [];
   for (const a of ACHIEVEMENTS) {
     if (!save.achievements.includes(a.id)) {
@@ -569,8 +569,8 @@ function renderLevels() {
     // v1.3.17 : achat du niveau N autorisé seulement si le niveau N-1 a été TERMINÉ EN ENTIER
     const canBuy = !locked || l.id === 1 || store.isCleared(l.id - 1);
     const c = cur(l.diff || 'auto');
-    const best = save.best[l.id];
-    const bt = save.bestTime[l.id]; // v1.3.19 : record speedrun
+    const best = store.getBest(save.difficulty, l.id); // v1.3.44 : record isolé par difficulté (mode joué)
+    const bt = store.getBestTime(save.difficulty, l.id); // v1.3.19/v1.3.44 : record speedrun, par difficulté
     const medal = save.trophies[l.id] ? ' 🥇' : '';
     const starsTxt = save.stars[l.id] ? ' ' + '⭐'.repeat(Math.min(3, save.stars[l.id])) : ''; // v1.3.35
     const card = document.createElement('div');
@@ -963,9 +963,10 @@ function onGameEnd(stats, level) {
   else musicSting();
   setMusicCombo(0);
   const sr = Boolean(game && game.speedrun); // v1.3.19 : mode speedrun actif sur cette partie
-  const firstClear = !!stats.completed && !save.best[level.id];
-  const isRecord = store.setBest(level.id, stats.score);
-  const isTimeRecord = sr && stats.completed ? store.setBestTime(level.id, stats.timeMs || 0) : false;
+  // v1.3.44 : records isolés par difficulté — clé "mode:levelId" (mode = save.difficulty de la partie)
+  const firstClear = !!stats.completed && !store.getBest(save.difficulty, level.id);
+  const isRecord = store.setBest(save.difficulty, level.id, stats.score);
+  const isTimeRecord = sr && stats.completed ? store.setBestTime(save.difficulty, level.id, stats.timeMs || 0) : false;
   store.addTotals({ runs: 1, perfects: stats.perfects, overtakes: stats.overtakes || 0 });
   // v1.3.17 : niveau "terminé" = partie complétée en entier (débloque l'achat du suivant)
   if (stats.completed) store.markCleared(level.id);
