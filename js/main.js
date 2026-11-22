@@ -181,8 +181,7 @@ function renderLbLevelFilter() {
   if (!el) return;
   el.innerHTML = '';
   const opts = [
-    { id: 'all', name: 'Tous niveaux' },
-    ...LEVELS.map((l) => ({ id: String(l.id), name: `${l.id}. ${l.name}` })),
+    ...LEVELS.map((l) => ({ id: String(l.id), name: `${l.id}. ${l.name}` })), // v1.3.50 : plus d'option « Tous niveaux »
     { id: String(ENDLESS_LEVEL.id), name: '∞ Survie' },
     { id: String(WEEKEND_LEVEL.id), name: '🎉 Week-end' }, // v1.3.46 : l'événement week-end a son propre filtre dans le classement
   ];
@@ -204,7 +203,7 @@ function renderLbFilter() {
   const el = $('#lb-filter');
   if (!el) return;
   el.innerHTML = '';
-  const opts = [{ id: 'all', name: 'Tous' }, ...DIFFICULTIES, { id: 'speedrun', name: '⏱ Speedrun' }, { id: 'reaction', name: '⚡ Réaction' }]; // v1.3.31/v1.3.48
+  const opts = [...DIFFICULTIES, { id: 'speedrun', name: '⏱ Speedrun' }, { id: 'reaction', name: '⚡ Réaction' }]; // v1.3.50 : plus d'option « Tous » (difficulté courante par défaut à l'ouverture)
   for (const d of opts) {
     const b = document.createElement('button');
     b.className = 'btn small diff-btn' + (lbFilter === d.id ? ' active' : '');
@@ -235,10 +234,10 @@ async function renderLeaderboard() {
       top = arr.sort((a, b) => a.avgMs - b.avgMs).slice(0, 50);
     } else if (lbScope === 'friends') {
       // v1.3.36 : on récupère TOUT le classement (sans limite) puis on filtre par pseudos d'amis côté client
-      const all = isSr ? await leaderboard.getSpeedrunAll() : await leaderboard.getAll(lbFilter);
+      const all = isSr ? await leaderboard.getSpeedrunAll() : await leaderboard.getAll(lbLevelFilter !== 'all' ? 'all' : lbFilter); // v1.3.50 : idem pour les amis
       top = filterFriendsByPseudo(leaderboard.filterLevel(all, lbLevelFilter), save.friends).slice(0, 50);
     } else {
-      top = isSr ? await leaderboard.getSpeedrunTop(lbLevelFilter) : await leaderboard.getTop(lbFilter, lbLevelFilter);
+      top = isSr ? await leaderboard.getSpeedrunTop(lbLevelFilter) : await leaderboard.getTop(lbLevelFilter !== 'all' ? 'all' : lbFilter, lbLevelFilter); // v1.3.50 : filtre par niveau => on balaie tous les modes (bug testeur niveau 2)
     }
   } catch {
     top = [];
@@ -674,7 +673,7 @@ function renderShop() {
       <canvas class="swatch car-preview" aria-label="Aperçu ${s.name}"></canvas>
       <div class="card-body">
         <div class="card-title">${s.name}</div>
-        <div class="card-sub">${MODEL_LABEL[s.model] || 'Berline'} · ${CAR_STYLE_LABEL[s.style || 'photo']}</div>
+        <div class="card-sub">${[MODEL_LABEL[s.model] || 'Berline', CAR_STYLE_LABEL[s.style || 'photo']].filter(Boolean).join(' · ')}</div> // v1.3.50 : libellé 'photo' vidé
       </div>
       <button class="btn small">${selected ? '✓ Équipée' : owned ? 'Équiper' : (s.cost > 0 ? `${s.cost} ${cur(s.currency || 'auto').icon}` : '🏆 Survie ∞ 50 lignes')}</button>`;
     card.querySelector('button').addEventListener('click', () => {
@@ -879,7 +878,7 @@ function renderGarage() {
       <canvas class="swatch garage-preview" aria-label="Aperçu ${s.name}"></canvas>
       <div class="card-body">
         <div class="card-title">${selected ? '✓ ' : ''}${escapeHtml(s.name)}</div>
-        <div class="card-sub">${MODEL_LABEL[s.model] || 'Berline'} · ${CAR_STYLE_LABEL[s.style || 'photo']}</div>
+        <div class="card-sub">${[MODEL_LABEL[s.model] || 'Berline', CAR_STYLE_LABEL[s.style || 'photo']].filter(Boolean).join(' · ')}</div> // v1.3.50 : libellé 'photo' vidé
       </div>
       <button class="btn small">${selected ? '✓ Équipée' : 'Équiper'}</button>`;
     card.querySelector('button').addEventListener('click', () => {
@@ -1372,6 +1371,8 @@ on('btn-music', 'click', () => {
 });
 on('btn-leaderboard', 'click', () => {
   sfx.click();
+  lbFilter = save.difficulty; // v1.3.50 : filtre difficulté = difficulté courante (plus d'option « Tous »)
+  lbLevelFilter = 'all'; // v1.3.50 : aucun filtre de niveau à l'ouverture
   renderLbScope(); // v1.3.36 : onglets 🌍 Tous / 👥 Amis
   renderFriends();
   renderLbFilter();

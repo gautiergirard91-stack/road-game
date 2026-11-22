@@ -409,3 +409,12 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] Garage : sections « Effets achetés » (activer/désactiver) et « Thèmes achetés » (activer) avec aperçus animés
 - [ ] `node tests/break.test.mjs` : section AA (retry/souris purs, setKey/sanitize, IDs HTML, câblage)
 - [ ] CI verte + CACHE sw bumpé (roadtap-v57) + VERSION 1.3.49 + version.json 1.3.49
+
+## Checklist v1.3.50 (UI : textes retirés, filtres « Tous » supprimés, bug filtre niveau)
+
+- [ ] Partout (boutique + garage) : plus de « Photo réaliste » — la carte n'affiche que le modèle (label `photo` vidé, templates `filter(Boolean)`)
+- [ ] Écran principal : tagline sous le logo ROAD TAP supprimée ; bouton « ♿ Accessibilité » retiré du menu (les options sont dans ⚙️ Paramètres)
+- [ ] Paramètres : options d'accessibilité plus lisibles (16px, fond, bordure, case ×1.3, accent cyan)
+- [ ] Classement : options « Tous » (difficulté) et « Tous niveaux » (niveau) supprimées — ouverture = difficulté courante, aucun filtre niveau ; **filtre par niveau 2 « Accélération » : on balaie désormais tous les modes + `levelId` string/number accepté** (bug testeur corrigé)
+- [ ] `node tests/break.test.mjs` : section AB (textes/filtres/CSS + filterLevel fonctionnel)
+- [ ] CI verte + CACHE sw bumpé (roadtap-v58) + VERSION 1.3.50 + version.json 1.3.50

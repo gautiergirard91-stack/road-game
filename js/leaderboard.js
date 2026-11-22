@@ -93,7 +93,7 @@ const LEVEL_NAMES = { ...Object.fromEntries(LEVELS.map((l) => [l.id, l.name])), 
 export function filterLevel(arr, levelFilter) {
   if (levelFilter === 'all' || levelFilter === null || levelFilter === undefined) return arr;
   const id = Number(levelFilter);
-  return arr.filter((e) => e.levelId === id || e.level === LEVEL_NAMES[id]);
+  return arr.filter((e) => Number(e.levelId) === id || e.level === LEVEL_NAMES[id]); // v1.3.50 : levelId string ou number accepté
 }
 
 
@@ -352,7 +352,7 @@ export async function getSpeedrunTop(levelFilter = 'all') {
   const keep = (arr) => {
     if (levelFilter === 'all' || levelFilter === null || levelFilter === undefined) return arr;
     const id = Number(levelFilter);
-    return arr.filter((e) => e.levelId === id || e.level === LEVEL_NAMES[id]);
+    return arr.filter((e) => Number(e.levelId) === id || e.level === LEVEL_NAMES[id]); // v1.3.50 : levelId string ou number accepté
   };
   if (!isOnline()) {
     setLbStatus('local', 0);
