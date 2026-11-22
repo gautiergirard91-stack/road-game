@@ -1127,3 +1127,20 @@ canvas.swatch.garage-preview {
   margin-right: 8px;
   accent-color: #54f0ff;
 }
+
+/* v1.3.55 : les écrans scrollent verticalement sur petits écrans (garage, boutique, niveaux…)
+   et la topbar (bouton retour) reste collée en haut -> toujours accessible.
+   justify-content: safe center = centré si ça tient, scrollable sinon (pas de contenu coupé). */
+.screen.active {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  justify-content: safe center;
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: #0d1226; /* même fond que body : couvre le contenu qui défile dessous */
+  padding-bottom: 6px;
+}
