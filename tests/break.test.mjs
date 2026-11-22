@@ -1034,4 +1034,15 @@ console.log('AD. v1.3.52 : pause embarque Paramètres (plus d\'accessibilité da
   ok('main.js : contextmenu bloqué en jeu (clic droit ne ouvre plus le menu Windows)', /addEventListener\('contextmenu'[\s\S]*?currentScreen === 'screen-game'[\s\S]*?preventDefault/.test(mainSrc));
 }
 
+console.log('AE. v1.3.53 : Son/Musique retirés du menu principal (dans Paramètres) + touche « recommencer » aussi sur l\'écran de fin');
+{
+  const fsC = await import('node:fs');
+  const html = fsC.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const mainSrc = fsC.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  const menuHtml = html.slice(html.indexOf('id="screen-menu"'), html.indexOf('id="screen-levels"'));
+  ok('menu principal : plus de btn-sound/btn-music (dans ⚙️ Paramètres)', !menuHtml.includes('id="btn-sound"') && !menuHtml.includes('id="btn-music"'));
+  ok('Paramètres conserve btn-set-sound/btn-set-music', html.includes('id="btn-set-sound"') && html.includes('id="btn-set-music"'));
+  ok('main.js : retry accepté en screen-game ET screen-over', mainSrc.includes("currentScreen === 'screen-game' || currentScreen === 'screen-over'"));
+}
+
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);
