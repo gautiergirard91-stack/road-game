@@ -21,7 +21,7 @@ En production, remplacer les règles de test par :
       ".read": true,
       "$mode": {
         "$id": {
-          ".write": "!data.exists() && newData.exists() && newData.hasChildren(['pseudo','score','level','mode','date']) && (auth == null || newData.child('uid').val() == auth.uid) && newData.child('score').val() <= 1000000 && newData.child('pseudo').val().length <= 16"
+          ".write": "!data.exists() && newData.exists() && newData.hasChildren(['pseudo','score','level','mode','date']) && auth != null && newData.child('uid').val() == auth.uid && newData.child('score').val() <= 1000000 && newData.child('pseudo').val().length <= 16"
         },
         ".indexOn": [
           "score"
@@ -32,7 +32,7 @@ En production, remplacer les règles de test par :
       ".read": true,
       "$level": {
         "$id": {
-          ".write": "!data.exists() && newData.exists() && newData.hasChildren(['pseudo','timeMs','level','date']) && (auth == null || newData.child('uid').val() == auth.uid) && newData.child('timeMs').val() >= 1000 && newData.child('timeMs').val() <= 3600000 && newData.child('pseudo').val().length <= 16"
+          ".write": "!data.exists() && newData.exists() && newData.hasChildren(['pseudo','timeMs','level','date']) && auth != null && newData.child('uid').val() == auth.uid && newData.child('timeMs').val() >= 1000 && newData.child('timeMs').val() <= 3600000 && newData.child('pseudo').val().length <= 16"
         },
         ".indexOn": [
           "timeMs"
@@ -43,7 +43,7 @@ En production, remplacer les règles de test par :
       ".read": true,
       "$day": {
         "$id": {
-          ".write": "!data.exists() && newData.exists() && newData.hasChildren(['pseudo','score','mode','date']) && (auth == null || newData.child('uid').val() == auth.uid) && newData.child('score').val() <= 1000000 && newData.child('pseudo').val().length <= 16"
+          ".write": "!data.exists() && newData.exists() && newData.hasChildren(['pseudo','score','mode','date']) && auth != null && newData.child('uid').val() == auth.uid && newData.child('score').val() <= 1000000 && newData.child('pseudo').val().length <= 16"
         },
         ".indexOn": [
           "score"
@@ -77,7 +77,7 @@ En production, remplacer les règles de test par :
 ### v1.3.32 — correctifs de sécurité (audit externe) expliqués
 
 1. **Anti-écrasement / anti-vandalisme** (`scores`, `speedrun`, `challenges`) : chaque `.write` contient désormais **`!data.exists()`** → on ne peut créer que de NOUVELLES entrées (POST push) ; écraser (PUT) ou supprimer (DELETE) une entrée existante est refusé (les push IDs sont publics en lecture, donc sans `!data.exists()` n’importe qui pouvait modifier les scores des autres).
-2. **Anti-usurpation quand connecté Google** : `(auth == null || newData.child('uid').val() == auth.uid)` → un joueur connecté ne peut poster que sous SON uid (le client envoie `uid` + `?auth=<idToken>`). En anonyme, on retombe sur la règle de création seule (un anonyme peut encore ajouter une fausse ligne sous un pseudo existant — visible comme doublon ; la parade forte = App Check en enforce, voir §6).
+2. **Anti-usurpation + compte Google OBLIGATOIRE (v1.3.37)** : `auth != null && newData.child('uid').val() == auth.uid` → **plus d'écriture anonyme du tout** : seuls les comptes Google connectés peuvent ajouter un score/temps (le client envoie `uid` + `?auth=<idToken>`). Un joueur connecté ne peut poster que sous SON uid. **⚠️ À re-publier dans la console Firebase** (Règles → Publier) pour activer cette version. La parade complémentaire reste App Check en enforce (voir §6).
 3. **`.indexOn`** : ajouté sur `$mode`/`$day`/`$level` (`score` / `timeMs`) pour permettre plus tard des requêtes serveur `orderBy` + `limitToLast` (le jeu lit toujours le nœud entier + tri client, donc rien ne casse sans index).
 4. **`players` verrouillé** : `.read`/`.write` = `auth != null && auth.uid == $id` uniquement → la sauvegarde cloud n’est lisible/modifiable QUE par le propriétaire du compte Google. **Conséquence produit** : sans compte Google, plus de sauvegarde cloud (le pseudo est public, donc un nœud keyed par pseudo était usurpable) — la progression reste en `localStorage` local ; l’UI invite à lier Google pour la synchro.
 5. **`analytics` verrouillé** : `.write` seulement en création (`!data.exists()`, champ `at` requis) au niveau `$name/$id` → plus de suppression/écrasement massif des stats.
@@ -170,7 +170,8 @@ Difficulté : **modérée** — aucun SDK ajouté : on utilise le bouton officie
    - `database.rules.json` v1.3.32 : `players` exige `auth.uid == $id` → sans compte Google, plus de cloud (100 % local).
    - Si la connexion échoue : F12 → console + onglet Réseau (`identitytoolkit` / `gstatic` / `accounts.google.com` bloqués ?) + domaines autorisés des deux consoles (étape 3).
 
-5. Règles RTDB : le nœud `players` accepte désormais `(auth != null && auth.uid == $id)` (voir §2) — la sauvegarde cloud est keyed par **uid** quand Google est lié, sinon par pseudo (rétrocompatible).
+5. Règles RTDB : le nœud `players` accepte uniquement `auth != null && auth.uid == $id` (voir §2) — la sauvegarde cloud est keyed par **uid** (⚠️ jamais en minuscules : `auth.uid == $id` est sensible à la casse, un uid lowercasé ne matche pas → 403, c'était le bug « synchro tel ↔ PC cassée » de v1.3.37).
+6. **v1.3.37 — synchro multi-appareils réparée** : `pushCloud()` fait désormais **pull-merge-push** (lecture du cloud → fusion max par champ → PUT du snapshot fusionné, `keepalive: true`) + push sur `pagehide`/arrière-plan, donc deux appareils ne s'écrasent plus. **Google Sign-In est obligatoire avant la 1ʳᵉ partie** (modale forcée : bouton GIS + repli popup ; pseudo pré-rempli depuis le compte). Sans compte : plus de cloud, plus de classement (règles `auth != null`).
 
 Données reçues de Google : **uid, email, displayName** (dans le jeton). Le `refreshToken` reste en `localStorage` uniquement et n'est **jamais** envoyé à la base de données. Voir `PRIVACY.md`.
 

@@ -9,9 +9,9 @@ Légende : **P0** = à faire avant/après le merge de la branche béton armé ; 
 ## 1. Classement & social
 
 **État** : local + Firebase (filtre difficulté + niveau, pseudo + opt-in, Google Sign-In, classement du défi du jour), diagnostic d'erreur visible (v1.3.27).
-**Limites** : pas de classement dédié speedrun ; pas de « défi tes amis » ; scores non signés (un tricheur peut poster 999 999 — la règle borne à 1 000 000 mais pas la crédibilité).
+**Limites** : ✅ v1.3.37 — compte Google **obligatoire** pour le classement (accès anonyme retiré, règles `auth != null`) + synchro cloud réparée (clé uid non lowercasée + pull-merge-push + keepalive). Reste : pas de « défi tes amis » ; scores non signés (un tricheur peut poster 999 999 — la règle borne à 1 000 000 mais pas la crédibilité).
 - **P0** Vérifier avec 2 testeurs que le classement affiche bien les autres joueurs (voir `docs/FIREBASE.md` §2bis : `scores.json` → 200, règles publiées). Le diagnostic v1.3.27 dira exactement ce qui bloque sinon.
-- **P1** Classement **speedrun** dédié : nœud `speedrun/<levelId>`, tri **croissant** (temps), même filtres. (Le score speedrun est un temps : le tri desc du classement global ne convient pas.)
+- **✅ fait v1.3.31** Classement **speedrun** dédié : nœud `speedrun/<levelId>`, tri **croissant** (temps), même filtres. (Le score speedrun est un temps : le tri desc du classement global ne convient pas.)
 - **P1** Anti-triche léger côté client : rejeter un `submitScore` si `score >` un plafond crédible pour le niveau (ex: `lines × 150 × combo max`), et ignorer les temps speedrun < temps théorique minimal (`sum(gaps) / vitesse max`).
 - **✅ fait v1.3.36** Classement « amis » par **pseudo** (onglet 👥 Amis : ajout/retrait de pseudos, filtre client du classement mondial — on ne lit JAMAIS les contacts Google du téléphone, la People API demanderait une permission intrusive sur le Play Store). Reste P2 : « Défier un ami » (lien de partage), notifications de record d'un ami.
 - **P2** Saisons de classement (reset mensuel, récompense cosmétique pour le top).

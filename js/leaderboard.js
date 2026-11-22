@@ -102,9 +102,20 @@ function authQuery(idToken) {
   return t ? `?auth=${encodeURIComponent(t)}` : '';
 }
 
+// v1.3.37 : l'accès anonyme au classement est RETIRÉ — un envoi nécessite un jeton Firebase
+// (compte Google connecté). Sans jeton, on garde le score en local et on l'affiche dans le diagnostic.
+function hasAuth(idToken) {
+  return Boolean(idToken || FIREBASE_DB_SECRET);
+}
+const ANON_WRITE_MSG = '⚠ v1.3.37 : envoi réservé aux comptes Google connectés (règles RTDB auth != null) — score gardé en local, connecte-toi pour apparaître dans le classement';
+
 export async function submitScore(entry, idToken) {
   const mode = modeOf(entry);
   if (!isOnline()) return submitLocal(entry);
+  if (!hasAuth(idToken)) {
+    lastLbWriteError = ANON_WRITE_MSG;
+    return submitLocal(entry);
+  }
   try {
     const base = FIREBASE_DB_URL.replace(/\/$/, '');
     const auth = authQuery(idToken);
@@ -192,6 +203,10 @@ export async function getAll(mode = 'all') {
 // --- Classement du défi du jour (nœud /challenges/<dayKey>) ---
 export async function submitChallengeScore(dayId, entry, idToken) {
   if (!isOnline()) return false;
+  if (!hasAuth(idToken)) {
+    lastLbWriteError = ANON_WRITE_MSG;
+    return false;
+  }
   try {
     const base = FIREBASE_DB_URL.replace(/\/$/, '');
     const auth = authQuery(idToken);
@@ -272,6 +287,10 @@ export function submitSpeedrunLocal(entry) {
 export async function submitSpeedrun(levelId, entry, idToken) {
   const body = { pseudo: entry.pseudo, uid: entry.uid || '', timeMs: entry.timeMs, level: entry.level, levelId, mode: 'pilote', date: entry.date };
   if (!isOnline()) return submitSpeedrunLocal(body);
+  if (!hasAuth(idToken)) {
+    lastLbWriteError = ANON_WRITE_MSG;
+    return submitSpeedrunLocal(body);
+  }
   try {
     const base = FIREBASE_DB_URL.replace(/\/$/, '');
     const auth = authQuery(idToken);

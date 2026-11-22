@@ -10,6 +10,7 @@ Les données de jeu (pièces, niveaux débloqués, voitures, effets, records, su
 
 Depuis la v1.3.29, un **pseudo est obligatoire** avant la première partie (modale forcée) et **tout score terminé est envoyé automatiquement** au classement public :
 
+- Depuis la **v1.3.37, seuls les comptes Google connectés peuvent soumettre** un score (règles `auth != null && uid == auth.uid`) : l'accès anonyme au classement est retiré. L'entrée contient aussi l'`uid` Firebase (pseudonyme, lisible publiquement comme le pseudo — jamais l'e-mail).
 - `/scores/<mode>` : `{ pseudo, score, level, levelId, mode, date }` — **public en lecture**, écriture validée par les règles (pseudo ≤ 16 caractères, score borné). Le pseudo choisi est donc **visible publiquement** dans le classement. Aucun e-mail ni identifiant Google n'y est publié (sauf si le joueur les met dans son pseudo).
 - `/challenges/<jour>` : idem pour le défi du jour.
 - `/speedrun/<niveau>` : `{ pseudo, timeMs, level, date }` — classement speedrun par niveau (v1.3.31, tri croissant).
