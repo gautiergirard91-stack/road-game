@@ -1192,7 +1192,6 @@ function togglePause(force) {
   if (!game || !game.running) return;
   game.paused = force !== undefined ? force : !game.paused;
   $('#pause-overlay').classList.toggle('active', game.paused);
-  if (game.paused) syncAccessCheckboxes('p-'); // v1.3.39 : cases accessibilité de la pause à jour à l'ouverture
 }
 
 function loop(t) {
@@ -1260,13 +1259,11 @@ function wireAccessCheckboxes(prefix) {
       o.set(e.target.checked);
       toast(e.target.checked ? o.on : o.off);
       syncAccessCheckboxes('');
-      syncAccessCheckboxes('p-'); // modale ↔ pause ↔ paramètres synchronisées
       syncAccessCheckboxes('s-');
     });
   }
 }
 wireAccessCheckboxes('');
-wireAccessCheckboxes('p-'); // v1.3.39 : options d'accessibilité aussi dans le menu pause
 wireAccessCheckboxes('s-'); // v1.3.47 : aussi dans le menu Paramètres
 
 on('btn-access', 'click', () => {
@@ -1328,15 +1325,30 @@ function updateServerStatus() {
   });
 }
 
+let settingsFrom = 'menu'; // 'menu' | 'pause' — d'où vient l'ouverture des Paramètres
 on('btn-settings', 'click', () => {
   sfx.click();
+  settingsFrom = 'menu';
   renderSettings();
   show('screen-settings');
 });
 on('btn-settings-back', 'click', () => {
   sfx.click();
   keyCapture = null;
-  show('screen-menu');
+  if (settingsFrom === 'pause' && game && game.running) {
+    // v1.3.52 : on revient à la pause (la partie reste en pause derrière)
+    show('screen-game');
+    $('#pause-overlay').classList.add('active');
+  } else {
+    show('screen-menu');
+  }
+});
+// v1.3.52 : la pause embarque le menu Paramètres en entier
+on('btn-pause-settings', 'click', () => {
+  sfx.click();
+  settingsFrom = 'pause';
+  renderSettings();
+  show('screen-settings');
 });
 on('btn-set-sound', 'click', () => {
   store.setSound(!save.sound);
@@ -1744,6 +1756,12 @@ window.addEventListener('pointerdown', (e) => {
     }
   }
 }, true); // capture : avant le handler global de zones
+
+// v1.3.52 : en jeu, on bloque le menu contextuel (clic droit souris / appui long) —
+// sinon binder le clic droit ouvrirait le menu contextuel Windows au lieu de jouer
+window.addEventListener('contextmenu', (e) => {
+  if (currentScreen === 'screen-game') e.preventDefault();
+});
 
 window.addEventListener('pointerdown', (e) => {
   unlockAudio();

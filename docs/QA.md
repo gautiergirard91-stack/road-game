@@ -426,3 +426,12 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] `node tests/break.test.mjs` : section AC (levelSeed stable/mode, buildPattern identique, 2 parties = mêmes lignes + mêmes tronçons, trafic déterministe)
 - [ ] Test manuel : niveau 3 en Permis A deux fois → mêmes lignes au même endroit ; en speedrun, le parcours est reproductible (temps comparables) ; « 🔄 Recommencer »/touche R -> parcours identique aussi
 - [ ] CI verte + CACHE sw bumpé (roadtap-v59) + VERSION 1.3.51 + version.json 1.3.51
+
+## Checklist v1.3.52 (pause = Paramètres en entier + anti clic droit)
+
+- [ ] Menu pause : bloc accessibilité supprimé, remplacé par « ⚙️ Paramètres » (`btn-pause-settings`) qui ouvre le **menu Paramètres complet** ; retour = on revient à la pause (partie toujours en pause)
+- [ ] Plus de `p-opt-*` (HTML ni JS) ; panneaux restants : modale (`opt-*`) + Paramètres (`s-*`)
+- [ ] `contextmenu` bloqué en écran de jeu → binder le **clic droit** ne ouvre plus le menu contextuel Windows (ni appui long mobile)
+- [ ] `node tests/break.test.mjs` : section AD (pause/settings HTML, plus de p-, câblage retour pause, contextmenu)
+- [ ] Test manuel : en jeu, clic droit bindé = action de jeu, plus de menu Windows ; ⏸ → ⚙️ Paramètres → retour → toujours en pause
+- [ ] CI verte + CACHE sw bumpé (roadtap-v60) + VERSION 1.3.52 + version.json 1.3.52
