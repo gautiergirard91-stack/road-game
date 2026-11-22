@@ -58,9 +58,39 @@
     <button class="btn secondary" id="btn-music">🎵 Musique : ON</button>
     <button class="btn secondary" id="btn-achievements">🏅 Succès</button>
     <button class="btn secondary" id="btn-access">♿ Accessibilité</button>
+    <button class="btn secondary" id="btn-settings">⚙️ Paramètres</button>
     <div class="menu-footer">
       <span id="version-label"></span>
       <span id="net-status" class="net-pill"></span>
+    </div>
+  </section>
+
+  <section id="screen-settings" class="screen">
+    <header class="topbar">
+      <button class="btn back" id="btn-settings-back">←</button>
+      <h2>⚙️ Paramètres</h2>
+      <div class="coins-display">🪙 0</div>
+    </header>
+    <div class="panel settings-panel">
+      <div class="picker-label">♿ Accessibilité</div>
+      <label class="lb-optin"><input type="checkbox" id="s-opt-widewindows"> Fenêtres de timing élargies (±70/150/240 ms) — <b>hors classement</b></label>
+      <label class="lb-optin"><input type="checkbox" id="s-opt-colorblind"> Symboles sur les lignes (mode daltonien)</label>
+      <label class="lb-optin"><input type="checkbox" id="s-opt-zones-h"> 🔄 Zones <b>gauche/droite</b> : gauche = roues AV ⬅, droite = roues AR ➡</label>
+
+      <div class="picker-label">🔊 Audio</div>
+      <button class="btn secondary" id="btn-set-sound">🔊 Son : ON</button>
+      <button class="btn secondary" id="btn-set-music">🎵 Musique : ON</button>
+
+      <div class="picker-label">⌨️ Touches (clavier)</div>
+      <div class="key-row"><span class="key-name">Roues AV (tap)</span><button class="btn small" id="btn-key-front">↑ Haut</button></div>
+      <div class="key-row"><span class="key-name">Roues AR (tap)</span><button class="btn small" id="btn-key-rear">Espace</button></div>
+      <div class="key-row"><span class="key-name">Dépasser (swipe)</span><button class="btn small" id="btn-key-swipe">← Gauche</button></div>
+      <div class="card-sub" id="key-capture-hint">Clique sur une touche puis appuie sur la touche de ton choix. Échap = annuler.</div>
+
+      <div class="picker-label">ℹ️ Infos</div>
+      <div class="settings-info" id="set-version">v…</div>
+      <div class="settings-info" id="set-server">Serveur : …</div>
+      <button class="btn secondary" id="btn-set-refresh">🔄 Revérifier le serveur</button>
     </div>
   </section>
 

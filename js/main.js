@@ -2,7 +2,7 @@ import { LEVELS, THEMES, SKINS, EFFECTS, DIFFICULTIES, CURRENCIES, WINDOWS, ACHI
 import { Game, CAR_STYLE_LABEL, renderCarPreview, renderEffectPreview, renderThemePreview, renderPackPreview, renderSoundPreview } from './game.js';
 import * as store from './store.js';
 import { sfx, setEnabled, setMusicEnabled, unlockAudio, applySoundPack, setMusicCombo, musicSting, musicVictory, scheduleLineBeat, clearLineBeats } from './audio.js';
-import { coinsForResult, accuracy, avgReaction, continueCost, maxMissesFor, firstClearBonus, isPerfectClear, perfectClearBonus, dailyChallenge, weeklyQuests, fmtTime, zoneFromPoint, keyToAction, isNewerVersion, starsFor, endlessMilestones, isWeekend, weekendCoinMultiplier, filterFriendsByPseudo, canSubmitToLeaderboard } from './core.js';
+import { coinsForResult, accuracy, avgReaction, continueCost, maxMissesFor, firstClearBonus, isPerfectClear, perfectClearBonus, dailyChallenge, weeklyQuests, fmtTime, zoneFromPoint, keyToAction, isNewerVersion, starsFor, endlessMilestones, isWeekend, weekendCoinMultiplier, filterFriendsByPseudo, canSubmitToLeaderboard, keyLabel } from './core.js';
 import { watchRewarded } from './ads.js';
 import { Tutorial } from './tutorial.js';
 import * as leaderboard from './leaderboard.js';
@@ -495,10 +495,14 @@ function toast(msg) {
 
 function updateSoundBtn() {
   $('#btn-sound').textContent = save.sound ? '🔊 Son : ON' : '🔇 Son : OFF';
+  const bs = $('#btn-set-sound');
+  if (bs) bs.textContent = save.sound ? '🔊 Son : ON' : '🔇 Son : OFF'; // v1.3.47 : menu Paramètres
 }
 
 function updateMusicBtn() {
   $('#btn-music').textContent = save.music ? '🎵 Musique : ON' : '🎵 Musique : OFF';
+  const bm = $('#btn-set-music');
+  if (bm) bm.textContent = save.music ? '🎵 Musique : ON' : '🎵 Musique : OFF'; // v1.3.47 : menu Paramètres
 }
 
 async function renderChallenges() {
@@ -1186,12 +1190,14 @@ function wireAccessCheckboxes(prefix) {
       o.set(e.target.checked);
       toast(e.target.checked ? o.on : o.off);
       syncAccessCheckboxes('');
-      syncAccessCheckboxes('p-'); // modale ↔ pause synchronisées
+      syncAccessCheckboxes('p-'); // modale ↔ pause ↔ paramètres synchronisées
+      syncAccessCheckboxes('s-');
     });
   }
 }
 wireAccessCheckboxes('');
 wireAccessCheckboxes('p-'); // v1.3.39 : options d'accessibilité aussi dans le menu pause
+wireAccessCheckboxes('s-'); // v1.3.47 : aussi dans le menu Paramètres
 
 on('btn-access', 'click', () => {
   sfx.click();
@@ -1204,6 +1210,87 @@ on('btn-access-close', 'click', () => {
   $('#access-modal').classList.add('hidden');
   $('#access-modal').classList.remove('active');
 });
+
+// --- v1.3.47 : menu Paramètres (accessibilité + audio + touches + version + serveur) ---
+const ACTION_NAMES = { front: 'Roues AV', rear: 'Roues AR', swipe: 'Dépasser (swipe)' };
+let keyCapture = null; // action en cours de capture de touche, ou null
+
+function renderSettings() {
+  syncAccessCheckboxes('s-');
+  updateSoundBtn();
+  updateMusicBtn();
+  const kf = $('#btn-key-front');
+  const kr = $('#btn-key-rear');
+  const ks = $('#btn-key-swipe');
+  if (kf) kf.textContent = keyLabel(save.keys.front);
+  if (kr) kr.textContent = keyLabel(save.keys.rear);
+  if (ks) ks.textContent = keyLabel(save.keys.swipe);
+  const hint = $('#key-capture-hint');
+  if (hint) {
+    hint.textContent = keyCapture
+      ? `⌨️ Appuie sur une touche pour « ${ACTION_NAMES[keyCapture]} »… (Échap = annuler)`
+      : 'Clique sur une touche puis appuie sur la touche de ton choix. Échap = annuler.';
+  }
+  const v = $('#set-version');
+  if (v) v.textContent = `Version v${VERSION}`;
+  updateServerStatus();
+}
+
+function updateServerStatus() {
+  const el = $('#set-server');
+  if (!el) return;
+  if (!navigator.onLine) {
+    el.textContent = '🔴 Hors ligne (navigateur) — progression locale uniquement';
+    return;
+  }
+  if (!leaderboard.isOnline()) {
+    el.textContent = '🟡 Mode local (serveur non configuré) — voir docs/FIREBASE.md';
+    return;
+  }
+  el.textContent = '🟡 Connexion au serveur…';
+  leaderboard.ping().then((ok) => {
+    const st = leaderboard.getLbStatus();
+    el.textContent = ok
+      ? `🟢 En ligne — serveur OK${st && st.writeError ? ` (⚠ ${st.writeError})` : ''}`
+      : '🔴 Serveur injoignable (mode local)';
+  });
+}
+
+on('btn-settings', 'click', () => {
+  sfx.click();
+  renderSettings();
+  show('screen-settings');
+});
+on('btn-settings-back', 'click', () => {
+  sfx.click();
+  keyCapture = null;
+  show('screen-menu');
+});
+on('btn-set-sound', 'click', () => {
+  store.setSound(!save.sound);
+  setEnabled(save.sound);
+  setMusicEnabled(save.music && save.sound);
+  updateSoundBtn();
+  sfx.click();
+});
+on('btn-set-music', 'click', () => {
+  store.setMusic(!save.music);
+  setMusicEnabled(save.music && save.sound);
+  updateMusicBtn();
+  sfx.click();
+});
+on('btn-set-refresh', 'click', () => {
+  sfx.click();
+  updateServerStatus();
+});
+for (const [btnId, action] of [['btn-key-front', 'front'], ['btn-key-rear', 'rear'], ['btn-key-swipe', 'swipe']]) {
+  on(btnId, 'click', () => {
+    sfx.click();
+    keyCapture = action;
+    renderSettings();
+  });
+}
+
 on('btn-music', 'click', () => {
   store.setMusic(!save.music);
   setMusicEnabled(save.music && save.sound);
@@ -1586,10 +1673,28 @@ window.addEventListener('pointercancel', () => {
 
 window.addEventListener('keydown', (e) => {
   if (e.repeat) return;
+  // v1.3.47 : capture d'une touche depuis le menu Paramètres (Échap = annuler)
+  if (keyCapture) {
+    e.preventDefault();
+    const action = keyCapture;
+    keyCapture = null;
+    if (e.code !== 'Escape') {
+      if (store.setKey(action, e.code)) {
+        sfx.coin();
+        toast(`⌨️ « ${keyLabel(e.code)} » = ${ACTION_NAMES[action] || action}`);
+      } else {
+        sfx.miss?.();
+        toast('Cette touche est déjà utilisée par une autre action');
+      }
+    }
+    renderSettings();
+    return;
+  }
   const canPlay = canPlayNow();
   // v1.3.28 : UNE SEULE action par touche via keyToAction (sinon ArrowLeft = tap AV + swipe
   // quand les zones horizontales sont actives ; le swipe clavier passe sur ArrowDown/KeyS)
-  const action = keyToAction(e.code, save.horizontalZones);
+  // v1.3.47 : les touches choisies dans Paramètres priment (save.keys)
+  const action = keyToAction(e.code, save.horizontalZones, save.keys);
   if (action) {
     e.preventDefault();
     if (canPlay) {
