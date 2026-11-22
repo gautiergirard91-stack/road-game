@@ -8,4 +8,6 @@ export const FIREBASE_PROJECT_ID = 'realtime-database-5fd49'; // Project setting
 export const FIREBASE_AUTH_DOMAIN = 'realtime-database-5fd49.firebaseapp.com'; // Project settings → General → App → authDomain (public)
 export const VERSION = '1.3.34';
 // App Check reCAPTCHA v3 — SITE KEY (publique, commitable ; la secret key reste côté console uniquement)
-export const FIREBASE_APP_CHECK_SITE_KEY = '6LecyCwuAAAAAAjFj7BPiUGf7raomYz2mvjYOWxw'; // reCAPTCHA v3 admin console (v3, pas Enterprise)
+// App Check = reCAPTCHA ENTERPRISE (Fraud Defense) — Firebase ne prend plus les nouvelles clés v3.
+// Site key Enterprise (publique) créée dans Cloud Console > reCAPTCHA Enterprise/Fraud Defense, type "score-based website", domaines: roadtap.uk, gautiergirard91-stack.github.io, localhost
+export const FIREBASE_APP_CHECK_SITE_KEY = '6LecyCwuAAAAAFt9Kb_uhj4AFraOo4dnpWQfQpQD';

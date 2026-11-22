@@ -34,7 +34,8 @@ export async function initAppCheck() {
         ? appMod.getApp()
         : appMod.initializeApp({ apiKey: FIREBASE_WEB_API_KEY, authDomain: FIREBASE_AUTH_DOMAIN, projectId: FIREBASE_PROJECT_ID });
       appCheckInstance = acMod.initializeAppCheck(app, {
-        provider: new acMod.ReCaptchaV3Provider(FIREBASE_APP_CHECK_SITE_KEY), // site key publique
+        // v1.3.34 : reCAPTCHA ENTERPRISE (Fraud Defense) — l'onboarding v3 est déprécié par Firebase
+        provider: new acMod.ReCaptchaEnterpriseProvider(FIREBASE_APP_CHECK_SITE_KEY), // site key Enterprise, publique
         isTokenAutoRefreshEnabled: true,
       });
       return appCheckInstance;
