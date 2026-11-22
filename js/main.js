@@ -475,7 +475,7 @@ function renderLevels() {
           toast(`Il te manque ${l.cost - store.getWallet(l.diff || 'auto')} ${c.icon} (${c.name})`);
         }
       } else {
-        startLevel(l);
+        ensurePseudoThen(() => startLevel(l)); // v1.3.29 : pseudo obligatoire avant de jouer
       }
     });
     // v1.3.18 : aperçu réel du thème du niveau (mini route canvas, comme en boutique)
@@ -765,8 +765,9 @@ function onGameEnd(stats, level) {
   if (stats.completed) store.markCleared(level.id);
   checkAchievements(stats, level);
   logEvent('game_over', { score: stats.score, level: level.id, mode: save.difficulty, completed: !!stats.completed, reason: stats.reason });
-  if (!sr && save.pseudo && save.leaderboardOptIn) {
+  if (!sr && save.pseudo) {
     // v1.3.19 : en speedrun le score est un temps -> pas de classement global (record local bestTime)
+    // v1.3.29 : envoi systématique dès qu'un pseudo existe (opt-in retiré, classement par défaut)
     leaderboard
       .submitScore({ pseudo: save.pseudo, score: stats.score, level: level.name, levelId: level.id, mode: save.difficulty, date: Date.now() })
       .catch(() => {});
@@ -799,7 +800,8 @@ function onGameEnd(stats, level) {
       store.addCoins(dc.mode, dc.reward);
       refreshCoins();
       toast(`🎯 Défi du jour réussi : « ${dc.label} » → +${dc.reward} ${cur(dc.mode).icon}`);
-      if (save.pseudo && save.leaderboardOptIn) {
+      if (save.pseudo) {
+        // v1.3.29 : plus d'opt-in, envoi systématique
         leaderboard.submitChallengeScore(dc.id, { pseudo: save.pseudo, score: stats.score, mode: dc.mode, date: Date.now() }).catch(() => {});
       }
       pushCloud();
@@ -890,7 +892,7 @@ window.addEventListener('error', (e) => {
 on('btn-play', 'click', () => {
   sfx.click();
   if (!save.tutorialDone) {
-    startTutorial();
+    ensurePseudoThen(() => startTutorial()); // v1.3.29 : pseudo obligatoire avant la 1ʳᵉ partie
     return;
   }
   renderDifficultyPicker();
@@ -971,10 +973,22 @@ function updateGoogleStatus() {
   if (out) out.classList.toggle('hidden', !save.uid);
 }
 
-on('btn-pseudo', 'click', () => {
-  sfx.click();
+// v1.3.29 : pseudo OBLIGATOIRE avant la première partie + classement par défaut (opt-in retiré)
+let pseudoForced = false;
+let pendingAfterPseudo = null;
+
+function openPseudoModal(forced) {
+  pseudoForced = !!forced;
   $('#pseudo-input').value = save.pseudo;
   updateGoogleStatus();
+  const cancel = $('#btn-pseudo-cancel');
+  if (cancel) cancel.classList.toggle('hidden', pseudoForced); // pas d'annulation si obligatoire
+  const hint = $('#pseudo-hint');
+  if (hint) {
+    hint.textContent = pseudoForced
+      ? 'Obligatoire : choisis un pseudo (16 caractères max) pour apparaître dans le classement mondial 🌍'
+      : 'Ton pseudo est public : il apparaîtra dans le classement mondial 🌍';
+  }
   const gsi = $('#gsi-btn');
   if (gsi && isGoogleAuthConfigured() && !save.uid) {
     gsi.innerHTML = '';
@@ -1001,6 +1015,22 @@ on('btn-pseudo', 'click', () => {
   $('#pseudo-modal').classList.remove('hidden');
   $('#pseudo-modal').classList.add('active');
   setTimeout(() => $('#pseudo-input').focus(), 50);
+}
+
+// À appeler avant de lancer une partie : si pas de pseudo, on ouvre la modale (obligatoire)
+// et on exécute fn seulement après validation.
+function ensurePseudoThen(fn) {
+  if (save.pseudo) {
+    fn();
+    return;
+  }
+  pendingAfterPseudo = fn;
+  openPseudoModal(true);
+}
+
+on('btn-pseudo', 'click', () => {
+  sfx.click();
+  openPseudoModal(false);
 });
 on('btn-google-out', 'click', () => {
   signOutGoogle();
@@ -1010,22 +1040,27 @@ on('btn-google-out', 'click', () => {
   toast('Compte Google délié — la sauvegarde repasse sur ton pseudo.');
 });
 on('btn-pseudo-cancel', 'click', () => {
+  if (pseudoForced) return; // v1.3.29 : pseudo obligatoire -> pas d'annulation
   sfx.click();
   $('#pseudo-modal').classList.add('hidden');
   $('#pseudo-modal').classList.remove('active');
 });
 on('btn-pseudo-save', 'click', () => {
   const p = $('#pseudo-input').value.trim().slice(0, 16);
+  if (pseudoForced && !p) {
+    toast('Choisis un pseudo pour jouer 🙂 (16 caractères max)');
+    sfx.miss?.();
+    return;
+  }
   store.setPseudo(p);
   $('#pseudo-modal').classList.add('hidden');
   $('#pseudo-modal').classList.remove('active');
   sfx.coin();
-  toast(p ? `Pseudo enregistré : ${p}` : 'Pseudo supprimé — tu n\'apparaîtras plus dans le classement');
-});
-on('optin-lb', 'change', (e) => {
-  store.setLeaderboardOptIn(e.target.checked);
-  sfx.click();
-  toast(e.target.checked ? 'Tu apparaîtras dans le classement' : 'Tu n\'apparaîtras plus dans le classement');
+  toast(p ? `Pseudo enregistré : ${p} — tu apparaîtras dans le classement 🌍` : 'Pseudo vide — il te sera redemandé à la prochaine partie');
+  pushCloud();
+  const fn = pendingAfterPseudo;
+  pendingAfterPseudo = null;
+  if (fn) fn();
 });
 on('btn-shop', 'click', () => {
   sfx.click();
@@ -1048,7 +1083,7 @@ on('btn-mode-speedrun', 'click', () => {
 });
 on('btn-help', 'click', () => {
   sfx.click();
-  startTutorial();
+  ensurePseudoThen(() => startTutorial()); // v1.3.29 : pseudo obligatoire avant le tuto aussi
 });
 // v1.3.22 : replier/déplier la bannière du tutoriel (le texte ne bloque plus le haut de l'écran)
 on('tut-fold', 'click', () => {
@@ -1232,8 +1267,6 @@ updateSoundBtn();
 updateMusicBtn();
 setMusicEnabled(save.music && save.sound);
 renderDifficultyPicker();
-const optinEl = document.getElementById('optin-lb');
-if (optinEl) optinEl.checked = !!save.leaderboardOptIn;
 refreshStatus();
 show('screen-menu');
 

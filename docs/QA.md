@@ -218,3 +218,12 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] **Classement** : si les envois sont refusés, la ligne de statut affiche aussi « ⚠ écriture HTTP 403 … » même après une lecture OK ; si la base est vide, vérifier que les testeurs ont pseudo + opt-in (cause n°0, docs/FIREBASE.md §2bis)
 - [ ] `node tests/break.test.mjs` : 64 assertions (mapping zones, keyToAction, effets non auto-activés, writeError persistante)
 - [ ] CI verte (core + smoke + tutorial + break + audit) + CACHE sw bumpé (roadtap-v36) + VERSION 1.3.28
+
+## Checklist v1.3.29 (pseudo obligatoire + classement par défaut + fix règles RTDB push)
+
+- [ ] **Pseudo obligatoire** : première partie (tuto ou niveau) sans pseudo → modale forcée (bouton Annuler caché, champ vide refusé) ; après validation la partie démarre ; « ✏️ Mon pseudo » permet de le changer ensuite
+- [ ] **Plus d'opt-in** : case « apparaître dans le classement » retirée ; tout score terminé est envoyé automatiquement si un pseudo existe (global + défi du jour)
+- [ ] **Règles RTDB corrigées dans la console** (docs/FIREBASE.md §2, validation au niveau `$mode/$id` et `$day/$id`) → **Publier** ; puis `POST https://realtime-database-5fd49-default-rtdb.europe-west1.firebasedatabase.app/scores/auto/test.json` avec `{"pseudo":"Test","score":1,"level":"L","mode":"auto","date":1}` → **200** attendu (avant : 403, nœud `scores` jamais créé)
+- [ ] Classement : après 2 testeurs avec pseudo, `scores.json` → 200 avec données, et le jeu affiche « N score(s) chargé(s) » + les autres joueurs
+- [ ] `node tests/break.test.mjs` : contrat du POST (5 champs + bornes) + nœud null → fallback local
+- [ ] CI verte + CACHE sw bumpé (roadtap-v37) + VERSION 1.3.29 ; PRIVACY.md à jour (pseudo public obligatoire)
