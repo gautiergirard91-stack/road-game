@@ -203,7 +203,9 @@ function hideContinue() {
 const effWindows = () => (save.wideWindows ? { perfect: 70, good: 150, passable: 240 } : WINDOWS);
 
 // sauvegarde cloud keyed par uid Google si lié, sinon par pseudo
-const accountKey = () => save.uid || save.pseudo;
+// v1.3.32 : cloud UNIQUEMENT keyed par uid Google (règles players: auth.uid == $id).
+// Sans compte Google -> sauvegarde 100 % locale (le pseudo seul ne protège pas /players).
+const accountKey = () => save.uid || '';
 
 function pushCloud() {
   if (leaderboard.isOnline() && accountKey()) cloudsave.save(accountKey(), store.snapshot(), getAuthToken());
@@ -773,13 +775,14 @@ function onGameEnd(stats, level) {
     // v1.3.19 : en speedrun le score est un temps -> pas de classement global (record local bestTime)
     // v1.3.29 : envoi systématique dès qu'un pseudo existe (opt-in retiré, classement par défaut)
     leaderboard
-      .submitScore({ pseudo: save.pseudo, score: stats.score, level: level.name, levelId: level.id, mode: save.difficulty, date: Date.now() })
+      // v1.3.32 : uid + jeton -> règles RTDB vérifient uid == auth.uid (anti-usurpation)
+      .submitScore({ pseudo: save.pseudo, uid: save.uid || '', score: stats.score, level: level.name, levelId: level.id, mode: save.difficulty, date: Date.now() }, getAuthToken())
       .catch(() => {});
   }
   if (sr && stats.completed && save.pseudo) {
     // v1.3.31 : classement speedrun dédié (nœud /speedrun/<levelId>, temps en ms, tri croissant)
     leaderboard
-      .submitSpeedrun(level.id, { pseudo: save.pseudo, timeMs: stats.timeMs || 0, level: level.name, levelId: level.id, mode: 'pilote', date: Date.now() })
+      .submitSpeedrun(level.id, { pseudo: save.pseudo, uid: save.uid || '', timeMs: stats.timeMs || 0, level: level.name, levelId: level.id, mode: 'pilote', date: Date.now() }, getAuthToken())
       .catch(() => {});
   }
   pushCloud();
@@ -812,7 +815,7 @@ function onGameEnd(stats, level) {
       toast(`🎯 Défi du jour réussi : « ${dc.label} » → +${dc.reward} ${cur(dc.mode).icon}`);
       if (save.pseudo) {
         // v1.3.29 : plus d'opt-in, envoi systématique
-        leaderboard.submitChallengeScore(dc.id, { pseudo: save.pseudo, score: stats.score, mode: dc.mode, date: Date.now() }).catch(() => {});
+        leaderboard.submitChallengeScore(dc.id, { pseudo: save.pseudo, uid: save.uid || '', score: stats.score, mode: dc.mode, date: Date.now() }, getAuthToken()).catch(() => {});
       }
       pushCloud();
     }
@@ -977,8 +980,8 @@ function updateGoogleStatus() {
     el.textContent = save.uid
       ? `🔗 Compte Google lié : ${save.googleEmail || save.uid}`
       : isGoogleAuthConfigured()
-        ? 'Connecte-toi avec Google : ta progression sera synchronisée sur tous tes appareils.'
-        : 'Google Sign-In non configuré (clés dans js/config.js — voir docs/FIREBASE.md §5).';
+        ? 'Connecte-toi avec Google : ta progression sera sauvegardée dans le cloud (sécurisé, liée à ton compte) sur tous tes appareils.'
+        : 'Google Sign-In non configuré (clés dans js/config.js — voir docs/FIREBASE.md §5). Sans Google, la progression reste locale (cet appareil uniquement).';
   }
   if (out) out.classList.toggle('hidden', !save.uid);
 }
@@ -1047,7 +1050,7 @@ on('btn-google-out', 'click', () => {
   store.clearGoogleAccount();
   sfx.click();
   updateGoogleStatus();
-  toast('Compte Google délié — la sauvegarde repasse sur ton pseudo.');
+  toast('Compte Google délié — sauvegarde cloud désactivée, ta progression reste en local sur cet appareil.');
 });
 on('btn-pseudo-cancel', 'click', () => {
   if (pseudoForced) return; // v1.3.29 : pseudo obligatoire -> pas d'annulation

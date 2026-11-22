@@ -1,0 +1,51 @@
+{
+  "rules": {
+    "scores": {
+      ".read": true,
+      "$mode": {
+        "$id": {
+          ".write": "!data.exists() && newData.exists() && newData.hasChildren(['pseudo','score','level','mode','date']) && (auth == null || newData.child('uid').val() == auth.uid) && newData.child('score').val() <= 1000000 && newData.child('pseudo').val().length <= 16"
+        },
+        ".indexOn": [
+          "score"
+        ]
+      }
+    },
+    "speedrun": {
+      ".read": true,
+      "$level": {
+        "$id": {
+          ".write": "!data.exists() && newData.exists() && newData.hasChildren(['pseudo','timeMs','level','date']) && (auth == null || newData.child('uid').val() == auth.uid) && newData.child('timeMs').val() >= 1000 && newData.child('timeMs').val() <= 3600000 && newData.child('pseudo').val().length <= 16"
+        },
+        ".indexOn": [
+          "timeMs"
+        ]
+      }
+    },
+    "challenges": {
+      ".read": true,
+      "$day": {
+        "$id": {
+          ".write": "!data.exists() && newData.exists() && newData.hasChildren(['pseudo','score','mode','date']) && (auth == null || newData.child('uid').val() == auth.uid) && newData.child('score').val() <= 1000000 && newData.child('pseudo').val().length <= 16"
+        },
+        ".indexOn": [
+          "score"
+        ]
+      }
+    },
+    "players": {
+      "$id": {
+        ".read": "auth != null && auth.uid == $id",
+        ".write": "auth != null && auth.uid == $id && newData.exists()"
+      }
+    },
+    "analytics": {
+      ".read": false,
+      "$name": {
+        "$id": {
+          ".write": "!data.exists() && newData.exists() && newData.hasChildren(['at'])"
+        }
+      }
+    }
+  }
+}
