@@ -832,4 +832,35 @@ console.log('W. v1.3.45 : wideWindows hors classement en ligne (garde client + f
   ok('main.js : btn-pause-retry câblé (recommencer = startLevel(currentLevel))', mainSrc.includes("on('btn-pause-retry'") && /on\('btn-pause-retry'[\s\S]*?startLevel\(currentLevel\)/.test(mainSrc));
 }
 
+console.log('X. v1.3.46 : beat GD calé sur chaque ligne (lineBeat) + niveau week-end dans le filtre du classement');
+{
+  const beats = [];
+  const g = makeGame(LEVELS[0], 'permisA', { audio: { lineBeat: (t, key) => beats.push([t, key]) } });
+  g.start();
+  const line = { type: 'dash', dist: g.distance + 150, axle: 'rear', hits: { front: null, rear: null }, state: 'pending', result: null, flash: 0, glow: 0 };
+  g.lines = [line];
+  g.update(1 / 60);
+  const frontBeat = beats.find(([t, k]) => k === line.dist + ':front');
+  const rearBeat = beats.find(([t, k]) => k === line.dist + ':rear');
+  ok('beat GD : tics programmés pour essieu AV et AR', !!frontBeat && !!rearBeat);
+  const eff = g.effSpeed;
+  ok('beat AV avant le beat AR, tous deux > 0', frontBeat[0] > 0 && rearBeat[0] > frontBeat[0]);
+  ok('t_rear ≈ (dist - distance)/effSpeed (calage exact)', Math.abs(rearBeat[0] - (line.dist - g.distance) / eff) < 0.05);
+  beats.length = 0;
+  line.hits.front = 'perfect';
+  g.update(1 / 60);
+  ok('essieu déjà tapé -> plus de beat pour cet essieu (AR oui, AV non)', !beats.some(([, k]) => k === line.dist + ':front') && beats.some(([, k]) => k === line.dist + ':rear'));
+
+  const audio = await import('../js/audio.js');
+  audio.scheduleLineBeat(0.1, 'k1');
+  audio.scheduleLineBeat(0.2, 'k1');
+  audio.clearLineBeats();
+  ok('scheduleLineBeat/clearLineBeats headless (sans AudioContext) -> pas de crash', true);
+
+  const fs6 = await import('node:fs');
+  const mainSrc = fs6.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  ok('renderLbLevelFilter inclut le niveau 🎉 Week-end (WEEKEND_LEVEL)', mainSrc.includes('String(WEEKEND_LEVEL.id)') && mainSrc.includes('Week-end'));
+  ok('filterLevel("100") garde les entrées week-end du classement', lb.filterLevel([{ levelId: 100, score: 5 }, { levelId: 3, score: 9 }], '100').length === 1);
+}
+
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);
