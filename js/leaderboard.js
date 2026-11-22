@@ -93,16 +93,24 @@ function filterLevel(arr, levelFilter) {
   return arr.filter((e) => e.levelId === id || e.level === LEVEL_NAMES[id]);
 }
 
-export async function submitScore(entry) {
+
+// v1.3.32 : jeton Firebase (Google Sign-In) passé en ?auth= -> les règles RTDB peuvent
+// vérifier que le champ 'uid' de l'entrée == auth.uid (anti-usurpation quand connecté)
+function authQuery(idToken) {
+  const t = idToken || FIREBASE_DB_SECRET;
+  return t ? `?auth=${encodeURIComponent(t)}` : '';
+}
+
+export async function submitScore(entry, idToken) {
   const mode = modeOf(entry);
   if (!isOnline()) return submitLocal(entry);
   try {
     const base = FIREBASE_DB_URL.replace(/\/$/, '');
-    const auth = FIREBASE_DB_SECRET ? `?auth=${FIREBASE_DB_SECRET}` : '';
+    const auth = authQuery(idToken);
     const res = await fetch(`${base}/scores/${mode}.json${auth}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(entry),
+      body: JSON.stringify({ ...entry, uid: entry.uid || '' }),
     });
     if (!res.ok) {
       const err = `écriture HTTP ${res.status} sur scores/${mode} (règles RTDB ?) — score gardé en local`;
@@ -148,15 +156,15 @@ export async function getTop(mode = 'all', levelFilter = 'all') {
 }
 
 // --- Classement du défi du jour (nœud /challenges/<dayKey>) ---
-export async function submitChallengeScore(dayId, entry) {
+export async function submitChallengeScore(dayId, entry, idToken) {
   if (!isOnline()) return false;
   try {
     const base = FIREBASE_DB_URL.replace(/\/$/, '');
-    const auth = FIREBASE_DB_SECRET ? `?auth=${FIREBASE_DB_SECRET}` : '';
+    const auth = authQuery(idToken);
     const res = await fetch(`${base}/challenges/${dayId}.json${auth}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(entry),
+      body: JSON.stringify({ ...entry, uid: entry.uid || '' }),
     });
     return res.ok;
   } catch {
@@ -223,12 +231,12 @@ export function submitSpeedrunLocal(entry) {
   return arr.slice(0, TOP);
 }
 
-export async function submitSpeedrun(levelId, entry) {
-  const body = { pseudo: entry.pseudo, timeMs: entry.timeMs, level: entry.level, levelId, mode: 'pilote', date: entry.date };
+export async function submitSpeedrun(levelId, entry, idToken) {
+  const body = { pseudo: entry.pseudo, uid: entry.uid || '', timeMs: entry.timeMs, level: entry.level, levelId, mode: 'pilote', date: entry.date };
   if (!isOnline()) return submitSpeedrunLocal(body);
   try {
     const base = FIREBASE_DB_URL.replace(/\/$/, '');
-    const auth = FIREBASE_DB_SECRET ? `?auth=${FIREBASE_DB_SECRET}` : '';
+    const auth = authQuery(idToken);
     const res = await fetch(`${base}/speedrun/${levelId}.json${auth}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

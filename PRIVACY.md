@@ -19,7 +19,7 @@ Règles RTDB publiées dans `docs/FIREBASE.md` : la racine n'est pas lisible, le
 
 ## Sauvegarde cloud (optionnelle, via Google)
 
-Si tu te connectes avec Google (bouton dans « ✏️ Mon pseudo »), nous recevons de Google ton **uid, e-mail et nom d'affichage** (via le jeton d'identification), utilisés uniquement pour keyer ta sauvegarde cloud (`players/<uid>`, lecture publique, écriture réservée au propriétaire) afin de la synchroniser entre tes appareils. Le jeton de rafraîchissement reste stocké **uniquement sur ton appareil** (localStorage) et n'est jamais transmis à la base. Tu peux te délier à tout moment (« 🔓 Se délier du compte Google »).
+Si tu te connectes avec Google (bouton dans « ✏️ Mon pseudo »), nous recevons de Google ton **uid, e-mail et nom d'affichage** (via le jeton d'identification), utilisés uniquement pour keyer ta sauvegarde cloud (`players/<uid>`) afin de la synchroniser entre tes appareils. Depuis v1.3.32, ce nœud n’est lisible/modifiable **que par toi** (règle `auth.uid == $id`) ; sans compte Google, aucune donnée n’est envoyée (progression 100 % locale). Le jeton de rafraîchissement reste stocké **uniquement sur ton appareil** (localStorage) et n'est jamais transmis à la base. Tu peux te délier à tout moment (« 🔓 Se délier du compte Google »).
 
 ## Tes droits (RGPD)
 

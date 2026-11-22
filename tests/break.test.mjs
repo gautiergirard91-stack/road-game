@@ -378,4 +378,31 @@ console.log('J. v1.3.31 : classement speedrun dédié (contrat POST, tri croissa
   delete globalThis.fetch;
 }
 
+console.log('K. v1.3.32 : anti-usurpation — idToken en ?auth= et uid dans le corps quand connecté');
+{
+  const calls = [];
+  globalThis.fetch = async (url, opts) => {
+    calls.push({ url: String(url), method: opts && opts.method, body: opts && opts.body ? JSON.parse(opts.body) : null });
+    return { ok: true, json: async () => null };
+  };
+  // connecté Google : jeton passé -> ?auth= présent + uid dans le corps (règle uid == auth.uid)
+  await lb.submitScore({ pseudo: 'Moi', uid: 'uid123', score: 10, level: 'L', levelId: 1, mode: 'auto', date: 1 }, 'ID_TOKEN_ABC');
+  const authed = calls.find((c) => c.method === 'POST');
+  ok('submitScore avec idToken -> ?auth=ID_TOKEN_ABC dans l\'URL', authed && authed.url.includes('?auth=ID_TOKEN_ABC'));
+  ok('corps contient uid (contrat règle auth.uid)', authed && authed.body.uid === 'uid123');
+  ok('contrat 5 champs toujours présent', authed && ['pseudo', 'score', 'level', 'mode', 'date'].every((k) => k in authed.body));
+  // anonyme : pas de ?auth=
+  calls.length = 0;
+  await lb.submitScore({ pseudo: 'Anon', score: 5, level: 'L', levelId: 1, mode: 'auto', date: 2 });
+  const anon = calls.find((c) => c.method === 'POST');
+  ok('sans idToken -> pas de ?auth= (règle auth == null)', anon && !anon.url.includes('?auth='));
+  ok('uid vide ajouté proprement', anon && anon.body.uid === '');
+  // speedrun aussi
+  calls.length = 0;
+  await lb.submitSpeedrun(2, { pseudo: 'Moi', uid: 'uid123', timeMs: 40000, level: 'L', date: 3 }, 'TOK');
+  const sr = calls.find((c) => c.method === 'POST');
+  ok('submitSpeedrun avec idToken -> ?auth= + uid dans le corps', sr && sr.url.includes('?auth=TOK') && sr.body.uid === 'uid123');
+  delete globalThis.fetch;
+}
+
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);

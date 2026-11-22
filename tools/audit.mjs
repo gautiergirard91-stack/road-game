@@ -165,5 +165,36 @@ try {
   problems++;
 }
 
+// 12) database.rules.json : règles RTDB verrouillées (anti-usurpation v1.3.32) — vérifiées en CI
+try {
+  const rules = JSON.parse(fs.readFileSync(path.join(root, 'database.rules.json'), 'utf8')).rules;
+  for (const node of ['scores', 'speedrun', 'challenges']) {
+    const child = Object.keys(rules[node] || {}).find((k) => k.startsWith('$'));
+    const idLevel = child && rules[node][child] ? Object.keys(rules[node][child]).find((k) => k.startsWith('$')) : null;
+    const write = idLevel && rules[node][child][idLevel] && rules[node][child][idLevel]['.write'];
+    if (!write || !write.includes('!data.exists()')) {
+      console.log(`❌ database.rules.json: ${node} — .write au niveau $id doit contenir "!data.exists()" (création seule, anti-écrasement)`);
+      problems++;
+    }
+    if (!write || !write.includes('auth.uid')) {
+      console.log(`❌ database.rules.json: ${node} — .write doit lier uid à auth.uid quand connecté (anti-usurpation)`);
+      problems++;
+    }
+  }
+  const pWrite = rules.players && rules.players.$id && rules.players.$id['.write'];
+  if (!pWrite || !pWrite.includes('auth != null') || !pWrite.includes('auth.uid == $id')) {
+    console.log('❌ database.rules.json: players doit exiger auth != null && auth.uid == $id');
+    problems++;
+  }
+  const idx = rules.scores && rules.scores.$mode && rules.scores.$mode['.indexOn'];
+  if (!idx || !idx.includes('score')) {
+    console.log('❌ database.rules.json: scores.$mode doit avoir .indexOn ["score"]');
+    problems++;
+  }
+} catch (e) {
+  console.log(`❌ database.rules.json illisible/invalide: ${e.message}`);
+  problems++;
+}
+
 console.log(problems === 0 ? '✅ AUDIT STATIQUE: aucun problème trouvé' : `❌ ${problems} problème(s) trouvé(s)`);
 process.exit(problems === 0 ? 0 : 1);

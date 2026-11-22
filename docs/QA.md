@@ -246,3 +246,13 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] Hors ligne / 403 → fallback local (clé `roadtap_speedrun_local_v1`), aucun crash
 - [ ] `node tests/break.test.mjs` : contrat POST speedrun + tri croissant + filtre niveau + nœud null
 - [ ] CI verte + CACHE sw bumpé (roadtap-v39) + VERSION 1.3.31 + version.json 1.3.31
+
+## Checklist v1.3.32 (règles RTDB verrouillées — anti-usurpation, anti-écrasement)
+
+- [ ] **Publier `database.rules.json`** dans la console RTDB (onglet Règles → coller → Publier) ; l'audit CI (section 12) vérifie que le fichier reste verrouillé (!data.exists, uid==auth.uid, players auth-only, .indexOn)
+- [ ] Test écriture anonyme OK (création) : `POST …/scores/auto.json {"pseudo":"Test","score":1,"level":"L","mode":"auto","date":1}` → 200 ; **écrasement refusé** : `PUT …/scores/auto/<pushIdExistant>.json` → 403 ; `DELETE` → 403
+- [ ] Test connecté Google : le jeu envoie `?auth=<idToken>` + `uid` → 200 ; sans uid → 403 (règle)
+- [ ] `players` : anonyme → 401/403 ; avec jeton du bon uid → 200. **Sans Google = plus de cloud** (local uniquement), l'UI l'indique
+- [ ] `analytics` : POST OK, DELETE/PUT d'un événement existant → 403
+- [ ] `node tests/break.test.mjs` : 88 assertions (contrat ?auth= + uid)
+- [ ] CI verte + CACHE sw bumpé (roadtap-v40) + VERSION 1.3.32 + version.json 1.3.32

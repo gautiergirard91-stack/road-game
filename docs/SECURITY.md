@@ -55,3 +55,23 @@ grep -rn "private_key\|BEGIN.*PRIVATE KEY\|service_account" js/ sw.js tests/ too
 ```
 
 L'audit CI (section 10) refait ce scan à chaque push et bloque la PR si un vrai secret apparaît.
+
+## Usurpation de pseudo & triche (audit v1.3.32)
+
+**Avant v1.3.32** : le pseudo n'était qu'une chaîne libre — n'importe qui pouvait poster un score sous le pseudo d'un autre, et comme les push IDs sont publics (lecture ouverte), on pouvait même écraser (PUT) une entrée existante. `/players/<pseudo>` était aussi modifiable par n'importe qui (pseudo public).
+
+**Depuis v1.3.32** (`database.rules.json`, à publier) :
+- `.write` en **création seule** (`!data.exists()`) sur `scores`/`speedrun`/`challenges`/`analytics` : plus d'écrasement ni de suppression d'entrées existantes.
+- Si le joueur est connecté Google, le client envoie `uid` + `?auth=<idToken>` et la règle exige `uid == auth.uid` : **usurpation impossible** pour les comptes liés.
+- `players/<uid>` : lecture/écriture **uniquement** `auth.uid == $id` (plus de cloud keyed par pseudo).
+- `.indexOn` posé pour de futurs tris serveur.
+- App Check (reCAPTCHA v3) en mode **enforce** recommandé avant le Play Store pour bloquer les scripts même avec la clé publique.
+
+**Risque résiduel** : un joueur anonyme peut encore ajouter une *nouvelle* ligne sous un pseudo existant (visible en doublon dans le classement). Parade si ça arrive : rendre l'auth Google obligatoire pour écrire (nœuds keyed par uid uniquement).
+
+## Quand un joueur perd-il sa progression ?
+
+- La sauvegarde vit en `localStorage` (clé `roadtap_save_v1`). **Perdue si** : effacement des données du navigateur/appareil, désinstallation sans cloud, navigation privée — **sauf si** compte Google lié : au démarrage, `players/<uid>` est rechargé et fusionné (max par champ, jamais de rollback).
+- Le reset SW automatique (v1.3.30) ne touche **pas** `localStorage` : la progression survit.
+- Sans Google : aucun backup cloud (volontaire, v1.3.32) — l'UI invite à lier Google pour la synchro.
+- Changer de pseudo ne perd rien en local ; côté cloud, la sauvegarde est keyed par **uid** (stable même si le pseudo change).

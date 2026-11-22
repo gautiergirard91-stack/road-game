@@ -21,33 +21,46 @@ En production, remplacer les règles de test par :
       ".read": true,
       "$mode": {
         "$id": {
-          ".write": "newData.exists() && newData.hasChildren(['pseudo','score','level','mode','date']) && newData.child('score').val() <= 1000000 && newData.child('pseudo').val().length <= 16"
-        }
-      }
-    },
-    "players": {
-      "$id": {
-        ".read": true,
-        ".write": "(auth == null && newData.exists()) || (auth != null && auth.uid == $id)"
-      }
-    },
-    "analytics": {
-      ".read": false,
-      ".write": true
-    },
-    "challenges": {
-      ".read": true,
-      "$day": {
-        "$id": {
-          ".write": "newData.exists() && newData.hasChildren(['pseudo','score','mode','date']) && newData.child('score').val() <= 1000000 && newData.child('pseudo').val().length <= 16"
-        }
+          ".write": "!data.exists() && newData.exists() && newData.hasChildren(['pseudo','score','level','mode','date']) && (auth == null || newData.child('uid').val() == auth.uid) && newData.child('score').val() <= 1000000 && newData.child('pseudo').val().length <= 16"
+        },
+        ".indexOn": [
+          "score"
+        ]
       }
     },
     "speedrun": {
       ".read": true,
       "$level": {
         "$id": {
-          ".write": "newData.exists() && newData.hasChildren(['pseudo','timeMs','level','date']) && newData.child('timeMs').val() >= 1000 && newData.child('timeMs').val() <= 3600000 && newData.child('pseudo').val().length <= 16"
+          ".write": "!data.exists() && newData.exists() && newData.hasChildren(['pseudo','timeMs','level','date']) && (auth == null || newData.child('uid').val() == auth.uid) && newData.child('timeMs').val() >= 1000 && newData.child('timeMs').val() <= 3600000 && newData.child('pseudo').val().length <= 16"
+        },
+        ".indexOn": [
+          "timeMs"
+        ]
+      }
+    },
+    "challenges": {
+      ".read": true,
+      "$day": {
+        "$id": {
+          ".write": "!data.exists() && newData.exists() && newData.hasChildren(['pseudo','score','mode','date']) && (auth == null || newData.child('uid').val() == auth.uid) && newData.child('score').val() <= 1000000 && newData.child('pseudo').val().length <= 16"
+        },
+        ".indexOn": [
+          "score"
+        ]
+      }
+    },
+    "players": {
+      "$id": {
+        ".read": "auth != null && auth.uid == $id",
+        ".write": "auth != null && auth.uid == $id && newData.exists()"
+      }
+    },
+    "analytics": {
+      ".read": false,
+      "$name": {
+        "$id": {
+          ".write": "!data.exists() && newData.exists() && newData.hasChildren(['at'])"
         }
       }
     }
@@ -55,7 +68,19 @@ En production, remplacer les règles de test par :
 }
 ```
 
+> Fichier prêt à copier : **`database.rules.json`** à la racine du dépôt (copier-coller tel quel dans l’éditeur de règles RTDB, puis **Publier**).
+
 > v1.3.31 : le mode **⏱ Speedrun** a son propre classement (nœud `/speedrun/<levelId>`, tri **croissant** sur `timeMs`) — un temps n'a pas sa place dans `/scores` (tri décroissant). Validation au niveau `$level/$id` (même piège push que `scores`, voir la note ci-dessus).
+
+
+
+### v1.3.32 — correctifs de sécurité (audit externe) expliqués
+
+1. **Anti-écrasement / anti-vandalisme** (`scores`, `speedrun`, `challenges`) : chaque `.write` contient désormais **`!data.exists()`** → on ne peut créer que de NOUVELLES entrées (POST push) ; écraser (PUT) ou supprimer (DELETE) une entrée existante est refusé (les push IDs sont publics en lecture, donc sans `!data.exists()` n’importe qui pouvait modifier les scores des autres).
+2. **Anti-usurpation quand connecté Google** : `(auth == null || newData.child('uid').val() == auth.uid)` → un joueur connecté ne peut poster que sous SON uid (le client envoie `uid` + `?auth=<idToken>`). En anonyme, on retombe sur la règle de création seule (un anonyme peut encore ajouter une fausse ligne sous un pseudo existant — visible comme doublon ; la parade forte = App Check en enforce, voir §6).
+3. **`.indexOn`** : ajouté sur `$mode`/`$day`/`$level` (`score` / `timeMs`) pour permettre plus tard des requêtes serveur `orderBy` + `limitToLast` (le jeu lit toujours le nœud entier + tri client, donc rien ne casse sans index).
+4. **`players` verrouillé** : `.read`/`.write` = `auth != null && auth.uid == $id` uniquement → la sauvegarde cloud n’est lisible/modifiable QUE par le propriétaire du compte Google. **Conséquence produit** : sans compte Google, plus de sauvegarde cloud (le pseudo est public, donc un nœud keyed par pseudo était usurpable) — la progression reste en `localStorage` local ; l’UI invite à lier Google pour la synchro.
+5. **`analytics` verrouillé** : `.write` seulement en création (`!data.exists()`, champ `at` requis) au niveau `$name/$id` → plus de suppression/écrasement massif des stats.
 
 > ⚠️ **Piège classique (corrigé en v1.3.29)** : le jeu envoie les scores en **POST push** (`/scores/<mode>.json` → crée `/scores/<mode>/<pushId>`). La validation doit donc être au niveau **`$mode/$id`**, pas au niveau `$mode` : à ce niveau, `newData` a pour enfants les *push IDs*, donc `hasChildren(['pseudo','score',...])` est FAUX → **403 pour toutes les écritures** → le nœud `scores` n'est jamais créé → « on ne voit que soi en local ». Symptôme exact constaté (capture console : `scores` absent, `players` vides).
 
