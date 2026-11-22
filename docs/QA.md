@@ -294,3 +294,15 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] **Aperçus animés** : boutique + garage — les 5 previews recoivent `t` (voiture qui flotte + reflet qui balaie, pluie/neige/confettis/flammes/tracé qui bougent, ligne centrale qui défile, cadeau qui pulse, ondes sonores qui oscillent) ; animation active UNIQUEMENT sur ces 2 écrans et si l'onglet est visible (`document.hidden`), rendu statique t=0 ailleurs (cartes de niveaux inchangées)
 - [ ] `node tests/break.test.mjs` : section N (132 assertions au total) — isWeekend dates fixes + invalides, WEEKEND_LEVEL hors LEVELS, filterFriendsByPseudo, store friends (sanitize/add/remove/snapshot/merge), getAll/getSpeedrunAll (25 entrées sans limite, tri, repli hors ligne)
 - [ ] CI verte + CACHE sw bumpé (roadtap-v44) + VERSION 1.3.36 + version.json 1.3.36
+
+## Checklist v1.3.37 (compte Google obligatoire + synchro cloud réparée)
+
+- [ ] **Règles RTDB re-publiées** dans la console Firebase (Règles → Publier) : `scores`/`speedrun`/`challenges` exigent `auth != null && newData.child('uid').val() == auth.uid` — **plus d'écriture anonyme** (miroir à jour dans `docs/FIREBASE.md` §2)
+- [ ] **Cause racine synchro** : `cloudsave.js` ne lowercase plus la clé (`/players/<uid>` tel quel, sinon `auth.uid == $id` → 403 systématique) + `save()` en `keepalive: true`
+- [ ] **pushCloud en pull-merge-push** (main.js) : lecture cloud → `mergeRemote` → PUT du snapshot fusionné ; push aussi sur `pagehide` et `visibilitychange` hidden → deux appareils ne s'écrasent plus
+- [ ] Modale pseudo **forcée** : bouton Enregistrer désactivé tant que pas (Google + pseudo) ; pseudo pré-rempli depuis displayName/email ; repli popup toujours proposé
+- [ ] Avant de jouer (`btn-play`, tuto, carte niveau) : `ensureAccountThen` exige `pseudo` + `uid`
+- [ ] Envois classement (`scores`, `speedrun`, `challenges`) uniquement si `save.uid` ; sans jeton → repli local + `writeError` « Google requis » ; écran classement : avis « connecte Google pour apparaître » si anonyme
+- [ ] `node tests/break.test.mjs` : section O (règles auth != null, URL cloudsave sans lowercase + keepalive, submit anonyme = 0 POST + repli local)
+- [ ] Testeur : même compte Google sur tel + PC → joue sur les deux → progrès communs (vérifier `players/<uid>` dans la console : un seul nœud, `updatedAt` qui monte)
+- [ ] CI verte + CACHE sw bumpé (roadtap-v45) + VERSION 1.3.37 + version.json 1.3.37

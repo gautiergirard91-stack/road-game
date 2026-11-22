@@ -1043,3 +1043,9 @@ canvas.swatch.garage-preview {
   color: #ff5c5c;
   margin-left: 4px;
 }
+
+/* v1.3.37 : bouton désactivé (modale pseudo forcée tant que pas Google + pseudo) */
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}

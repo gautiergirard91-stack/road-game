@@ -249,9 +249,9 @@ console.log('F. leaderboard : réseau cassé / HTTP 401 / données corrompues c�
   ok('score "abc" coercé en 0', r3.find((e) => e.pseudo === 'X').score === 0);
   ok('statut firebase + count', st3.source === 'firebase' && st3.count === 4 && st3.error === null);
 
-  // écriture refusée -> fallback local + erreur explicite
+  // écriture refusée -> fallback local + erreur explicite (avec jeton : v1.3.37 sans jeton = repli local direct)
   globalThis.fetch = async () => ({ ok: false, status: 403 });
-  const r4 = await lb.submitScore({ pseudo: 'Moi', score: 10, level: 'L', levelId: 1, mode: 'auto', date: Date.now() });
+  const r4 = await lb.submitScore({ pseudo: 'Moi', uid: 'uid9', score: 10, level: 'L', levelId: 1, mode: 'auto', date: Date.now() }, 'TOK403');
   const st4 = lb.getLbStatus();
   ok('écriture HTTP 403 -> score local + writeError "403"', Array.isArray(r4) && st4.writeError && st4.writeError.includes('403'));
   ok('le score soumis est bien en local', r4.some((e) => e.pseudo === 'Moi'));
@@ -293,8 +293,9 @@ console.log('G. v1.3.28 : zones gauche/droite (mapping pur) + effets jamais auto
   ok('buyPack -> contenus débloqués, rien d\'activé', store.buyPack(PACKS[0]) === true && store.get().effects.includes('shake') && store.get().selectedEffects.length === 0);
 
   // --- leaderboard : l'erreur d'écriture reste visible après une lecture réussie ---
+  // (jeton passé : depuis v1.3.37, submitScore SANS jeton ne fait aucun POST et pose le writeError "Google requis")
   globalThis.fetch = async () => ({ ok: false, status: 403 });
-  await lb.submitScore({ pseudo: 'Moi', score: 5, level: 'L', levelId: 1, mode: 'auto', date: 1 });
+  await lb.submitScore({ pseudo: 'Moi', uid: 'uid9', score: 5, level: 'L', levelId: 1, mode: 'auto', date: 1 }, 'TOK403');
   ok('submit 403 -> writeError enregistrée', lb.getLbStatus().writeError && lb.getLbStatus().writeError.includes('403'));
   globalThis.fetch = async () => ({ ok: true, json: async () => ({ a: { pseudo: 'Y', score: 50, mode: 'auto' } }) });
   await lb.getTop('auto'); // lecture OK ensuite
@@ -312,7 +313,7 @@ console.log('H. v1.3.29 : contrat des règles RTDB (corps du POST) + nœud score
     calls.push({ url: String(url), method: opts && opts.method, body: opts && opts.body ? JSON.parse(opts.body) : null });
     return { ok: true, json: async () => null };
   };
-  await lb.submitScore({ pseudo: 'Test', score: 123, level: 'Premiers tours', levelId: 1, mode: 'auto', date: 42 });
+  await lb.submitScore({ pseudo: 'Test', uid: 'uidT', score: 123, level: 'Premiers tours', levelId: 1, mode: 'auto', date: 42 }, 'TOK_H'); // v1.3.37 : jeton requis
   const captured = calls.find((c) => c.method === 'POST'); // submitScore refait un getTop('all') après -> on isole le POST
   ok('POST vers /scores/auto.json', captured && captured.url.includes('/scores/auto.json') && captured.method === 'POST');
   const b = captured && captured.body;
@@ -347,7 +348,7 @@ console.log('J. v1.3.31 : classement speedrun dédié (contrat POST, tri croissa
     calls.push({ url: String(url), method: opts && opts.method, body: opts && opts.body ? JSON.parse(opts.body) : null });
     return { ok: true, json: async () => null };
   };
-  await lb.submitSpeedrun(3, { pseudo: 'Test', timeMs: 45320, level: 'Double file', date: 9 });
+  await lb.submitSpeedrun(3, { pseudo: 'Test', uid: 'uidT', timeMs: 45320, level: 'Double file', date: 9 }, 'TOK_J'); // v1.3.37 : jeton requis
   const post = calls.find((c) => c.method === 'POST');
   ok('POST vers /speedrun/3.json', post && post.url.includes('/speedrun/3.json'));
   ok('corps = contrat règles speedrun (pseudo/timeMs/level/date + bornes)', post && ['pseudo', 'timeMs', 'level', 'date'].every((k) => k in post.body) && post.body.timeMs >= 1000 && post.body.timeMs <= 3600000 && post.body.mode === 'pilote');
@@ -373,7 +374,7 @@ console.log('J. v1.3.31 : classement speedrun dédié (contrat POST, tri croissa
 
   // écriture refusée -> fallback local + writeError visible
   globalThis.fetch = async () => ({ ok: false, status: 403 });
-  await lb.submitSpeedrun(1, { pseudo: 'Moi', timeMs: 50000, level: 'L', date: 1 });
+  await lb.submitSpeedrun(1, { pseudo: 'Moi', uid: 'uid9', timeMs: 50000, level: 'L', date: 1 }, 'TOK403'); // v1.3.37 : jeton requis pour atteindre le 403
   ok('écriture speedrun 403 -> writeError + local', lb.getLbStatus().writeError && lb.getLbStatus().writeError.includes('403') && lb.getLbStatus().writeError.includes('speedrun'));
   delete globalThis.fetch;
 }
@@ -391,12 +392,11 @@ console.log('K. v1.3.32 : anti-usurpation — idToken en ?auth= et uid dans le c
   ok('submitScore avec idToken -> ?auth=ID_TOKEN_ABC dans l\'URL', authed && authed.url.includes('?auth=ID_TOKEN_ABC'));
   ok('corps contient uid (contrat règle auth.uid)', authed && authed.body.uid === 'uid123');
   ok('contrat 5 champs toujours présent', authed && ['pseudo', 'score', 'level', 'mode', 'date'].every((k) => k in authed.body));
-  // anonyme : pas de ?auth=
+  // v1.3.37 : anonyme -> PLUS AUCUN POST réseau (accès anonyme retiré), repli local direct
   calls.length = 0;
   await lb.submitScore({ pseudo: 'Anon', score: 5, level: 'L', levelId: 1, mode: 'auto', date: 2 });
   const anon = calls.find((c) => c.method === 'POST');
-  ok('sans idToken -> pas de ?auth= (règle auth == null)', anon && !anon.url.includes('?auth='));
-  ok('uid vide ajouté proprement', anon && anon.body.uid === '');
+  ok('sans idToken -> AUCUN POST (anonyme retiré v1.3.37), repli local', !anon);
   // speedrun aussi
   calls.length = 0;
   await lb.submitSpeedrun(2, { pseudo: 'Moi', uid: 'uid123', timeMs: 40000, level: 'L', date: 3 }, 'TOK');
@@ -511,6 +511,52 @@ console.log('N. v1.3.36 : garage / événement week-end / classement amis / aper
   ok('filterLevel exporté (filtrage par levelId)', lb.filterLevel([{ levelId: 1 }, { levelId: 2 }], '1').length === 1);
   globalThis.fetch = async () => { throw new Error('offline'); };
   ok('getAll hors ligne -> repli local sans plantage', Array.isArray(await lb.getAll('auto')));
+  delete globalThis.fetch;
+}
+
+console.log('O. v1.3.37 : compte Google obligatoire (anonyme retiré) + synchro cloud réparée');
+{
+  // --- règles RTDB : plus d'écriture anonyme sur scores/speedrun/challenges ---
+  const fs = await import('node:fs');
+  const rules = JSON.parse(fs.readFileSync(new URL('../database.rules.json', import.meta.url), 'utf8')).rules;
+  for (const node of ['scores', 'speedrun', 'challenges']) {
+    const child = Object.keys(rules[node]).find((k) => k.startsWith('$'));
+    const idLevel = Object.keys(rules[node][child]).find((k) => k.startsWith('$'));
+    const w = rules[node][child][idLevel]['.write'];
+    ok(`règles ${node} : auth != null requis (accès anonyme retiré)`, w.includes('auth != null') && !w.includes('auth == null'));
+    ok(`règles ${node} : anti-usurpation (auth.uid) + création seule (!data.exists) conservées`, w.includes('auth.uid') && w.includes('!data.exists()'));
+  }
+
+  // --- cloudsave : la clé uid ne doit PAS être lowercasée (règle auth.uid == $id est sensible à la casse) ---
+  const cs = await import('../js/cloudsave.js');
+  const seen = [];
+  globalThis.fetch = async (url, opts) => {
+    seen.push({ url: String(url), method: opts && opts.method, keepalive: Boolean(opts && opts.keepalive) });
+    return { ok: true, json: async () => null };
+  };
+  await cs.load('Uid_MixedCase_ABC123', 'TOK');
+  ok('cloudsave.load : URL contient l\'uid TEL QUEL (pas de lowercase -> plus de 403)', seen[0].url.includes('/players/Uid_MixedCase_ABC123.json') && seen[0].url.includes('?auth=TOK') && !seen[0].url.includes('uid_mixedcase'));
+  await cs.save('Uid_MixedCase_ABC123', { wallets: { auto: 5 } }, 'TOK');
+  ok('cloudsave.save : PUT + keepalive (le push survit à la fermeture de l\'app)', seen[1].method === 'PUT' && seen[1].keepalive === true && seen[1].url.includes('/players/Uid_MixedCase_ABC123.json'));
+
+  // --- envois leaderboard SANS jeton -> aucun POST, repli local, diagnostic explicite ---
+  mem['roadtap_leaderboard_local_v1'] = '[]';
+  mem['roadtap_speedrun_local_v1'] = '[]';
+  const posts = [];
+  globalThis.fetch = async (url, opts) => {
+    if (opts && opts.method === 'POST') posts.push(String(url));
+    return { ok: true, json: async () => null };
+  };
+  const r1 = await lb.submitScore({ pseudo: 'Anon', uid: '', score: 42, level: 'L', levelId: 1, mode: 'auto', date: 1 });
+  ok('submitScore sans jeton -> AUCUN POST réseau (anonyme retiré)', posts.length === 0);
+  ok('submitScore sans jeton -> repli local', Array.isArray(r1) && r1.some((e) => e.pseudo === 'Anon' && e.score === 42));
+  ok('submitScore sans jeton -> writeError mentionne Google', String(lb.getLbStatus().writeError || '').includes('Google'));
+  const r2 = await lb.submitSpeedrun(1, { pseudo: 'Anon', uid: '', timeMs: 30000, level: 'L', date: 2 });
+  ok('submitSpeedrun sans jeton -> aucun POST, repli local temps', posts.length === 0 && Array.isArray(r2) && r2.some((e) => e.timeMs === 30000));
+  ok('submitChallengeScore sans jeton -> false + writeError', (await lb.submitChallengeScore('2026-11-22', { pseudo: 'A', uid: '', score: 1, mode: 'auto', date: 1 })) === false && String(lb.getLbStatus().writeError || '').includes('Google'));
+  // avec jeton -> POST avec ?auth= (anti-régression)
+  await lb.submitScore({ pseudo: 'Moi', uid: 'uid1', score: 7, level: 'L', levelId: 1, mode: 'auto', date: 3 }, 'TOK2');
+  ok('submitScore AVEC jeton -> POST ?auth=TOK2 (inchangé)', posts.length === 1 && posts[0].includes('?auth=TOK2'));
   delete globalThis.fetch;
 }
 
