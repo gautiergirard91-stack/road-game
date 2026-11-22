@@ -6,4 +6,6 @@ export const FIREBASE_OAUTH_CLIENT_ID = '804737015370-g2bocn49qv0hsjk00jd0pu84j4
 // v1.3.33 : config de l'app Firebase pour le repli signInWithPopup (SDK chargé depuis gstatic, zéro build)
 export const FIREBASE_PROJECT_ID = 'realtime-database-5fd49'; // Project settings → General → Project ID (public)
 export const FIREBASE_AUTH_DOMAIN = 'realtime-database-5fd49.firebaseapp.com'; // Project settings → General → App → authDomain (public)
-export const VERSION = '1.3.33';
+export const VERSION = '1.3.34';
+// App Check reCAPTCHA v3 — SITE KEY (publique, commitable ; la secret key reste côté console uniquement)
+export const FIREBASE_APP_CHECK_SITE_KEY = '6LecyCwuAAAAAAjFj7BPiUGf7raomYz2mvjYOWxw'; // reCAPTCHA v3 admin console (v3, pas Enterprise)

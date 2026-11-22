@@ -75,3 +75,16 @@ L'audit CI (section 10) refait ce scan à chaque push et bloque la PR si un vrai
 - Le reset SW automatique (v1.3.30) ne touche **pas** `localStorage` : la progression survit.
 - Sans Google : aucun backup cloud (volontaire, v1.3.32) — l'UI invite à lier Google pour la synchro.
 - Changer de pseudo ne perd rien en local ; côté cloud, la sauvegarde est keyed par **uid** (stable même si le pseudo change).
+
+## App Check (reCAPTCHA v3) sur RTDB — procédure (v1.3.34)
+
+**Côté code (déjà en place)** : `js/appcheck.js` charge `firebase-app` + `firebase-app-check` depuis gstatic (import dynamique, zéro build), initialise App Check avec la **site key v3** (`FIREBASE_APP_CHECK_SITE_KEY` dans `js/config.js`, publique), et `installAppCheckFetch()` pose le header **`X-Firebase-AppCheck`** sur **chaque appel REST vers `*.firebasedatabase.app`** (scores/speedrun/challenges/players/analytics/ping). Dégradé gracieux : hors ligne ou gstatic bloqué → aucun header, aucun crash (tant que l'enforce n'est pas actif).
+
+**Côté consoles (à faire une fois)** :
+1. reCAPTCHA admin (google.com/recaptcha/admin) : clé **v3**, domaines `roadtap.uk`, `gautiergirard91-stack.github.io`, `localhost` → site key (dans le code) + **secret key (secrète, jamais commitée — l'audit CI la bloque)**.
+2. Firebase console → Security > App Check → onglet **Apps** → enregistrer l'app web avec le provider **reCAPTCHA v3** + la secret key. (Si tu as enregistré la clé *Enterprise/Fraud Defense* à la place, utilise `ReCaptchaEnterpriseProvider` dans `appcheck.js` et la clé Enterprise — ne mélange pas les deux.)
+3. Déployer le code (v1.3.34+) → les testeurs l'obtiennent automatiquement (sonde `version.json` + reset SW auto).
+4. Firebase console → App Check → onglet **APIs** → vérifier que le trafic RTDB est « verified » (les vieux clients sans token apparaissent « unverified »).
+5. **Enforce** : App Check → APIs → **Realtime Database** → Enforce (propagation ~15 min). Après : toute requête RTDB sans token valide est rejetée. Les règles `database.rules.json` ne changent pas (l'enforce RTDB est côté console).
+6. localhost : enregistrer un *debug token* (App Check → Apps) et poser `self.FIREBASE_APPCHECK_DEBUG_TOKEN = true` en local.
+7. Future TWA Android : enregistrer un 2ᵉ provider **Play Integrity** dans App Check → Apps avant d'enforcer pour Android.

@@ -50,6 +50,14 @@ if (assetMatch) {
   }
 }
 
+// 3b) chaque module js/ doit être dans ASSETS du SW (sinon crash hors-ligne, cf v1.3.23 auth.js)
+for (const f of jsFiles) {
+  if (!sw.includes(`'./js/${f}'`)) {
+    console.log(`❌ sw.js ASSETS: js/${f} manquant (le jeu planterait hors-ligne)`);
+    problems++;
+  }
+}
+
 // 4) fichiers référencés par index.html (script/link/manifest) existent
 for (const m of html.matchAll(/(?:src|href)="([^"#]+)"/g)) {
   const p = m[1];
