@@ -1100,4 +1100,41 @@ console.log('AH. v1.3.56 : nettoyage check de nuit (modale/boutons/CSS morts ret
   }
 }
 
+console.log('AI. v1.3.57 : touches sauvegardées AVEC LE COMPTE (backup local roadtap_keys_v1_<uid|pseudo>, conservées à la déconnexion, portées par le cloud)');
+{
+  const fsG = await import('node:fs');
+  const mainSrc = fsG.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  const storeSrc = fsG.readFileSync(new URL('../js/store.js', import.meta.url), 'utf8');
+
+  // 1) dès qu'on rebind une touche avec un compte posé, la backup compte est écrite
+  mem['roadtap_save_v1'] = '{}';
+  store.load();
+  store.setGoogleAccount('uid-abc', 'a@b.c', 'rt');
+  store.setKey('front', 'KeyZ');
+  ok('setKey écrit la backup compte roadtap_keys_v1_<uid>', !!mem['roadtap_keys_v1_uid-abc'] && JSON.parse(mem['roadtap_keys_v1_uid-abc']).front === 'KeyZ');
+
+  // 2) au chargement, si la save principale a perdu les touches, elles sont restaurées depuis la backup du compte
+  mem['roadtap_save_v1'] = JSON.stringify({ uid: 'uid-abc', pseudo: 'Testeur' }); // plus de keys -> défauts
+  store.load();
+  ok('load() restaure les touches du compte depuis la backup (CTRL+F5 / save perdue / clear partiel)', store.get().keys.front === 'KeyZ');
+
+  // 3) déconnexion (resetProgress) : progression remise à 0 MAIS config (touches, zones) conservée
+  store.setKey('rear', 'KeyM');
+  store.setHorizontalZones(true);
+  store.addCoins('auto', 500);
+  store.setBest('auto', 2, 999);
+  store.resetProgress();
+  ok('resetProgress : wallets/best remis à 0 MAIS keys + horizontalZones conservés', store.get().wallets.auto === 0 && store.getBest('auto', 2) === 0 && store.get().keys.front === 'KeyZ' && store.get().keys.rear === 'KeyM' && store.get().horizontalZones === true);
+
+  // 4) le cloud continue de porter les touches (players/<uid>.keys)
+  store.setKey('front', 'KeyP');
+  ok('snapshot() inclut keys -> cloud players/<uid>.keys', store.snapshot().keys.front === 'KeyP');
+  store.mergeRemote({ keys: { front: 'KeyQ', rear: 'Enter', swipe: 'ArrowLeft', retry: 'KeyR' } });
+  ok('mergeRemote applique les touches du cloud (dernier appareil gagne)', store.get().keys.front === 'KeyQ' && store.get().keys.rear === 'Enter');
+
+  // 5) wiring : backup calée après synchro cloud (connexion + restauration de session x2) + restore dans load()
+  ok('main.js : backupKeysForAccount() appelé à la connexion et après chaque synchro cloud (>= 3 sites)', (mainSrc.match(/backupKeysForAccount\(\)/g) || []).length >= 3);
+  ok("store.js : préfixe 'roadtap_keys_v1_' + restoreKeysForAccount() appelé dans load()", storeSrc.includes("'roadtap_keys_v1_'") && storeSrc.includes('restoreKeysForAccount();'));
+}
+
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);

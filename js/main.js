@@ -1445,6 +1445,7 @@ async function completeGoogleSignIn(sess) {
     }
   }
   pushCloud();
+  store.backupKeysForAccount(); // v1.3.57 : les touches fusionnées (cloud) sont aussi calées sur le compte en local
 }
 
 function updateGoogleStatus() {
@@ -1530,7 +1531,9 @@ on('btn-google-out', 'click', () => {
   signOutGoogle();
   store.clearGoogleAccount();
   // v1.3.40 : à la déconnexion, on repart de 0 EN LOCAL (le cloud players/<uid> est conservé
-  // tel quel : à la reconnexion, la save locale fusionne avec, mergeRemote = max par champ)
+  // tel quel : à la reconnexion, la save locale fusionne avec, mergeRemote = max par champ).
+  // v1.3.57 : resetProgress conserve la config (touches, accessibilité, son/musique) — seule la
+  // progression repart de 0.
   store.resetProgress();
   sfx.click();
   updateGoogleStatus();
@@ -1541,7 +1544,7 @@ on('btn-google-out', 'click', () => {
   renderShop();
   $('#pseudo-modal').classList.add('hidden');
   $('#pseudo-modal').classList.remove('active');
-  toast('🔓 Compte Google délié — progression locale remise à 0. Reconnecte-toi pour retrouver ton cloud.');
+  toast('🔓 Compte Google délié — progression locale remise à 0 (tes touches et réglages sont conservés). Reconnecte-toi pour retrouver ton cloud.');
 });
 on('btn-pseudo-cancel', 'click', () => {
   if (pseudoForced) return; // v1.3.29 : pseudo obligatoire -> pas d'annulation
@@ -1902,6 +1905,7 @@ if (save.uid && save.googleRefresh) {
     if (leaderboard.isOnline() && accountKey()) {
       cloudsave.load(accountKey(), getAuthToken()).then((remote) => {
         if (remote && store.mergeRemote(remote)) {
+          store.backupKeysForAccount(); // v1.3.57 : touches du compte calées en local aussi
           refreshCoins();
           renderLevels();
           renderShop();
@@ -1913,6 +1917,7 @@ if (save.uid && save.googleRefresh) {
 } else if (leaderboard.isOnline() && accountKey()) {
   cloudsave.load(accountKey(), getAuthToken()).then((remote) => {
     if (remote && store.mergeRemote(remote)) {
+      store.backupKeysForAccount(); // v1.3.57 : touches du compte calées en local aussi
       refreshCoins();
       renderLevels();
       renderShop();

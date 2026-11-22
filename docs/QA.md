@@ -1,6 +1,6 @@
 # ✅ Assurance qualité
 
-> **Note (v1.3.56)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.56**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
+> **Note (v1.3.57)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.57**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
 
 ## Processus de test
 
@@ -469,3 +469,13 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] Test manuel : menu principal sans tagline ni boutons ♿/🔊/🎵 ; ⚙️ Paramètres ouvre bien l'accessibilité (s-opt-*) ; pause → ⚙️ Paramètres fonctionne et revient à la pause ; aucun `id` orphelin (audit §1)
 - [ ] Check de nuit complet : 6 fichiers de tests + `node tools/audit.mjs` verts ; triple bump cohérent (VERSION 1.3.56 = version.json, CACHE roadtap-v64)
 - [ ] CI verte + CACHE sw bumpé (roadtap-v64) + VERSION 1.3.56 + version.json 1.3.56
+
+## Checklist v1.3.57 (touches sauvegardées avec le compte — branche `vibe/touches-compte-264a24`)
+
+- [ ] `store.js` : backup locale par compte `roadtap_keys_v1_<uid|pseudo>` écrite à chaque `setKey`/`setKeys` et à chaque connexion (`backupKeysForAccount()` dans main.js, x3 sites) ; restaurée au chargement via `restoreKeysForAccount()` dans `load()` si la save principale a perdu les touches
+- [ ] `resetProgress()` (déconnexion) conserve désormais `keys` + `horizontalZones` : seule la **progression** repart de 0, la **config** reste
+- [ ] Cloud : `snapshot()`/`mergeRemote()` continuent de porter `keys` dans `players/<uid>.keys` (règle players = `auth.uid == $id && newData.exists()`, aucun champ imposé -> OK)
+- [ ] `node tests/break.test.mjs` : section AI (7 assertions : backup écrite, restore au load, resetProgress garde la config, snapshot/mergeRemote cloud, wiring main.js)
+- [ ] Test manuel : compte Google connecté → changer une touche dans ⚙️ Paramètres → vérifier `localStorage["roadtap_keys_v1_<uid>"]` → **CTRL+F5** → la touche est toujours là ; supprimer `roadtap_save_v1` seul → recharger → les touches reviennent depuis la backup ; se déconnecter → touches conservées, progression à 0 ; se reconnecter → touches du cloud fusionnées
+- [ ] Joueur anonyme : touches dans `roadtap_save_v1` (survit au CTRL+F5, localStorage n'est jamais vidé par un rechargement)
+- [ ] CI verte + CACHE sw bumpé (roadtap-v65) + VERSION 1.3.57 + version.json 1.3.57
