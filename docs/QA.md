@@ -348,3 +348,12 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] `node tests/break.test.mjs` : section T (comboIntensity/musicTempo/tapFreq/musicLayers purs, setMusicCombo clamp, sting reset, pas de crash headless)
 - [ ] Écoute : chaque tap = bit ; combo de PARFAIT = musique qui accélère/devient plus intense ; raté = sting puis calme ; niveau terminé = arpège de victoire
 - [ ] CI verte + CACHE sw bumpé (roadtap-v50) + VERSION 1.3.42 + version.json 1.3.42
+
+## Checklist v1.3.43 (passage piéton à haute vitesse : arrêt AVANT le passage, pas de cœur perdu)
+
+- [ ] `game.js` : clamp autoStop — tant que la voiture cède le passage, `lineY(crosswalk) <= frontAxleY - 6` (la voiture s'arrête AVANT le passage, même en speedrun à haute vitesse)
+- [ ] `update()` : une ligne `crosswalk` ne fait **pas** perdre de cœur pendant l'arrêt piéton (`autoStop && effSpeed <= 1`)
+- [ ] `tap()` à l'arrêt (effSpeed = 0) avec autoStop : la ligne piéton pending dans ±320 px est validée « good » (popup « PASSAGE CÉDÉ », onJudge type=crosswalk) au lieu d'un clic-vide ; sans piéton, le stray reste (régression testée)
+- [ ] `node tests/break.test.mjs` : section U (clamp, tap validé à l'arrêt, stray sans piéton, miss normal sans autoStop)
+- [ ] Test manuel : niveau ville en speedrun (vitesse max) -> la voiture s'arrête avant le passage, roues AV PAS dessus ; tap AV à l'arrêt = validé, 0 cœur perdu
+- [ ] CI verte + CACHE sw bumpé (roadtap-v51) + VERSION 1.3.43 + version.json 1.3.43
