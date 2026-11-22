@@ -2,7 +2,7 @@ import { LEVELS, THEMES, SKINS, EFFECTS, DIFFICULTIES, CURRENCIES, WINDOWS, ACHI
 import { Game, CAR_STYLE_LABEL, renderCarPreview, renderEffectPreview, renderThemePreview, renderPackPreview, renderSoundPreview } from './game.js';
 import * as store from './store.js';
 import { sfx, setEnabled, setMusicEnabled, unlockAudio, applySoundPack } from './audio.js';
-import { coinsForResult, accuracy, avgReaction, continueCost, maxMissesFor, firstClearBonus, isPerfectClear, perfectClearBonus, dailyChallenge, weeklyQuests, fmtTime, zoneFromPoint, keyToAction } from './core.js';
+import { coinsForResult, accuracy, avgReaction, continueCost, maxMissesFor, firstClearBonus, isPerfectClear, perfectClearBonus, dailyChallenge, weeklyQuests, fmtTime, zoneFromPoint, keyToAction, isNewerVersion } from './core.js';
 import { watchRewarded } from './ads.js';
 import { Tutorial } from './tutorial.js';
 import * as leaderboard from './leaderboard.js';
@@ -1269,6 +1269,53 @@ setMusicEnabled(save.music && save.sound);
 renderDifficultyPicker();
 refreshStatus();
 show('screen-menu');
+checkServerVersion(); // v1.3.30 : sonde anti-SW-obsolète (démarrage uniquement)
+
+// v1.3.30 : si le serveur sert une version plus récente que la page chargée (vieux SW en cache),
+// on réinitialise proprement UNE FOIS par session : unregister SW + vidage des caches + reload.
+// (localStorage = sauvegarde conservée volontairement ; "Clear site data" manuel ne sert plus
+//  que si le stockage lui-même est corrompu)
+async function resetSWAndReload() {
+  try {
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map((r) => r.unregister()));
+    }
+    if (window.caches) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((k) => caches.delete(k)));
+    }
+  } catch (e) {
+    console.warn('[sw] reset impossible:', e);
+  }
+  location.reload();
+}
+
+async function checkServerVersion() {
+  try {
+    // version.json n'est jamais caché par le SW (sw.js v1.3.30) -> on lit le vrai serveur
+    const res = await fetch(`version.json?ts=${Date.now()}`, { cache: 'no-store' });
+    if (!res.ok) return;
+    const data = await res.json();
+    const serverV = data && data.version;
+    if (!serverV || !isNewerVersion(serverV, VERSION)) return; // à jour (ou serveur plus vieux = dev)
+    console.info(`[version] serveur v${serverV} > page chargée v${VERSION} -> reset SW proposé`);
+    const banner = $('#version-banner');
+    const txt = $('#version-banner-text');
+    if (txt) txt.textContent = `🔄 Mise à jour dispo : v${serverV} (page : v${VERSION})`;
+    if (banner) banner.classList.remove('hidden');
+    if (!sessionStorage.getItem('roadtap_sw_reset_once')) {
+      sessionStorage.setItem('roadtap_sw_reset_once', '1');
+      await resetSWAndReload(); // auto, une seule fois par session
+    }
+  } catch {
+    /* hors ligne : la sonde échoue silencieusement */
+  }
+}
+on('btn-version-reset', 'click', () => {
+  sfx.click();
+  resetSWAndReload();
+});
 
 // restauration silencieuse de la session Google au démarrage
 if (save.uid && save.googleRefresh) {

@@ -227,3 +227,12 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] Classement : après 2 testeurs avec pseudo, `scores.json` → 200 avec données, et le jeu affiche « N score(s) chargé(s) » + les autres joueurs
 - [ ] `node tests/break.test.mjs` : contrat du POST (5 champs + bornes) + nœud null → fallback local
 - [ ] CI verte + CACHE sw bumpé (roadtap-v37) + VERSION 1.3.29 ; PRIVACY.md à jour (pseudo public obligatoire)
+
+## Checklist v1.3.30 (reset SW automatique si version obsolète)
+
+- [ ] `version.json` (racine) = `VERSION` de `js/config.js` (vérifié par l'audit CI, section 11) ; `sw.js` n'intercepte JAMAIS `version.json` (sonde toujours fraîche)
+- [ ] Test du reset auto : charger une vieille version en cache (ou simuler), ouvrir roadtap.uk → bannière « 🔄 Mise à jour dispo » → **reset auto une fois par session** (sessionStorage `roadtap_sw_reset_once`) : unregister SW + `caches.delete` + reload → la page rechargée affiche la bonne version, **sauvegarde conservée** (localStorage non vidé)
+- [ ] Bouton « 🔄 Réinitialiser et recharger » de la bannière fait le reset manuel à tout moment
+- [ ] Hors ligne : la sonde échoue silencieusement, aucun crash
+- [ ] `node tests/break.test.mjs` : 76 assertions (parseVersion/isNewerVersion, pas de boucle quand versions égales)
+- [ ] CI verte + CACHE sw bumpé (roadtap-v38) + VERSION 1.3.30 + version.json 1.3.30
