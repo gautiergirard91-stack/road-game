@@ -442,3 +442,12 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] Touche « recommencer » (`save.keys.retry`, défaut R) fonctionne en jeu (même en pause) **et sur l'écran de fin de partie** (`screen-over`) → relance le niveau direct
 - [ ] `node tests/break.test.mjs` : section AE (menu sans son/musique, settings conservé, retry sur screen-over)
 - [ ] CI verte + CACHE sw bumpé (roadtap-v61) + VERSION 1.3.53 + version.json 1.3.53
+
+## Checklist v1.3.54 (speedrun = une seule difficulté : Permis A)
+
+- [ ] Moteur : `speedrun -> mode = 'permisA'` (quel que soit le mode demandé) ; `startLevel` idem côté UI
+- [ ] UI : bouton ⏱ cale `difficulty='permisA'` ; picker de difficulté verrouillé sur Permis A tant que speedrun actif (toast explicite) ; title du bouton à jour
+- [ ] Records + envois speedrun utilisent le **mode réellement joué** (`runMode = game.mode`) — clé `permisA:levelId`
+- [ ] `node tests/game.smoke.test.mjs` (speedrun force permisA) + `break.test.mjs` section AF (276+ assertions)
+- [ ] Test manuel : ⏱ Speedrun depuis n'importe quelle difficulté → partie en Permis A ; classement ⏱ enregistre permisA ; changer de difficulté en speedrun → reste Permis A
+- [ ] CI verte + CACHE sw bumpé (roadtap-v62) + VERSION 1.3.54 + version.json 1.3.54
