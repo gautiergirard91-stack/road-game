@@ -236,3 +236,13 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] Hors ligne : la sonde échoue silencieusement, aucun crash
 - [ ] `node tests/break.test.mjs` : 76 assertions (parseVersion/isNewerVersion, pas de boucle quand versions égales)
 - [ ] CI verte + CACHE sw bumpé (roadtap-v38) + VERSION 1.3.30 + version.json 1.3.30
+
+## Checklist v1.3.31 (classement ⏱ Speedrun dédié)
+
+- [ ] Filtre du classement : chip « ⏱ Speedrun » après les difficultés → affiche les temps (tri croissant, format `m:ss.cc`), filtre par niveau actif
+- [ ] Finir un niveau en mode ⏱ Speedrun avec un pseudo → temps envoyé au nœud `/speedrun/<levelId>` (POST) ; statut « ⏱ Classement speedrun en ligne — N temps chargé(s) » ou ⚠ écriture HTTP xxx
+- [ ] Règles RTDB : nœud `speedrun` copié depuis `docs/FIREBASE.md` §2 (validation `$level/$id`, `timeMs` entre 1000 et 3600000) → **Publier** ; test : POST `…/speedrun/1.json` avec `{"pseudo":"Test","timeMs":45000,"level":"L","date":1}` → 200 attendu
+- [ ] Le classement global /scores ne contient toujours pas les temps speedrun
+- [ ] Hors ligne / 403 → fallback local (clé `roadtap_speedrun_local_v1`), aucun crash
+- [ ] `node tests/break.test.mjs` : contrat POST speedrun + tri croissant + filtre niveau + nœud null
+- [ ] CI verte + CACHE sw bumpé (roadtap-v39) + VERSION 1.3.31 + version.json 1.3.31

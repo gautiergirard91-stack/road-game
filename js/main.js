@@ -125,7 +125,7 @@ function renderLbFilter() {
   const el = $('#lb-filter');
   if (!el) return;
   el.innerHTML = '';
-  const opts = [{ id: 'all', name: 'Tous' }, ...DIFFICULTIES];
+  const opts = [{ id: 'all', name: 'Tous' }, ...DIFFICULTIES, { id: 'speedrun', name: '⏱ Speedrun' }]; // v1.3.31 : classement temps dédié
   for (const d of opts) {
     const b = document.createElement('button');
     b.className = 'btn small diff-btn' + (lbFilter === d.id ? ' active' : '');
@@ -143,9 +143,10 @@ function renderLbFilter() {
 async function renderLeaderboard() {
   const list = $('#leaderboard-list');
   list.innerHTML = '<div class="card-sub">Chargement…</div>';
+  const isSr = lbFilter === 'speedrun'; // v1.3.31 : classement speedrun (temps, tri croissant)
   let top = [];
   try {
-    top = await leaderboard.getTop(lbFilter, lbLevelFilter);
+    top = isSr ? await leaderboard.getSpeedrunTop(lbLevelFilter) : await leaderboard.getTop(lbFilter, lbLevelFilter);
   } catch {
     top = [];
   }
@@ -155,19 +156,21 @@ async function renderLeaderboard() {
   if (!leaderboard.isOnline()) {
     srcEl.textContent = 'Classement local — configure Firebase dans js/config.js pour un classement en ligne (voir README)';
   } else if (st && st.source === 'firebase') {
-    srcEl.textContent = `Classement en ligne (Firebase) — ${st.count} score(s) chargé(s)` + (st.error ? ` — ⚠ ${st.error}` : '');
+    srcEl.textContent = `${isSr ? '⏱ Classement speedrun' : 'Classement'} en ligne (Firebase) — ${st.count} ${isSr ? 'temps' : 'score(s)'} chargé(s)` + (st.error ? ` — ⚠ ${st.error}` : '');
   } else if (st && st.error) {
-    srcEl.textContent = `⚠ Firebase injoignable ou refusé : ${st.error} — affichage local`;
+    srcEl.textContent = `⚠ ${isSr ? 'Speedrun' : 'Firebase'} injoignable ou refusé : ${st.error} — affichage local`;
   } else {
-    srcEl.textContent = 'Classement en ligne (Firebase) — aucun score en ligne pour ce filtre, affichage local';
+    srcEl.textContent = `${isSr ? '⏱ Classement speedrun' : 'Classement'} en ligne (Firebase) — aucun ${isSr ? 'temps' : 'score'} en ligne pour ce filtre, affichage local`;
   }
   // v1.3.28 : si les envois sont refusés (403…), on le dit aussi — sinon on croit que le nœud est juste vide
   if (st && st.writeError) srcEl.textContent += ` — ⚠ ${st.writeError}`;
   list.innerHTML = '';
   if (!top.length) {
     const hint = leaderboard.isOnline()
-      ? 'Vérifie les règles RTDB : ouvre ' + 'https://realtime-database-5fd49-default-rtdb.europe-west1.firebasedatabase.app/scores.json' + ' (doit répondre 200 avec des données ou null). Si la règle est "auth != null", les joueurs non connectés ne voient que leurs scores locaux.'
-      : 'Aucun score pour l\'instant — joue une partie !';
+      ? (isSr
+        ? 'Aucun temps speedrun en ligne — finis un niveau en mode ⏱ Speedrun ! (règles RTDB : nœud /speedrun, voir docs/FIREBASE.md)'
+        : 'Vérifie les règles RTDB : ouvre ' + 'https://realtime-database-5fd49-default-rtdb.europe-west1.firebasedatabase.app/scores.json' + ' (doit répondre 200 avec des données ou null).')
+      : (isSr ? 'Aucun temps pour l\'instant — joue en mode ⏱ Speedrun !' : 'Aucun score pour l\'instant — joue une partie !');
     list.innerHTML = `<div class="card-sub">${hint}</div>`;
     return;
   }
@@ -175,7 +178,8 @@ async function renderLeaderboard() {
     const row = document.createElement('div');
     row.className = 'card lb-row';
     const me = save.pseudo && e.pseudo === save.pseudo;
-    row.innerHTML = `<span class="lb-rank">${i + 1}</span><span class="lb-name${me ? ' me' : ''}">${escapeHtml(e.pseudo || 'Anonyme')}</span><span class="lb-level">${escapeHtml(e.level || '')}</span><span class="lb-score">${e.score}</span>`;
+    const right = isSr ? `⏱ ${fmtTime((e.timeMs || 0) / 1000)}` : e.score; // v1.3.31 : speedrun = temps formaté
+    row.innerHTML = `<span class="lb-rank">${i + 1}</span><span class="lb-name${me ? ' me' : ''}">${escapeHtml(e.pseudo || 'Anonyme')}</span><span class="lb-level">${escapeHtml(e.level || '')}</span><span class="lb-score">${right}</span>`;
     list.appendChild(row);
   });
 }
@@ -770,6 +774,12 @@ function onGameEnd(stats, level) {
     // v1.3.29 : envoi systématique dès qu'un pseudo existe (opt-in retiré, classement par défaut)
     leaderboard
       .submitScore({ pseudo: save.pseudo, score: stats.score, level: level.name, levelId: level.id, mode: save.difficulty, date: Date.now() })
+      .catch(() => {});
+  }
+  if (sr && stats.completed && save.pseudo) {
+    // v1.3.31 : classement speedrun dédié (nœud /speedrun/<levelId>, temps en ms, tri croissant)
+    leaderboard
+      .submitSpeedrun(level.id, { pseudo: save.pseudo, timeMs: stats.timeMs || 0, level: level.name, levelId: level.id, mode: 'pilote', date: Date.now() })
       .catch(() => {});
   }
   pushCloud();

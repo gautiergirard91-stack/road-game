@@ -42,10 +42,20 @@ En production, remplacer les règles de test par :
           ".write": "newData.exists() && newData.hasChildren(['pseudo','score','mode','date']) && newData.child('score').val() <= 1000000 && newData.child('pseudo').val().length <= 16"
         }
       }
+    },
+    "speedrun": {
+      ".read": true,
+      "$level": {
+        "$id": {
+          ".write": "newData.exists() && newData.hasChildren(['pseudo','timeMs','level','date']) && newData.child('timeMs').val() >= 1000 && newData.child('timeMs').val() <= 3600000 && newData.child('pseudo').val().length <= 16"
+        }
+      }
     }
   }
 }
 ```
+
+> v1.3.31 : le mode **⏱ Speedrun** a son propre classement (nœud `/speedrun/<levelId>`, tri **croissant** sur `timeMs`) — un temps n'a pas sa place dans `/scores` (tri décroissant). Validation au niveau `$level/$id` (même piège push que `scores`, voir la note ci-dessus).
 
 > ⚠️ **Piège classique (corrigé en v1.3.29)** : le jeu envoie les scores en **POST push** (`/scores/<mode>.json` → crée `/scores/<mode>/<pushId>`). La validation doit donc être au niveau **`$mode/$id`**, pas au niveau `$mode` : à ce niveau, `newData` a pour enfants les *push IDs*, donc `hasChildren(['pseudo','score',...])` est FAUX → **403 pour toutes les écritures** → le nœud `scores` n'est jamais créé → « on ne voit que soi en local ». Symptôme exact constaté (capture console : `scores` absent, `players` vides).
 
@@ -90,6 +100,7 @@ export const FIREBASE_DB_SECRET = '';
 - `/scores/<mode>` : `{ pseudo, score, level, mode, date }` — public en lecture. **Pseudo obligatoire depuis v1.3.29** (modale forcée avant la première partie), envoi systématique : plus d'opt-in.
 - `/players/<pseudo>` : snapshot du profil (pièces, achats, records, succès) — lisible publiquement, modifiable uniquement via l'app.
 - `/challenges/<dayKey>` : `{ pseudo, score, mode, date }` — classement du défi du jour (écriture validée, lecture publique).
+- `/speedrun/<niveau>` : `{ pseudo, timeMs, level, levelId, mode, date }` — classement speedrun par niveau (v1.3.31, tri croissant côté client, lecture publique, écriture validée).
 - `/analytics/<event>` : événements agrégés (level_start, game_over, purchase, ad_watched, continue_purchased) — écriture seule.
 
 ## 5. Connexion avec un compte Google (sauvegarde cloud liée à un vrai compte)
