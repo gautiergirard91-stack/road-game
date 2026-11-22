@@ -723,4 +723,61 @@ console.log('T. v1.3.42 : musique adaptative — tempo/intensité/couches selon 
   ok('getMusicState expose on=false après arrêt', audio.getMusicState().on === false);
 }
 
+console.log('U. v1.3.43 : passage piéton à haute vitesse — arrêt AVANT le passage (pas roues dessus), tap à l\'arrêt pour piéton = validé, pas de cœur perdu');
+{
+  const mkCwGame = () => {
+    const events = { judge: [] };
+    // niveau 1 (pas de crosswalk dans le pattern) pour contrôler exactement la ligne piéton
+    const g = makeGame(LEVELS[0], 'permisA', { onJudge: (e) => events.judge.push(e) });
+    g.start();
+    const cw = { type: 'crosswalk', dist: g.distance + 600, axle: 'rear', hits: { front: null, rear: null }, state: 'pending', result: null, flash: 0, glow: 0 };
+    g.lines = [cw]; // on isole la ligne piéton des lignes du pattern
+    g.ped = { line: cw, x: g.roadX + 50, dir: 1, y: g.wheelY - 100, speed: 100, color: '#fff', phase: 0 };
+    g.autoStop = true;
+    g.slow = 0; // voiture arrêtée
+    return { g, cw, events };
+  };
+
+  // 1) clamp : même avec une distance énorme, la ligne ne dépasse pas les roues AV
+  {
+    const { g, cw } = mkCwGame();
+    g.distance = cw.dist + (g.frontAxleY - 6) - g.wheelY + 800;
+    g.update(1 / 60);
+    ok('clamp autoStop : lineY <= frontAxleY - 6 (arrêt AVANT le passage)', g.lineY(cw) <= g.frontAxleY - 6 + 1e-6);
+    ok('clamp : aucun cœur perdu sur la ligne piéton à l\'arrêt', g.stats.misses === 0 && cw.state === 'pending');
+  }
+
+  // 2) tap à l'arrêt POUR un piéton -> la ligne du passage est validée (good), pas de miss
+  {
+    const { g, cw, events } = mkCwGame();
+    g.distance = cw.dist + (g.frontAxleY - 6) - g.wheelY; // ligne juste avant les roues AV
+    g.update(1 / 60);
+    g.tap('front');
+    ok('tap AV à l\'arrêt (autoStop) -> ligne piéton validée « good », 0 miss', cw.hits.front === 'good' && g.stats.misses === 0);
+    ok('onJudge émis avec type=crosswalk (étape tuto compatible)', events.judge.some((e) => e.type === 'crosswalk' && e.result === 'good'));
+  }
+
+  // 3) régression : tap à l'arrêt SANS piéton = toujours un clic dans le vide (puis -1 cœur)
+  {
+    const { g } = mkCwGame();
+    g.autoStop = false;
+    g.ped = null;
+    g.tap('rear');
+    ok('tap à l\'arrêt sans piéton -> stray immédiat', g.pendingStray > 0 && g.stats.misses === 0);
+    g.update(0.3);
+    ok('... et le stray fait bien perdre un cœur ensuite', g.stats.misses === 1);
+  }
+
+  // 4) sans arrêt piéton, une ligne piéton manquée fait toujours perdre un cœur (pas de passe-droit)
+  {
+    const { g, cw } = mkCwGame();
+    g.autoStop = false;
+    g.ped = null;
+    g.slow = 1;
+    g.distance = cw.dist + 500; // ligne déjà passée
+    g.update(1 / 60);
+    ok('ligne piéton manquée SANS autoStop -> miss (règle normale conservée)', g.stats.misses >= 1);
+  }
+}
+
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);

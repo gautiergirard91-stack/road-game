@@ -881,9 +881,22 @@ export class Game {
       : this.level.speed;
     this.effSpeed = (baseSpeed + (this.speedrun ? this.bonusSpeed : 0)) * this.slow;
     this.distance += this.effSpeed * dt;
+    // v1.3.43 : pendant un arrêt pour piéton (autoStop), la ligne du passage piéton ne doit JAMAIS
+    // dépasser les roues AV — la voiture s'arrête AVANT le passage (fix « roues avant dessus » à
+    // haute vitesse, ex. speedrun) : on bloque la distance pour que lineY <= frontAxleY - 6
+    if (this.autoStop) {
+      const cw = this.lines.find((l) => l.type === 'crosswalk' && l.state === 'pending');
+      if (cw) {
+        const maxDist = cw.dist + (this.frontAxleY - 6) - this.wheelY;
+        if (this.distance > maxDist) this.distance = maxDist;
+      }
+    }
     const missPx = (this.effSpeed * this.windows.passable) / 1000;
     for (const line of this.lines) {
       if (line.state !== 'pending') continue;
+      // v1.3.43 : la voiture cède le passage (autoStop, quasi à l'arrêt) -> la ligne piéton ne fait
+      // PAS perdre de cœur (le tap reste possible, voir tap())
+      if (line.type === 'crosswalk' && this.autoStop && this.effSpeed <= 1) continue;
       let missedNow = false;
       for (const axle of this.axles) {
         if (line.hits[axle]) continue;
@@ -1257,6 +1270,28 @@ export class Game {
     // v1.3.27 : voiture à l'arrêt (piéton) -> effSpeed = 0 -> tout tap est un "clic dans le vide"
     // (sinon dtMs = 0/0 = NaN et le jugement crashait)
     if (!(speed > 0)) {
+      // v1.3.43 : voiture arrêtée POUR UN PIÉTON (autoStop) -> on peut encore valider la ligne du
+      // passage piéton (fenêtre large 320 px), au lieu d'un « clic dans le vide » qui fait perdre un cœur
+      if (this.autoStop) {
+        const cw = this.lines.find((l) => l.type === 'crosswalk' && l.state === 'pending' && !l.hits[axle]);
+        if (cw) {
+          const dy = this.distance - cw.dist + this.axleDelta(axle);
+          if (Math.abs(dy) <= 320) {
+            cw.hits[axle] = 'good';
+            cw.state = this.axles.every((a) => cw.hits[a]) ? 'resolved' : 'pending';
+            if (cw.state === 'resolved') {
+              this.remaining--;
+              this.stats.lines++;
+            }
+            cw.result = 'good';
+            cw.flash = 0.3;
+            this.audio.good?.();
+            this.popups.push({ text: `${axle === 'front' ? 'AV ' : 'AR '}PASSAGE CÉDÉ`, y: this.lineAxleY(axle) - 70, life: 0.8, color: RESULT_STYLE.good.color });
+            this.onJudge({ result: 'good', pts: 0, combo: this.combo, score: this.score, axle, type: 'crosswalk' });
+            return;
+          }
+        }
+      }
       this.audio.tap?.();
       this.pendingStray = 0.25;
       return;
