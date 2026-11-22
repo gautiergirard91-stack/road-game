@@ -722,9 +722,8 @@ export class Game {
     this.theme = THEMES[opts.themeOverride] || THEMES[opts.level.theme];
     this.skin = SKINS.find((s) => s.id === opts.skinId) || SKINS[0];
     this.speedrun = !!opts.speedrun;
-    // v1.3.41 : le speedrun ne force PLUS la difficulté Pilote — il se joue dans la difficulté
-    // choisie (auto / permisA / pilote) ; seule la mécanique change (chrono + vitesse bonus)
-    this.mode = opts.mode || 'auto';
+    // v1.3.54 : le speedrun n'a QU'UNE SEULE difficulté : Permis A (fixée côté UI aussi)
+    this.mode = this.speedrun ? 'permisA' : opts.mode || 'auto';
     // v1.3.51 : niveaux déterministes — rand seedé (seed fixe par niveau+mode), reset dans start()
     this.rand = mulberry32(levelSeed(this.level ? this.level.id : 0, this.mode));
     this.chunkN = 0;

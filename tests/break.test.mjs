@@ -679,9 +679,9 @@ console.log('S. v1.3.41 : dépassement retravaillé (z-order ahead/behind + voit
   ok('swipeLeft : entre-sens vidé devant (plus de voiture en sens inverse pendant le dépassement)', g3.oncoming.length === 0);
 
   // --- speedrun dans toutes les difficultés ---
-  ok('speedrun en auto -> mode auto', makeGame(LEVELS[0], 'auto', { speedrun: true }).mode === 'auto');
-  ok('speedrun en permisA -> mode permisA', makeGame(LEVELS[0], 'permisA', { speedrun: true }).mode === 'permisA');
-  ok('speedrun en pilote -> mode pilote', makeGame(LEVELS[0], 'pilote', { speedrun: true }).mode === 'pilote');
+  ok('speedrun force permisA (auto demandé -> permisA)', makeGame(LEVELS[0], 'auto', { speedrun: true }).mode === 'permisA');
+  ok('speedrun force permisA (pilote demandé -> permisA)', makeGame(LEVELS[0], 'pilote', { speedrun: true }).mode === 'permisA');
+  ok('speedrun en permisA -> permisA', makeGame(LEVELS[0], 'permisA', { speedrun: true }).mode === 'permisA');
 
   // --- submitSpeedrun transmet le vrai mode joué ---
   const posts2 = [];
@@ -1043,6 +1043,19 @@ console.log('AE. v1.3.53 : Son/Musique retirés du menu principal (dans Paramèt
   ok('menu principal : plus de btn-sound/btn-music (dans ⚙️ Paramètres)', !menuHtml.includes('id="btn-sound"') && !menuHtml.includes('id="btn-music"'));
   ok('Paramètres conserve btn-set-sound/btn-set-music', html.includes('id="btn-set-sound"') && html.includes('id="btn-set-music"'));
   ok('main.js : retry accepté en screen-game ET screen-over', mainSrc.includes("currentScreen === 'screen-game' || currentScreen === 'screen-over'"));
+}
+
+console.log('AF. v1.3.54 : speedrun = une seule difficulté (Permis A), verrouillée côté UI et moteur');
+{
+  const fsD = await import('node:fs');
+  const mainSrc = fsD.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  const gameSrc = fsD.readFileSync(new URL('../js/game.js', import.meta.url), 'utf8');
+  const html = fsD.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  ok('game.js : speedrun force mode=permisA', gameSrc.includes("this.speedrun ? 'permisA' : opts.mode"));
+  ok('main.js : startLevel mode = speedrun ? permisA : difficulté', mainSrc.includes("mode: save.speedrun ? 'permisA' : save.difficulty"));
+  ok('main.js : records/envois utilisent le mode réellement joué (runMode)', mainSrc.includes('const runMode = (game && game.mode) || save.difficulty;') && mainSrc.includes('store.setBest(runMode, level.id') && mainSrc.includes('mode: runMode'));
+  ok('main.js : bouton speedrun cale la difficulté sur permisA + picker verrouillé', mainSrc.includes("store.setDifficulty('permisA');") && mainSrc.includes("save.speedrun && d.id !== 'permisA'"));
+  ok('index.html : title du bouton speedrun = Permis A seule', html.includes('seule difficulté du mode speedrun'));
 }
 
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);

@@ -73,11 +73,16 @@ function renderDifficultyPicker() {
     b.textContent = d.name;
     b.title = d.desc;
     b.addEventListener('click', () => {
-      // v1.3.41 : le speedrun se joue dans la difficulté choisie -> on peut changer de
-      // difficulté même avec le speedrun actif (il suivra la nouvelle difficulté)
+      // v1.3.54 : en speedrun, la seule difficulté possible est Permis A (verrouillée)
+      if (save.speedrun && d.id !== 'permisA') {
+        store.setDifficulty('permisA');
+        sfx.click();
+        toast('⏱ En speedrun, la difficulté est fixée à Permis A');
+        renderDifficultyPicker();
+        return;
+      }
       store.setDifficulty(d.id);
       sfx.click();
-      if (save.speedrun) toast(`⏱ Speedrun actif en difficulté ${d.name}`);
       renderDifficultyPicker();
     });
     el.appendChild(b);
@@ -973,7 +978,7 @@ function startLevel(level) {
   game = new Game($('#game'), {
     level,
     skinId: save.skin,
-    mode: save.difficulty, // v1.3.41 : speedrun se joue dans la difficulté choisie (plus forcément Pilote)
+    mode: save.speedrun ? 'permisA' : save.difficulty, // v1.3.54 : speedrun = une seule difficulté, Permis A
     speedrun: save.speedrun, // v1.3.19 : mode speedrun (chrono + vitesse bonus)
     themeOverride: save.themeOverride || undefined,
     windows: effWindows(),
@@ -1038,10 +1043,11 @@ function onGameEnd(stats, level) {
   else musicSting();
   setMusicCombo(0);
   const sr = Boolean(game && game.speedrun); // v1.3.19 : mode speedrun actif sur cette partie
-  // v1.3.44 : records isolés par difficulté — clé "mode:levelId" (mode = save.difficulty de la partie)
-  const firstClear = !!stats.completed && !store.getBest(save.difficulty, level.id);
-  const isRecord = store.setBest(save.difficulty, level.id, stats.score);
-  const isTimeRecord = sr && stats.completed ? store.setBestTime(save.difficulty, level.id, stats.timeMs || 0) : false;
+  // v1.3.44/v1.3.54 : records isolés par difficulté — clé "mode:levelId" avec le mode RÉELLEMENT joué
+  const runMode = (game && game.mode) || save.difficulty;
+  const firstClear = !!stats.completed && !store.getBest(runMode, level.id);
+  const isRecord = store.setBest(runMode, level.id, stats.score);
+  const isTimeRecord = sr && stats.completed ? store.setBestTime(runMode, level.id, stats.timeMs || 0) : false;
   store.addTotals({ runs: 1, perfects: stats.perfects, overtakes: stats.overtakes || 0 });
   // v1.3.17 : niveau "terminé" = partie complétée en entier (débloque l'achat du suivant)
   if (stats.completed) store.markCleared(level.id);
@@ -1080,7 +1086,7 @@ function onGameEnd(stats, level) {
   if (sr && stats.completed && canSubmitToLeaderboard(save)) { // v1.3.45 : idem speedrun
     // v1.3.31 : classement speedrun dédié (nœud /speedrun/<levelId>, temps en ms, tri croissant)
     leaderboard
-      .submitSpeedrun(level.id, { pseudo: save.pseudo, uid: save.uid || '', timeMs: stats.timeMs || 0, level: level.name, levelId: level.id, mode: save.difficulty, date: Date.now() }, getAuthToken())
+      .submitSpeedrun(level.id, { pseudo: save.pseudo, uid: save.uid || '', timeMs: stats.timeMs || 0, level: level.name, levelId: level.id, mode: runMode, date: Date.now() }, getAuthToken()) // v1.3.54 : mode réel (permisA en speedrun)
       .catch(() => {});
   }
   pushCloud();
@@ -1594,13 +1600,13 @@ on('btn-mode-normal', 'click', () => {
   renderModePicker();
 });
 on('btn-mode-speedrun', 'click', () => {
-  // v1.3.41 : speedrun disponible dans TOUTES les difficultés (plus forcément Pilote)
+  // v1.3.54 : speedrun = UNE SEULE difficulté : Permis A (on cale la difficulté dessus)
   store.setSpeedrun(true);
+  store.setDifficulty('permisA');
   sfx.click();
   renderModePicker();
   renderDifficultyPicker();
-  const dName = (DIFFICULTIES.find((d) => d.id === save.difficulty) || {}).name || save.difficulty;
-  toast(`⏱ Mode Speedrun : termine le niveau le plus vite possible ! (difficulté ${dName})`);
+  toast('⏱ Mode Speedrun : termine le niveau le plus vite possible ! (difficulté Permis A)');
 });
 on('btn-help', 'click', () => {
   sfx.click();
