@@ -941,4 +941,29 @@ console.log('Z. v1.3.48 : « Meilleur combo » retiré de l\'écran de fin + ré
   ok('main.js : lignes LB affichent ⚡ avgMs quand présent', mainSrc.includes('⚡${e.avgMs}ms'));
 }
 
+console.log('AA. v1.3.49 : touche « recommencer » bindable + boutons de souris bindables + garage (effets/thèmes achetés)');
+{
+  const core = await import('../js/core.js');
+  ok('DEFAULT_KEYS inclut retry=KeyR', core.DEFAULT_KEYS.retry === 'KeyR' && core.KEY_ACTIONS.includes('retry'));
+  ok('isValidKeyCode accepte les boutons souris (et pas n\'importe quoi)', core.isValidKeyCode('MouseLeft') && core.isValidKeyCode('MouseRight') && !core.isValidKeyCode('MouseBack'));
+  ok('keyLabel souris', core.keyLabel('MouseLeft') === '🖱️ Clic gauche' && core.keyLabel('MouseMiddle') === '🖱️ Clic milieu');
+  ok('keyToAction : KeyR -> retry (vertical + horizontal)', core.keyToAction('KeyR', false) === 'retry' && core.keyToAction('KeyR', true) === 'retry');
+  ok('keyToAction : MouseLeft bindé -> front', core.keyToAction('MouseLeft', false, { front: 'MouseLeft', rear: 'Space', swipe: 'ArrowLeft', retry: 'KeyR' }) === 'front');
+  ok('bindKey : retry sur MouseRight OK, doublon refusé', core.bindKey(core.DEFAULT_KEYS, 'retry', 'MouseRight').retry === 'MouseRight' && core.bindKey(core.DEFAULT_KEYS, 'retry', 'Space') === null);
+
+  mem['roadtap_save_v1'] = '{}';
+  store.load();
+  ok('save.keys défaut inclut retry', store.get().keys.retry === 'KeyR');
+  ok('setKey retry persisté', store.setKey('retry', 'KeyN') === true && store.get().keys.retry === 'KeyN');
+  mem['roadtap_save_v1'] = JSON.stringify({ keys: { front: 'MouseLeft', retry: 42 } });
+  store.load();
+  ok('sanitize : MouseLeft gardé, retry invalide -> défaut', store.get().keys.front === 'MouseLeft' && store.get().keys.retry === 'KeyR');
+
+  const fs9 = await import('node:fs');
+  const html = fs9.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const mainSrc = fs9.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  ok('index.html : btn-key-retry + garage-effects + garage-themes présents', html.includes('id="btn-key-retry"') && html.includes('id="garage-effects"') && html.includes('id="garage-themes"'));
+  ok('main.js : retry câblé (settings + keydown + souris) et garage effets/thèmes rendus', mainSrc.includes("'btn-key-retry', 'retry'") && mainSrc.includes('MOUSE_CODES') && mainSrc.includes("action === 'retry'") && mainSrc.includes("$('#garage-effects')") && mainSrc.includes("$('#garage-themes')"));
+}
+
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);

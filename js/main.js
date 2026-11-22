@@ -896,6 +896,66 @@ function renderGarage() {
     registerPreview(cv, (tt) => renderCarPreview(cv, s, tt, 72, 84));
     list.appendChild(card);
   }
+  // v1.3.49 : le garage montre AUSSI les effets et thèmes achetés
+  const fxEl = $('#garage-effects');
+  if (fxEl) {
+    fxEl.innerHTML = '';
+    const ownedFx = EFFECTS.filter((e) => save.effects.includes(e.id));
+    if (!ownedFx.length) {
+      fxEl.innerHTML = '<div class="card-sub">Aucun effet acheté pour l\'instant — voir la boutique 🛒</div>';
+    }
+    for (const e of ownedFx) {
+      const active = save.selectedEffects.includes(e.id);
+      const card = document.createElement('div');
+      card.className = 'card shop-card garage-card' + (active ? ' selected' : '');
+      card.innerHTML = `
+        <canvas class="swatch fx-preview" aria-label="Aperçu ${escapeHtml(e.name)}"></canvas>
+        <div class="card-body">
+          <div class="card-title">${active ? '✓ ' : ''}${escapeHtml(e.name)}</div>
+          <div class="card-sub">${escapeHtml(e.desc)}</div>
+        </div>
+        <button class="btn small">${active ? '✓ Activé' : 'Activer'}</button>`;
+      card.querySelector('button').addEventListener('click', () => {
+        store.toggleEffect(e.id);
+        sfx.click();
+        toast(active ? `${e.name} désactivé` : `${e.name} activé !`);
+        pushCloud();
+        renderGarage();
+      });
+      registerPreview(card.querySelector('canvas.fx-preview'), (tt) => renderEffectPreview(card.querySelector('canvas.fx-preview'), e, tt));
+      fxEl.appendChild(card);
+    }
+  }
+  const thEl = $('#garage-themes');
+  if (thEl) {
+    thEl.innerHTML = '';
+    const ownedTh = THEME_SHOP.filter((t) => save.themes.includes(t.id));
+    if (!ownedTh.length) {
+      thEl.innerHTML = '<div class="card-sub">Aucun thème acheté pour l\'instant — voir la boutique 🛒</div>';
+    }
+    for (const t of ownedTh) {
+      const active = save.themeOverride === t.id;
+      const card = document.createElement('div');
+      card.className = 'card shop-card garage-card' + (active ? ' selected' : '');
+      card.innerHTML = `
+        <canvas class="swatch th-preview" aria-label="Aperçu ${escapeHtml(t.name)}"></canvas>
+        <div class="card-body">
+          <div class="card-title">${active ? '✓ ' : ''}${escapeHtml(t.name)}</div>
+          <div class="card-sub">${escapeHtml(t.desc)}</div>
+        </div>
+        <button class="btn small">${active ? '✓ Activé' : 'Activer'}</button>`;
+      card.querySelector('button').addEventListener('click', () => {
+        store.setThemeOverride(t.id);
+        sfx.click();
+        toast(active ? `Thème ${t.name} retiré (thème du niveau)` : `Thème ${t.name} activé !`);
+        pushCloud();
+        renderGarage();
+      });
+      const cv = card.querySelector('canvas.th-preview');
+      registerPreview(cv, (tt) => renderThemePreview(cv, t.id, undefined, undefined, tt));
+      thEl.appendChild(card);
+    }
+  }
 }
 
 function startLevel(level) {
@@ -1223,7 +1283,7 @@ on('btn-access-close', 'click', () => {
 });
 
 // --- v1.3.47 : menu Paramètres (accessibilité + audio + touches + version + serveur) ---
-const ACTION_NAMES = { front: 'Roues AV', rear: 'Roues AR', swipe: 'Dépasser (swipe)' };
+const ACTION_NAMES = { front: 'Roues AV', rear: 'Roues AR', swipe: 'Dépasser (swipe)', retry: 'Recommencer le niveau' }; // v1.3.49 : retry
 let keyCapture = null; // action en cours de capture de touche, ou null
 
 function renderSettings() {
@@ -1233,9 +1293,11 @@ function renderSettings() {
   const kf = $('#btn-key-front');
   const kr = $('#btn-key-rear');
   const ks = $('#btn-key-swipe');
+  const kt = $('#btn-key-retry');
   if (kf) kf.textContent = keyLabel(save.keys.front);
   if (kr) kr.textContent = keyLabel(save.keys.rear);
   if (ks) ks.textContent = keyLabel(save.keys.swipe);
+  if (kt) kt.textContent = keyLabel(save.keys.retry); // v1.3.49
   const hint = $('#key-capture-hint');
   if (hint) {
     hint.textContent = keyCapture
@@ -1294,7 +1356,7 @@ on('btn-set-refresh', 'click', () => {
   sfx.click();
   updateServerStatus();
 });
-for (const [btnId, action] of [['btn-key-front', 'front'], ['btn-key-rear', 'rear'], ['btn-key-swipe', 'swipe']]) {
+for (const [btnId, action] of [['btn-key-front', 'front'], ['btn-key-rear', 'rear'], ['btn-key-swipe', 'swipe'], ['btn-key-retry', 'retry']]) { // v1.3.49 : retry
   on(btnId, 'click', () => {
     sfx.click();
     keyCapture = action;
@@ -1650,6 +1712,38 @@ function trySwipe(x) {
   }
 }
 
+// v1.3.49 : boutons de SOURIS bindables (MouseLeft/Middle/Right)
+const MOUSE_CODES = { 0: 'MouseLeft', 1: 'MouseMiddle', 2: 'MouseRight' };
+window.addEventListener('pointerdown', (e) => {
+  const mcode = MOUSE_CODES[e.button];
+  // capture de touche depuis les Paramètres : un clic souris bind aussi
+  if (keyCapture && mcode) {
+    e.preventDefault();
+    const action = keyCapture;
+    keyCapture = null;
+    if (store.setKey(action, mcode)) {
+      sfx.coin();
+      toast(`⌨️ « ${keyLabel(mcode)} » = ${ACTION_NAMES[action] || action}`);
+    } else {
+      sfx.miss?.();
+      toast('Ce bouton est déjà utilisé par une autre action');
+    }
+    renderSettings();
+    return;
+  }
+  // en jeu : un bouton de souris bindé déclenche son action (et bloque le tap de zone pour ce clic)
+  if (mcode && save.keys && Object.values(save.keys).includes(mcode) && currentScreen === 'screen-game' && game && game.running) {
+    const action = keyToAction(mcode, save.horizontalZones, save.keys);
+    if (action) {
+      e.preventDefault();
+      e.stopImmediatePropagation(); // évite le double tap via le handler de zones ci-dessous
+      if (action === 'swipe') game.swipeLeft();
+      else if (action === 'retry') { cancelNextCountdown(); if (currentLevel) startLevel(currentLevel); }
+      else game.tap(action);
+    }
+  }
+}, true); // capture : avant le handler global de zones
+
 window.addEventListener('pointerdown', (e) => {
   unlockAudio();
   pointerStart = { x: e.clientX, y: e.clientY };
@@ -1708,7 +1802,13 @@ window.addEventListener('keydown', (e) => {
   const action = keyToAction(e.code, save.horizontalZones, save.keys);
   if (action) {
     e.preventDefault();
-    if (canPlay) {
+    if (action === 'retry') {
+      // v1.3.49 : touche « recommencer » — fonctionne en jeu, même en pause
+      if (currentScreen === 'screen-game' && currentLevel) {
+        cancelNextCountdown();
+        startLevel(currentLevel);
+      }
+    } else if (canPlay) {
       if (action === 'swipe') game.swipeLeft();
       else game.tap(action);
     }
