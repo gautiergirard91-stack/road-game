@@ -7,7 +7,7 @@ import { watchRewarded } from './ads.js';
 import { Tutorial } from './tutorial.js';
 import * as leaderboard from './leaderboard.js';
 import * as cloudsave from './cloudsave.js';
-import { renderGoogleButton, restoreGoogleSession, setAuthToken, getAuthToken, signOutGoogle, isGoogleAuthConfigured, getLastAuthError, signInWithPopupGoogle } from './auth.js';
+import { restoreGoogleSession, setAuthToken, getAuthToken, signOutGoogle, isGoogleAuthConfigured, signInWithPopupGoogle } from './auth.js';
 import { initAppCheck, installAppCheckFetch } from './appcheck.js';
 import { logEvent } from './analytics.js';
 import { VERSION } from './config.js';
@@ -1241,8 +1241,6 @@ async function completeGoogleSignIn(sess) {
   updatePseudoSaveState();
   toast(`🔗 Compte Google lié : ${sess.email || sess.uid}`);
   updateGoogleStatus();
-  const gsi = $('#gsi-btn');
-  if (gsi) gsi.innerHTML = ''; // le bouton officiel disparaît une fois lié
   if (leaderboard.isOnline() && save.uid) {
     try {
       const remote = await cloudsave.load(save.uid, getAuthToken());
@@ -1286,23 +1284,8 @@ function openPseudoModal(forced) {
   const cancel = $('#btn-pseudo-cancel');
   if (cancel) cancel.classList.toggle('hidden', pseudoForced); // pas d'annulation si obligatoire
   updatePseudoSaveState(); // v1.3.37 : bouton Enregistrer désactivé tant que pas Google+pseudo (mode forcé)
-  const gsi = $('#gsi-btn');
-  if (gsi && isGoogleAuthConfigured() && !save.uid) {
-    gsi.innerHTML = '';
-    renderGoogleButton(gsi)
-      .then((sess) => {
-        if (sess && sess.uid) {
-          completeGoogleSignIn(sess); // v1.3.33 : inclut le chargement cloud + synchro
-        } else {
-          const why = getLastAuthError();
-          toast(`❌ Bouton Google bloqué/annulé${why ? ' : ' + why : ''} — essaie le bouton « popup » en dessous (F12 console pour le détail)`, );
-        }
-      })
-      .catch((err) => {
-        console.error('[auth] sign-in error:', err);
-        toast('❌ Connexion Google impossible : ' + (err && err.message ? err.message : 'erreur inconnue'));
-      });
-  }
+  // v1.3.38 : UN SEUL bouton Google dans la modale : « 🔑 Connexion Google » (btn-google-popup,
+  // affiché par updateGoogleStatus quand pas encore connecté) — plus de bouton GIS « Continuer en tant que ».
   $('#pseudo-modal').classList.remove('hidden');
   $('#pseudo-modal').classList.add('active');
   setTimeout(() => $('#pseudo-input').focus(), 50);
@@ -1329,8 +1312,8 @@ function updatePseudoSaveState() {
     hint.textContent = pseudoForced
       ? save.uid
         ? '✔ Compte Google lié — choisis un pseudo (16 car. max) pour apparaître dans le classement 🌍'
-        : '🔒 Connexion Google REQUISE pour jouer : sauvegarde cloud synchronisée (téléphone ↔ PC) + classement mondial. Bouton Google ci-dessus (ou « popup » s\'il est bloqué).'
-      : 'Ton pseudo est public dans le classement 🌍 — pour y figurer, connecte aussi ton compte Google (bouton ci-dessus).';
+        : '🔒 Connexion Google REQUISE pour jouer : sauvegarde cloud synchronisée (téléphone ↔ PC) + classement mondial. Clique sur « 🔑 Connexion Google » ci-dessus.'
+      : 'Ton pseudo est public dans le classement 🌍 — pour y figurer, connecte aussi ton compte Google (« 🔑 Connexion Google » ci-dessus).';
   }
 }
 
@@ -1338,7 +1321,7 @@ on('btn-pseudo', 'click', () => {
   sfx.click();
   openPseudoModal(false);
 });
-// v1.3.33 : repli si le bouton officiel GIS est bloqué (uBlock/Privacy Badger…) : popup SDK Firebase
+// v1.3.38 : UNIQUE bouton de connexion Google — popup SDK Firebase chargé depuis gstatic
 on('btn-google-popup', 'click', () => {
   sfx.click();
   signInWithPopupGoogle()

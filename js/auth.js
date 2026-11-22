@@ -16,22 +16,9 @@ export function isGoogleAuthConfigured() {
   return Boolean(FIREBASE_WEB_API_KEY && FIREBASE_OAUTH_CLIENT_ID);
 }
 
-let gsiPromise = null;
-function loadGsi() {
-  if (typeof window !== 'undefined' && window.google?.accounts?.id) return Promise.resolve();
-  if (!gsiPromise) {
-    gsiPromise = new Promise((resolve, reject) => {
-      const s = document.createElement('script');
-      s.src = 'https://accounts.google.com/gsi/client';
-      s.async = true;
-      s.defer = true;
-      s.onload = resolve;
-      s.onerror = () => reject(new Error('chargement GIS impossible'));
-      document.head.appendChild(s);
-    });
-  }
-  return gsiPromise;
-}
+// v1.3.38 : le bouton GIS one-tap (« Continuer en tant que … ») est RETIRÉ — il ne fonctionnait
+// pas (et pouvait être bloqué par les extensions). UN SEUL bouton « 🔑 Connexion Google » :
+// signInWithPopupGoogle() ci-dessous (SDK Firebase chargé depuis gstatic, zéro build).
 
 // Échange le jeton Google (ID token) contre une session Firebase (REST, zéro SDK).
 // exporté pour les tests (tests/auth.test.mjs).
@@ -69,60 +56,6 @@ export async function exchangeGoogleToken(googleIdToken) {
   };
 }
 
-let gsiInitialized = false;
-let lastAuthError = null;
-
-export function getLastAuthError() {
-  return lastAuthError;
-}
-
-// Rend le bouton officiel Google dans `container` ; la promesse est résolue avec la session
-// { uid, idToken, refreshToken, email } au choix du compte, ou null si annulé/erreur.
-export async function renderGoogleButton(container) {
-  if (!isGoogleAuthConfigured() || !container) return Promise.resolve(null);
-  await loadGsi();
-  return new Promise((resolve) => {
-    let settled = false;
-    const done = (v) => {
-      if (!settled) {
-        settled = true;
-        resolve(v);
-      }
-    };
-    try {
-      if (!gsiInitialized) {
-        gsiInitialized = true;
-        window.google.accounts.id.initialize({
-          client_id: FIREBASE_OAUTH_CLIENT_ID,
-          callback: async (resp) => {
-            if (!resp || !resp.credential) return done(null);
-            try {
-              done(await exchangeGoogleToken(resp.credential));
-            } catch (err) {
-              console.error('[auth] échange du jeton échoué:', err);
-              done(null);
-            }
-          },
-          error_callback: (err) => {
-            console.error('[gis] erreur:', err);
-            done(null);
-          },
-          cancel_on_tap_outside: true,
-          auto_select: false,
-        });
-      }
-      if (!container.dataset.rendered) {
-        container.dataset.rendered = '1';
-        window.google.accounts.id.renderButton(container, { theme: 'filled_blue', size: 'large', text: 'continue_with', width: 260 });
-      }
-      // PAS de timeout : on attend vraiment le choix du compte dans la popup
-    } catch (err) {
-      console.error('[auth] renderButton:', err);
-      done(null);
-    }
-  });
-}
-
 // Restaure la session depuis le refreshToken (appelé au démarrage de l'app)
 export async function restoreGoogleSession(refreshToken) {
   if (!isGoogleAuthConfigured() || !refreshToken) return null;
@@ -154,10 +87,9 @@ export function signOutGoogle() {
   memIdToken = null;
 }
 
-// v1.3.33 : repli "popup" si le bouton GIS est bloqué (uBlock Origin, Privacy Badger, réseau
-// d'entreprise…) : on charge le SDK Firebase officiel depuis gstatic par import dynamique
-// d'URL (zéro build, zéro dépendance) et on fait signInWithPopup. Le jeton Firebase est
-// obtenu directement via getIdToken() — plus besoin d'échange REST dans ce chemin.
+// v1.3.38 : UNIQUE chemin de connexion Google — on charge le SDK Firebase officiel depuis gstatic
+// par import dynamique d'URL (zéro build, zéro dépendance) et on fait signInWithPopup.
+// Le jeton Firebase est obtenu directement via getIdToken().
 let fbApp = null;
 export async function signInWithPopupGoogle() {
   if (!isGoogleAuthConfigured()) throw new Error('Google Sign-In non configuré (clés manquantes dans js/config.js — voir docs/FIREBASE.md §5)');

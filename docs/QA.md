@@ -306,3 +306,11 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] `node tests/break.test.mjs` : section O (règles auth != null, URL cloudsave sans lowercase + keepalive, submit anonyme = 0 POST + repli local)
 - [ ] Testeur : même compte Google sur tel + PC → joue sur les deux → progrès communs (vérifier `players/<uid>` dans la console : un seul nœud, `updatedAt` qui monte)
 - [ ] CI verte + CACHE sw bumpé (roadtap-v45) + VERSION 1.3.37 + version.json 1.3.37
+
+## Checklist v1.3.38 (un seul bouton « Connexion Google » — le GIS « Continuer en tant que » est retiré)
+
+- [ ] Modale pseudo : **un seul** bouton « 🔑 Connexion Google » (sans « (popup) »), plus de bouton GIS one-tap, plus de conteneur `gsi-btn`
+- [ ] `js/auth.js` : `renderGoogleButton`/`loadGsi`/`getLastAuthError` supprimés ; `signInWithPopupGoogle` (SDK gstatic, import dynamique) reste l'unique chemin
+- [ ] Connexion → pseudo pré-rempli depuis le compte, bouton Enregistrer activé, cloud chargé + fusionné immédiatement
+- [ ] `node tests/break.test.mjs` : section P (plus de « (popup) »/gsi-btn/continue_with dans HTML/JS, popup SDK toujours câblé)
+- [ ] CI verte + CACHE sw bumpé (roadtap-v46) + VERSION 1.3.38 + version.json 1.3.38
