@@ -629,4 +629,72 @@ console.log('R. v1.3.40 : jouer SANS compte (local), Google requis seulement pou
   ok('reconnexion : fusion local(0) + cloud -> progression cloud retrouvée (max/union)', store.get().wallets.auto === 5000 && store.get().skins.includes('sport') && store.get().unlockedLevels.length === 3 && store.get().cleared[1] === true);
 }
 
+console.log('S. v1.3.41 : dépassement retravaillé (z-order ahead/behind + voiture doublée qui roule) + speedrun dans toutes les difficultés');
+{
+  // --- z-order : drawTraffic('ahead'/'behind') filtre selon sy vs wheelY ---
+  const rec = [];
+  const recCtx = new Proxy({}, {
+    get(t, k) {
+      if (k === 'createLinearGradient' || k === 'createRadialGradient') return () => ({ addColorStop() {} });
+      if (k === 'measureText') return () => ({ width: 10 });
+      return () => { rec.push(String(k)); };
+    },
+    set() { return true; },
+  });
+  const g = makeGame(LEVELS[10], 'pilote');
+  g.ctx = recCtx;
+  g.wheelY = 600; g.h = 800; g.distance = 0; g.roadX = 100; g.roadW = 400;
+  g.oncoming = [];
+  const carAhead = { p: 500, v: 100, color: '#fff', w: 60, overtaken: false, grace: 0 };   // sy = 100 < wheelY
+  const carBehind = { p: -300, v: 100, color: '#fff', w: 60, overtaken: false, grace: 0 }; // sy = 900 >= wheelY
+  g.sameDir = [carAhead];
+  rec.length = 0; g.drawTraffic('ahead');
+  const aheadCount = rec.filter((x) => x === 'ellipse').length;
+  rec.length = 0; g.drawTraffic('behind');
+  const behindCount0 = rec.filter((x) => x === 'ellipse').length;
+  g.sameDir = [carBehind];
+  rec.length = 0; g.drawTraffic('ahead');
+  const aheadCount2 = rec.filter((x) => x === 'ellipse').length;
+  rec.length = 0; g.drawTraffic('behind');
+  const behindCount = rec.filter((x) => x === 'ellipse').length;
+  ok('z-order : voiture devant -> dessinée en phase ahead, PAS en behind', aheadCount > 0 && behindCount0 === 0);
+  ok('z-order : voiture derrière -> dessinée en phase behind, PAS en ahead', behindCount > 0 && aheadCount2 === 0);
+
+  // --- la voiture doublée n'est plus gelée : elle continue de rouler ---
+  const g2 = makeGame(LEVELS[10], 'pilote');
+  g2.start();
+  g2.forceBlocker();
+  const car = g2.sameDir[0];
+  car.overtaken = true;
+  const p0 = car.p;
+  g2.updateTraffic(0.1);
+  ok('voiture doublée continue de rouler (p augmente même overtaken)', car.p > p0);
+
+  // --- swipeLeft : dépassement complet (cible marquée, voie changée, entre-sens vidé) ---
+  const g3 = makeGame(LEVELS[10], 'pilote');
+  g3.start();
+  g3.forceBlocker();
+  const c3 = g3.sameDir[0];
+  c3.p = g3.distance + 100; // sy = wheelY - 100 -> visible
+  g3.oncoming = [{ p: g3.distance + 900, v: -300, color: '#fff', w: 60 }];
+  g3.swipeLeft();
+  ok('swipeLeft : cible marquée overtaken + compteur + lastOvertaken + laneTarget=voie inverse', c3.overtaken === true && g3.stats.overtakes === 1 && g3.lastOvertaken === c3 && g3.laneTarget < 0.5);
+  ok('swipeLeft : entre-sens vidé devant (plus de voiture en sens inverse pendant le dépassement)', g3.oncoming.length === 0);
+
+  // --- speedrun dans toutes les difficultés ---
+  ok('speedrun en auto -> mode auto', makeGame(LEVELS[0], 'auto', { speedrun: true }).mode === 'auto');
+  ok('speedrun en permisA -> mode permisA', makeGame(LEVELS[0], 'permisA', { speedrun: true }).mode === 'permisA');
+  ok('speedrun en pilote -> mode pilote', makeGame(LEVELS[0], 'pilote', { speedrun: true }).mode === 'pilote');
+
+  // --- submitSpeedrun transmet le vrai mode joué ---
+  const posts2 = [];
+  globalThis.fetch = async (url, opts) => {
+    if (opts && opts.method === 'POST') posts2.push({ url: String(url), body: JSON.parse(opts.body) });
+    return { ok: true, json: async () => null };
+  };
+  await lb.submitSpeedrun(3, { pseudo: 'T', uid: 'u1', timeMs: 45320, level: 'L', date: 9, mode: 'auto' }, 'TOK_S');
+  ok('submitSpeedrun transmet mode=auto (pas forcément pilote)', posts2.length === 1 && posts2[0].body.mode === 'auto');
+  delete globalThis.fetch;
+}
+
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);
