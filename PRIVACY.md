@@ -12,6 +12,7 @@ Depuis la v1.3.29, un **pseudo est obligatoire** avant la première partie (moda
 
 - `/scores/<mode>` : `{ pseudo, score, level, levelId, mode, date }` — **public en lecture**, écriture validée par les règles (pseudo ≤ 16 caractères, score borné). Le pseudo choisi est donc **visible publiquement** dans le classement. Aucun e-mail ni identifiant Google n'y est publié (sauf si le joueur les met dans son pseudo).
 - `/challenges/<jour>` : idem pour le défi du jour.
+- `/speedrun/<niveau>` : `{ pseudo, timeMs, level, date }` — classement speedrun par niveau (v1.3.31, tri croissant).
 - `/analytics/<event>` : événements agrégés et pseudonymes (démarrage de partie, fin de partie, achat cosmétique…) — écriture seule, jamais lus côté client.
 
 Règles RTDB publiées dans `docs/FIREBASE.md` : la racine n'est pas lisible, les écritures sont validées/ bornées. Aucun secret n'est embarqué côté client (la clé API web Firebase est publique by design, restreinte aux API Firebase + domaines autorisés — voir `docs/SECURITY.md`).

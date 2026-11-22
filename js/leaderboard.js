@@ -181,3 +181,103 @@ export async function getChallengeTop(dayId) {
   }
   return [];
 }
+
+
+// --- v1.3.31 : Classement SPEEDRUN dédié (nœud /speedrun/<levelId>, tri CROISSANT sur timeMs) ---
+// Le score speedrun est un temps : il ne va PAS dans /scores (tri décroissant) mais dans /speedrun.
+const LOCAL_SR_KEY = 'roadtap_speedrun_local_v1';
+
+function localSrList() {
+  try {
+    const raw = localStorage.getItem(LOCAL_SR_KEY);
+    const arr = raw ? JSON.parse(raw) : [];
+    return Array.isArray(arr) ? arr : [];
+  } catch {
+    return [];
+  }
+}
+
+function cleanTimeEntry(e) {
+  if (!e || typeof e !== 'object') return null;
+  if (typeof e.timeMs !== 'number' || !Number.isFinite(e.timeMs)) return null;
+  return { ...e, timeMs: e.timeMs };
+}
+
+function sortAscTime(arr) {
+  return arr
+    .map(cleanTimeEntry)
+    .filter(Boolean)
+    .sort((a, b) => a.timeMs - b.timeMs)
+    .slice(0, TOP);
+}
+
+export function submitSpeedrunLocal(entry) {
+  const arr = localSrList();
+  arr.push(entry);
+  arr.sort((a, b) => (a.timeMs || 0) - (b.timeMs || 0));
+  try {
+    localStorage.setItem(LOCAL_SR_KEY, JSON.stringify(arr.slice(0, 100)));
+  } catch {
+    /* stockage indisponible */
+  }
+  return arr.slice(0, TOP);
+}
+
+export async function submitSpeedrun(levelId, entry) {
+  const body = { pseudo: entry.pseudo, timeMs: entry.timeMs, level: entry.level, levelId, mode: 'pilote', date: entry.date };
+  if (!isOnline()) return submitSpeedrunLocal(body);
+  try {
+    const base = FIREBASE_DB_URL.replace(/\/$/, '');
+    const auth = FIREBASE_DB_SECRET ? `?auth=${FIREBASE_DB_SECRET}` : '';
+    const res = await fetch(`${base}/speedrun/${levelId}.json${auth}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      lastLbWriteError = `écriture HTTP ${res.status} sur speedrun/${levelId} (règles RTDB ?) — temps gardé en local`;
+      throw new Error(lastLbWriteError);
+    }
+    lastLbWriteError = null;
+  } catch (e) {
+    if (!lastLbWriteError) lastLbWriteError = String((e && e.message) || e);
+    return submitSpeedrunLocal(body);
+  }
+  return getSpeedrunTop('all');
+}
+
+export async function getSpeedrunTop(levelFilter = 'all') {
+  const keep = (arr) => {
+    if (levelFilter === 'all' || levelFilter === null || levelFilter === undefined) return arr;
+    const id = Number(levelFilter);
+    return arr.filter((e) => e.levelId === id || e.level === LEVEL_NAMES[id]);
+  };
+  if (!isOnline()) {
+    setLbStatus('local', 0);
+    return keep(sortAscTime(localSrList()));
+  }
+  try {
+    const base = FIREBASE_DB_URL.replace(/\/$/, '');
+    const auth = FIREBASE_DB_SECRET ? `?auth=${FIREBASE_DB_SECRET}` : ''; // nœud entier + tri croissant côté client (idem v1.3.22)
+    const res = await fetch(`${base}/speedrun.json${auth}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data && typeof data === 'object') {
+        const all = [];
+        for (const entries of Object.values(data)) {
+          if (entries && typeof entries === 'object') all.push(...Object.values(entries));
+        }
+        if (all.length) {
+          setLbStatus('firebase', all.length, null);
+          return keep(sortAscTime(all));
+        }
+      }
+      setLbStatus('local', 0, 'aucun temps speedrun en ligne (nœud /speedrun vide ou règles RTDB)');
+      return keep(sortAscTime(localSrList()));
+    }
+    setLbStatus('local', 0, `HTTP ${res.status} sur speedrun`);
+  } catch (e) {
+    setLbStatus('local', 0, `speedrun: réseau indisponible (${(e && e.message) || 'fetch failed'})`);
+  }
+  return keep(sortAscTime(localSrList()));
+}

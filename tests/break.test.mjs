@@ -339,4 +339,43 @@ console.log('I. v1.3.30 : comparaison de versions (sonde anti-SW-obsolète)');
   ok('isNewerVersion("abc","1.3.29") = false', core.isNewerVersion('abc', '1.3.29') === false);
 }
 
+console.log('J. v1.3.31 : classement speedrun dédié (contrat POST, tri croissant, filtre niveau, nœud null)');
+{
+  // contrat du POST /speedrun/<levelId> : champs exigés par les règles + bornes timeMs
+  const calls = [];
+  globalThis.fetch = async (url, opts) => {
+    calls.push({ url: String(url), method: opts && opts.method, body: opts && opts.body ? JSON.parse(opts.body) : null });
+    return { ok: true, json: async () => null };
+  };
+  await lb.submitSpeedrun(3, { pseudo: 'Test', timeMs: 45320, level: 'Double file', date: 9 });
+  const post = calls.find((c) => c.method === 'POST');
+  ok('POST vers /speedrun/3.json', post && post.url.includes('/speedrun/3.json'));
+  ok('corps = contrat règles speedrun (pseudo/timeMs/level/date + bornes)', post && ['pseudo', 'timeMs', 'level', 'date'].every((k) => k in post.body) && post.body.timeMs >= 1000 && post.body.timeMs <= 3600000 && post.body.mode === 'pilote');
+
+  // tri CROISSANT sur timeMs + entrées corrompues filtrées + filtre par niveau
+  globalThis.fetch = async () => ({
+    ok: true,
+    json: async () => ({
+      1: { a: { pseudo: 'A', timeMs: 60000, level: 'Premiers tours', levelId: 1, date: 1 }, b: { pseudo: 'B', timeMs: 30000, level: 'Premiers tours', levelId: 1, date: 2 } },
+      2: { c: { pseudo: 'C', timeMs: 20000, level: 'Accélération', levelId: 2, date: 3 }, d: 'garbage', e: { pseudo: 'D', timeMs: 'abc' } },
+    }),
+  });
+  const all = await lb.getSpeedrunTop('all');
+  ok('tri croissant : C(20s) < B(30s) < A(60s), garbage/NaN filtrés', all.length === 3 && all[0].pseudo === 'C' && all[1].pseudo === 'B' && all[2].pseudo === 'A');
+  ok('statut firebase + count', lb.getLbStatus().source === 'firebase' && lb.getLbStatus().count === 5);
+  const only1 = await lb.getSpeedrunTop('1');
+  ok('filtre niveau 1 -> uniquement A et B', only1.length === 2 && only1.every((e) => e.levelId === 1));
+
+  // nœud speedrun absent (null) -> fallback local sans crash
+  globalThis.fetch = async () => ({ ok: true, json: async () => null });
+  const empty = await lb.getSpeedrunTop('all');
+  ok('speedrun.json = null -> fallback local, source local', Array.isArray(empty) && lb.getLbStatus().source === 'local');
+
+  // écriture refusée -> fallback local + writeError visible
+  globalThis.fetch = async () => ({ ok: false, status: 403 });
+  await lb.submitSpeedrun(1, { pseudo: 'Moi', timeMs: 50000, level: 'L', date: 1 });
+  ok('écriture speedrun 403 -> writeError + local', lb.getLbStatus().writeError && lb.getLbStatus().writeError.includes('403') && lb.getLbStatus().writeError.includes('speedrun'));
+  delete globalThis.fetch;
+}
+
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);
