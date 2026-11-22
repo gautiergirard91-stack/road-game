@@ -197,6 +197,32 @@ export function weekKey(d = new Date()) {
   return dayKey(x);
 }
 
+// --- v1.3.36 : événement week-end (rétention J7) — samedi/dimanche ---
+
+// Pur et déterministe : une date invalide n'est JAMAIS un week-end (pas de fallback sur "maintenant")
+export function isWeekend(d = new Date()) {
+  if (!(d instanceof Date) || isNaN(d.getTime())) return false;
+  const day = d.getDay();
+  return day === 0 || day === 6; // dimanche = 0, samedi = 6
+}
+
+// Multiplicateur de pièces de l'événement week-end : 2 le week-end, 1 sinon
+export function weekendCoinMultiplier(d = new Date()) {
+  return isWeekend(d) ? 2 : 1;
+}
+
+// --- v1.3.36 : classement « amis » — filtrage par pseudo (insensible à la casse, espaces ignorés) ---
+// Amis = liste de pseudos saisie par le joueur (save.friends) ; on ne lit JAMAIS les contacts
+// Google du téléphone (People API = permission intrusive, voir docs/PRIVACY.md).
+export function filterFriendsByPseudo(entries, friends) {
+  const set = new Set(
+    (Array.isArray(friends) ? friends : [])
+      .map((p) => String(p == null ? '' : p).trim().toLowerCase())
+      .filter(Boolean)
+  );
+  return (Array.isArray(entries) ? entries : []).filter((e) => e && set.has(String(e.pseudo || '').trim().toLowerCase()));
+}
+
 const CHALLENGE_KINDS = [
   { id: 'score', label: (t) => `Marquer ${t} points`, min: 300, step: 150 },
   { id: 'perfects', label: (t) => `${t} PARFAIT dans la partie`, min: 5, step: 3 },

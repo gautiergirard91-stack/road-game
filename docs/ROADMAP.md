@@ -13,7 +13,7 @@ Légende : **P0** = à faire avant/après le merge de la branche béton armé ; 
 - **P0** Vérifier avec 2 testeurs que le classement affiche bien les autres joueurs (voir `docs/FIREBASE.md` §2bis : `scores.json` → 200, règles publiées). Le diagnostic v1.3.27 dira exactement ce qui bloque sinon.
 - **P1** Classement **speedrun** dédié : nœud `speedrun/<levelId>`, tri **croissant** (temps), même filtres. (Le score speedrun est un temps : le tri desc du classement global ne convient pas.)
 - **P1** Anti-triche léger côté client : rejeter un `submitScore` si `score >` un plafond crédible pour le niveau (ex: `lines × 150 × combo max`), et ignorer les temps speedrun < temps théorique minimal (`sum(gaps) / vitesse max`).
-- **P2** « Défier un ami » (lien de partage avec son score), amis Google, notifications de nouveau record d'un ami.
+- **✅ fait v1.3.36** Classement « amis » par **pseudo** (onglet 👥 Amis : ajout/retrait de pseudos, filtre client du classement mondial — on ne lit JAMAIS les contacts Google du téléphone, la People API demanderait une permission intrusive sur le Play Store). Reste P2 : « Défier un ami » (lien de partage), notifications de record d'un ami.
 - **P2** Saisons de classement (reset mensuel, récompense cosmétique pour le top).
 
 ## 2. Boucle de jeu & rétention
@@ -21,7 +21,7 @@ Légende : **P0** = à faire avant/après le merge de la branche béton armé ; 
 **État** : 15 niveaux, survie ∞, speedrun, défi du jour, quêtes hebdo, streak, succès (13), tutoriel forcé.
 **Limites** : peu de raisons de revenir après les 15 niveaux ; la survie ∞ n'a pas de fin ni de récompense de palier.
 - **✅ fait v1.3.35** Paliers de Survie ∞ (10/25/50/100/150/200/300/500 lignes → pièces ; skin « 🏆 Survie d'or » + médaille à 50).
-- **P1** Événements week-end (double pièces, niveau spécial « pluie de météores »…).
+- **✅ fait v1.3.36** Événement week-end (samedi/dimanche via `core.isWeekend`) : bannière menu 🎉, **pièces ×2** sur toute la partie, niveau spécial gratuit « 🎉 Week-end doré » (id 100, hors `LEVELS` donc sans impact sur déblocages/succès) affiché uniquement le week-end.
 - **P2** Mode « contre-la-montre quotidien » (= défi du jour mais avec classement temps, cf. §1).
 - **✅ fait v1.3.35** Étoiles par niveau sur les cartes (1/2/3). Reste : carte du monde en chaîne.
 
@@ -31,7 +31,8 @@ Légende : **P0** = à faire avant/après le merge de la branche béton armé ; 
 **Limites** : pas d'achat réel (AdMob/IAP) ; aperçus statiques ; pas de « nouveau » badge.
 - **P1** AdMob **rewarded réel** dans `js/ads.js` (actuellement simulé 5 s) pour le « continuer » gratuit.
 - **P1** IAP cosmétiques via **Play Billing** (packs de pièces) — optionnel, documented dans MONETIZATION.md.
-- **P2** Aperçus **animés** (la voiture roule dans le preview, l'effet joue en boucle).
+- **✅ fait v1.3.36** Aperçus **animés** dans la boutique ET le garage (paramètre `t` sur les 5 `render*Preview` de game.js, boucle rAF active uniquement sur ces écrans et onglet visible ; rendu statique t=0 ailleurs).
+- **✅ fait v1.3.36** **Garage** (écran purement visuel) : toutes les voitures possédées en grille, aperçus animés 72×84, tap = équiper.
 - **P2** Badge « NOUVEAU » sur les items ajoutés depuis la dernière visite + « déjà possédé » grisé.
 - **P2** Équilibrage continu via `tools/balance_sim.mjs` (simuler des milliers de parties pour ajuster les coûts/bonus).
 

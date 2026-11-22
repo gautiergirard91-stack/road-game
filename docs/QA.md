@@ -285,3 +285,12 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] `buySkin` refuse les skins coût 0 (hors 'default') — pas d'achat gratuit déguisé
 - [ ] `node tests/break.test.mjs` : +12 assertions (starsFor, endlessMilestones, setStars/setEndlessBest max, buySkin garde, sanitize/snapshot/merge)
 - [ ] CI verte + CACHE sw bumpé (roadtap-v43) + VERSION 1.3.35 + version.json 1.3.35
+
+## Checklist v1.3.36 (garage + événement week-end + classement amis + aperçus animés)
+
+- [ ] **Garage** : bouton 🚗 Garage dans le menu → écran `screen-garage` avec toutes les voitures possédées (`save.skins`), aperçus canvas animés 72×84, tap sur une carte = équiper (`store.selectSkin`), carte équipée bordée cyan
+- [ ] **Week-end** : samedi/dimanche uniquement — bannière 🎉 sur le menu, carte « 🎉 100. Week-end doré » dans ▶ Jouer (gratuit, jouable direct), pièces de la partie ×2 sur l'écran de fin (`weekendCoinMultiplier`, testé avec dates fixes dans break.test.mjs section N) ; en semaine : rien ne s'affiche
+- [ ] **Classement amis** : onglets 🌍 Tous / 👥 Amis dans le classement ; ajout d'un ami par pseudo (input + Entrée, dédup insensible à la casse, pas soi-même), puces ✕ pour retirer, liste synchro cloud (`friends` dans snapshot/mergeRemote) ; la vue amis récupère TOUT le classement (`getAll`/`getSpeedrunAll`, sans limite TOP) puis filtre par pseudo (`core.filterFriendsByPseudo`) — fonctionne aussi en speedrun et avec les filtres difficulté/niveau
+- [ ] **Aperçus animés** : boutique + garage — les 5 previews recoivent `t` (voiture qui flotte + reflet qui balaie, pluie/neige/confettis/flammes/tracé qui bougent, ligne centrale qui défile, cadeau qui pulse, ondes sonores qui oscillent) ; animation active UNIQUEMENT sur ces 2 écrans et si l'onglet est visible (`document.hidden`), rendu statique t=0 ailleurs (cartes de niveaux inchangées)
+- [ ] `node tests/break.test.mjs` : section N (132 assertions au total) — isWeekend dates fixes + invalides, WEEKEND_LEVEL hors LEVELS, filterFriendsByPseudo, store friends (sanitize/add/remove/snapshot/merge), getAll/getSpeedrunAll (25 entrées sans limite, tri, repli hors ligne)
+- [ ] CI verte + CACHE sw bumpé (roadtap-v44) + VERSION 1.3.36 + version.json 1.3.36

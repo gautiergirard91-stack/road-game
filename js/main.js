@@ -1,8 +1,8 @@
-import { LEVELS, THEMES, SKINS, EFFECTS, DIFFICULTIES, CURRENCIES, WINDOWS, ACHIEVEMENTS, THEME_SHOP, ENDLESS_LEVEL, PACKS, SOUND_PACKS } from './data.js';
+import { LEVELS, THEMES, SKINS, EFFECTS, DIFFICULTIES, CURRENCIES, WINDOWS, ACHIEVEMENTS, THEME_SHOP, ENDLESS_LEVEL, WEEKEND_LEVEL, PACKS, SOUND_PACKS } from './data.js';
 import { Game, CAR_STYLE_LABEL, renderCarPreview, renderEffectPreview, renderThemePreview, renderPackPreview, renderSoundPreview } from './game.js';
 import * as store from './store.js';
 import { sfx, setEnabled, setMusicEnabled, unlockAudio, applySoundPack } from './audio.js';
-import { coinsForResult, accuracy, avgReaction, continueCost, maxMissesFor, firstClearBonus, isPerfectClear, perfectClearBonus, dailyChallenge, weeklyQuests, fmtTime, zoneFromPoint, keyToAction, isNewerVersion, starsFor, endlessMilestones } from './core.js';
+import { coinsForResult, accuracy, avgReaction, continueCost, maxMissesFor, firstClearBonus, isPerfectClear, perfectClearBonus, dailyChallenge, weeklyQuests, fmtTime, zoneFromPoint, keyToAction, isNewerVersion, starsFor, endlessMilestones, isWeekend, weekendCoinMultiplier, filterFriendsByPseudo } from './core.js';
 import { watchRewarded } from './ads.js';
 import { Tutorial } from './tutorial.js';
 import * as leaderboard from './leaderboard.js';
@@ -98,6 +98,85 @@ function renderModePicker() {
 
 let lbFilter = 'all';
 let lbLevelFilter = 'all';
+// v1.3.36 : portée du classement — 'all' (tous les joueurs) ou 'friends' (amis par pseudo)
+let lbScope = 'all';
+
+// v1.3.36 : onglets 🌍 Tous / 👥 Amis au-dessus des filtres
+function renderLbScope() {
+  const el = $('#lb-scope');
+  if (!el) return;
+  el.innerHTML = '';
+  const opts = [
+    { id: 'all', name: '🌍 Tous' },
+    { id: 'friends', name: `👥 Amis${save.friends && save.friends.length ? ` (${save.friends.length})` : ''}` },
+  ];
+  for (const o of opts) {
+    const b = document.createElement('button');
+    b.className = 'btn small diff-btn' + (lbScope === o.id ? ' active' : '');
+    b.textContent = o.name;
+    b.addEventListener('click', () => {
+      lbScope = o.id;
+      sfx.click();
+      renderLbScope();
+      renderFriends();
+      renderLeaderboard();
+    });
+    el.appendChild(b);
+  }
+  const bar = $('#friends-bar');
+  if (bar) bar.classList.toggle('hidden', lbScope !== 'friends');
+}
+
+// v1.3.36 : puces des amis (✕ = retirer) — amis = pseudos, PAS les contacts Google du téléphone
+function renderFriends() {
+  const el = $('#friends-list');
+  if (!el) return;
+  el.innerHTML = '';
+  if (!save.friends.length) {
+    el.innerHTML = '<div class="card-sub">Aucun ami pour l\'instant — ajoute un pseudo ci-dessus.</div>';
+    return;
+  }
+  for (const f of save.friends) {
+    const chip = document.createElement('button');
+    chip.className = 'friend-chip';
+    chip.title = `Retirer ${f} de tes amis`;
+    chip.innerHTML = `${escapeHtml(f)} <b>✕</b>`;
+    chip.addEventListener('click', () => {
+      store.removeFriend(f);
+      sfx.click();
+      pushCloud();
+      renderLbScope();
+      renderFriends();
+      renderLeaderboard();
+    });
+    el.appendChild(chip);
+  }
+}
+
+function addFriendFromInput() {
+  const inp = $('#friend-input');
+  const v = String(inp && inp.value || '').trim();
+  if (!v) {
+    toast('Entre le pseudo d\'un ami 👥');
+    return;
+  }
+  if (save.pseudo && v.toLowerCase() === save.pseudo.toLowerCase()) {
+    toast('Tu ne peux pas t\'ajouter toi-même 😉');
+    inp.value = '';
+    return;
+  }
+  if (store.addFriend(v)) {
+    sfx.coin();
+    toast(`👥 ${v} ajouté à tes amis — retrouve-le dans l'onglet Amis`);
+    pushCloud();
+    inp.value = '';
+    renderLbScope();
+    renderFriends();
+    renderLeaderboard();
+  } else {
+    toast('Ce pseudo est déjà dans ta liste d\'amis');
+  }
+}
 
 function renderLbLevelFilter() {
   const el = $('#lb-level-filter');
@@ -147,7 +226,13 @@ async function renderLeaderboard() {
   const isSr = lbFilter === 'speedrun'; // v1.3.31 : classement speedrun (temps, tri croissant)
   let top = [];
   try {
-    top = isSr ? await leaderboard.getSpeedrunTop(lbLevelFilter) : await leaderboard.getTop(lbFilter, lbLevelFilter);
+    if (lbScope === 'friends') {
+      // v1.3.36 : on récupère TOUT le classement (sans limite) puis on filtre par pseudos d'amis côté client
+      const all = isSr ? await leaderboard.getSpeedrunAll() : await leaderboard.getAll(lbFilter);
+      top = filterFriendsByPseudo(leaderboard.filterLevel(all, lbLevelFilter), save.friends).slice(0, 50);
+    } else {
+      top = isSr ? await leaderboard.getSpeedrunTop(lbLevelFilter) : await leaderboard.getTop(lbFilter, lbLevelFilter);
+    }
   } catch {
     top = [];
   }
@@ -167,6 +252,15 @@ async function renderLeaderboard() {
   if (st && st.writeError) srcEl.textContent += ` — ⚠ ${st.writeError}`;
   list.innerHTML = '';
   if (!top.length) {
+    // v1.3.36 : message dédié quand on cherche dans ses amis
+    if (lbScope === 'friends' && !save.friends.length) {
+      list.innerHTML = '<div class="card-sub">Ajoute d\'abord des amis (pseudos) ci-dessus 👥, puis reviens ici.</div>';
+      return;
+    }
+    if (lbScope === 'friends') {
+      list.innerHTML = '<div class="card-sub">Aucun de tes amis n\'a encore de score ici — invite-les à jouer ! 🎮</div>';
+      return;
+    }
     const hint = leaderboard.isOnline()
       ? (isSr
         ? 'Aucun temps speedrun en ligne — finis un niveau en mode ⏱ Speedrun ! (règles RTDB : nœud /speedrun, voir docs/FIREBASE.md)'
@@ -339,13 +433,26 @@ function refreshStatus() {
   });
 }
 
+// v1.3.36 : bannière d'événement week-end sur le menu (visible UNIQUEMENT samedi/dimanche)
+function updateWeekendBanner() {
+  const b = $('#weekend-banner');
+  if (!b) return;
+  const we = isWeekend();
+  b.classList.toggle('hidden', !we);
+  const txt = $('#weekend-banner-text');
+  if (txt && we) txt.textContent = '🎉 Week-end : pièces ×2 + niveau spécial « Week-end doré » dans ▶ Jouer !';
+}
+
 function show(id) {
   currentScreen = id;
   $$('.screen').forEach((s) => s.classList.toggle('active', s.id === id));
   $('#hud').classList.toggle('hidden', id !== 'screen-game');
   // la bannière de tutoriel ne s'affiche que si un tutoriel est réellement actif
   $('#tut-banner').classList.toggle('hidden', id !== 'screen-game' || !tutActive);
-  if (id === 'screen-menu') refreshStatus();
+  if (id === 'screen-menu') {
+    refreshStatus();
+    updateWeekendBanner();
+  }
 }
 
 window.addEventListener('online', refreshStatus);
@@ -439,7 +546,9 @@ function renderLevels() {
   const list = $('#levels-list');
   list.innerHTML = '';
   const allDone = LEVELS.every((lv) => store.isCleared(lv.id));
-  for (const l of [ENDLESS_LEVEL, ...LEVELS]) {
+  // v1.3.36 : niveau spécial de l'événement week-end, affiché UNIQUEMENT samedi/dimanche (core.isWeekend)
+  const levelsShown = [ENDLESS_LEVEL, ...(isWeekend() ? [WEEKEND_LEVEL] : []), ...LEVELS];
+  for (const l of levelsShown) {
     // Survie ∞ : débloquée seulement quand les 15 niveaux sont terminés au moins une fois
     const locked = l.endless ? !allDone : l.cost > 0 && !save.unlockedLevels.includes(l.id);
     // v1.3.17 : achat du niveau N autorisé seulement si le niveau N-1 a été TERMINÉ EN ENTIER
@@ -454,8 +563,8 @@ function renderLevels() {
     card.innerHTML = `
       <canvas class="card-theme level-preview" aria-label="Aperçu ${l.name}"></canvas>
       <div class="card-body">
-        <div class="card-title">${l.endless ? '∞' : l.id}. ${l.name}${medal}${starsTxt}</div>
-        <div class="card-sub">${THEMES[l.theme].name} · ${l.endless ? 'vitesse croissante' : `vitesse ${l.speed} · ${l.lines} lignes`}</div>
+        <div class="card-title">${l.weekend ? '🎉 ' : ''}${l.endless ? '∞' : l.id}. ${l.name}${medal}${starsTxt}</div>
+        <div class="card-sub">${THEMES[l.theme].name} · ${l.weekend ? 'événement week-end : pièces ×2 !' : l.endless ? 'vitesse croissante' : `vitesse ${l.speed} · ${l.lines} lignes`}</div>
         <div class="card-best">${best ? `🏆 Record : ${best}` : ''}${bt ? `${best ? ' · ' : ''}⏱ ${fmtTime(bt / 1000)}` : ''}</div>
       </div>
       <button class="btn small">${locked ? (l.endless ? '🔒 15 niveaux à finir' : canBuy ? `🔒 ${l.cost} ${c.icon}` : `🔒 termine le niveau ${l.id - 1} en entier`) : '▶ Jouer'}</button>`;
@@ -496,6 +605,23 @@ function renderLevels() {
 const SHOP_CATS = ['skins', 'effects', 'themes', 'packs', 'sounds'];
 let shopCat = 'skins';
 
+// v1.3.36 : aperçus ANIMÉS — registre des canvas à redessiner à chaque frame.
+// La boucle rAF ne les anime que sur les écrans boutique/garage (et onglet visible) ;
+// partout ailleurs on garde un rendu statique (t=0) pour ne pas brûler de CPU.
+let previewAnims = [];
+function clearPreviews() {
+  previewAnims = [];
+}
+function registerPreview(canvas, fn) {
+  if (!canvas) return;
+  previewAnims.push({ canvas, fn });
+  try {
+    fn(0); // rendu statique immédiat (si l'écran est caché, l'animation ne démarre pas)
+  } catch {
+    /* canvas indisponible */
+  }
+}
+
 function showShopPage(cat) {
   if (!SHOP_CATS.includes(cat)) cat = 'skins';
   shopCat = cat;
@@ -506,6 +632,7 @@ function showShopPage(cat) {
 }
 
 function renderShop() {
+  clearPreviews(); // v1.3.36 : on repart d'un registre propre (les anciens canvas sont remplacés)
   const skinsEl = $('#shop-skins');
   skinsEl.innerHTML = '';
   for (const s of SKINS) {
@@ -541,7 +668,8 @@ function renderShop() {
       refreshCoins();
       renderShop();
     });
-    renderCarPreview(card.querySelector('canvas.car-preview'), s);
+    const cv = card.querySelector('canvas.car-preview'); // v1.3.36 : aperçu animé
+    registerPreview(cv, (tt) => renderCarPreview(cv, s, tt));
     skinsEl.appendChild(card);
   }
   const thEl = $('#shop-themes');
@@ -577,7 +705,8 @@ function renderShop() {
         refreshCoins();
         renderShop();
       });
-      renderThemePreview(card.querySelector('canvas.th-preview'), t.id);
+      const cv = card.querySelector('canvas.th-preview'); // v1.3.36 : aperçu animé
+      registerPreview(cv, (tt) => renderThemePreview(cv, t.id, undefined, undefined, tt));
       thEl.appendChild(card);
     }
   }
@@ -614,7 +743,8 @@ function renderShop() {
       refreshCoins();
       renderShop();
     });
-    renderEffectPreview(card.querySelector('canvas.fx-preview'), e);
+    const cv = card.querySelector('canvas.fx-preview'); // v1.3.36 : aperçu animé
+    registerPreview(cv, (tt) => renderEffectPreview(cv, e, tt));
     fxEl.appendChild(card);
   }
   renderPacks();
@@ -651,7 +781,8 @@ function renderPacks() {
       refreshCoins();
       renderShop();
     });
-    renderPackPreview(card.querySelector('canvas.pk-preview'), p);
+    const cv = card.querySelector('canvas.pk-preview'); // v1.3.36 : aperçu animé
+    registerPreview(cv, (tt) => renderPackPreview(cv, p, tt));
     el.appendChild(card);
   }
 }
@@ -693,8 +824,47 @@ function renderSoundPacks() {
       refreshCoins();
       renderShop();
     });
-    renderSoundPreview(card.querySelector('canvas.snd-preview'), sp);
+    const cv = card.querySelector('canvas.snd-preview'); // v1.3.36 : aperçu animé
+    registerPreview(cv, (tt) => renderSoundPreview(cv, sp, tt));
     el.appendChild(card);
+  }
+}
+
+// --- v1.3.36 : Garage (purement visuel) — toutes les voitures possédées, tap = équiper ---
+function renderGarage() {
+  clearPreviews(); // v1.3.36 : les aperçus du garage sont animés eux aussi
+  const list = $('#garage-list');
+  if (!list) return;
+  list.innerHTML = '';
+  const owned = SKINS.filter((s) => save.skins.includes(s.id));
+  if (!owned.length) {
+    list.innerHTML = '<div class="card-sub">Aucune voiture… la berline grise est pourtant déjà à toi 😉</div>';
+    return;
+  }
+  for (const s of owned) {
+    const selected = save.skin === s.id;
+    const card = document.createElement('div');
+    card.className = 'card shop-card garage-card' + (selected ? ' selected' : '');
+    card.innerHTML = `
+      <canvas class="swatch garage-preview" aria-label="Aperçu ${s.name}"></canvas>
+      <div class="card-body">
+        <div class="card-title">${selected ? '✓ ' : ''}${escapeHtml(s.name)}</div>
+        <div class="card-sub">${MODEL_LABEL[s.model] || 'Berline'} · ${CAR_STYLE_LABEL[s.style || 'photo']}</div>
+      </div>
+      <button class="btn small">${selected ? '✓ Équipée' : 'Équiper'}</button>`;
+    card.querySelector('button').addEventListener('click', () => {
+      if (selected) return;
+      if (store.selectSkin(s.id)) {
+        sfx.click();
+        toast(`🚗 ${s.name} équipée !`);
+        pushCloud();
+        renderGarage();
+      }
+    });
+    // v1.3.36 : aperçu animé, affiché en plus grand dans le garage (72×84)
+    const cv = card.querySelector('canvas.garage-preview');
+    registerPreview(cv, (tt) => renderCarPreview(cv, s, tt, 72, 84));
+    list.appendChild(card);
   }
 }
 
@@ -818,6 +988,9 @@ function onGameEnd(stats, level) {
     clearBonus = firstClearBonus(level);
     coins += clearBonus;
   }
+  // v1.3.36 : événement week-end — TOUTES les pièces de la partie sont doublées samedi/dimanche
+  const weMult = weekendCoinMultiplier();
+  if (weMult > 1) coins = Math.round(coins * weMult);
   const perfectClear = !!stats.completed && isPerfectClear(stats);
   if (perfectClear) store.setTrophy(level.id);
   if (coins > 0) {
@@ -894,7 +1067,8 @@ function onGameEnd(stats, level) {
   $('#over-coins').textContent =
     `+${coins} ${ci} gagnées` +
     (firstClear ? ` (dont +${clearBonus} ${ci} de premier clear ! 🎉)` : '') +
-    (perfectClear ? ` — 🥇 FULL PARFAIT ! +${perfectClearBonus(level)} ${ci} et médaille du niveau !` : '');
+    (perfectClear ? ` — 🥇 FULL PARFAIT ! +${perfectClearBonus(level)} ${ci} et médaille du niveau !` : '') +
+    (weMult > 1 ? ` — 🎉 week-end : pièces ×${weMult} !` : '');
   setTimeout(() => {
     refreshCoins();
     show('screen-over');
@@ -925,6 +1099,17 @@ function loop(t) {
     if (game.speedrun) hudScore.textContent = fmtTime(game.elapsed); // v1.3.19 : le HUD affiche le chrono
   }
   if (tut && currentScreen === 'screen-game') tut.tick();
+  // v1.3.36 : aperçus animés de la boutique/garage — uniquement sur ces écrans et onglet visible
+  if (!document.hidden && previewAnims.length && (currentScreen === 'screen-shop' || currentScreen === 'screen-garage')) {
+    const ts = t / 1000;
+    for (const p of previewAnims) {
+      try {
+        p.fn(ts);
+      } catch {
+        /* un aperçu en échec ne bloque pas la boucle */
+      }
+    }
+  }
 }
 
 window.addEventListener('error', (e) => {
@@ -984,10 +1169,32 @@ on('btn-music', 'click', () => {
 });
 on('btn-leaderboard', 'click', () => {
   sfx.click();
+  renderLbScope(); // v1.3.36 : onglets 🌍 Tous / 👥 Amis
+  renderFriends();
   renderLbFilter();
   renderLbLevelFilter();
   renderLeaderboard();
   show('screen-leaderboard');
+});
+// v1.3.36 : ajout d'un ami par pseudo (la liste est synchronisée avec le cloud)
+on('btn-friend-add', 'click', () => {
+  sfx.click();
+  addFriendFromInput();
+});
+on('friend-input', 'keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    addFriendFromInput();
+  }
+});
+on('btn-garage', 'click', () => {
+  sfx.click();
+  renderGarage(); // v1.3.36 : garage purement visuel
+  show('screen-garage');
+});
+on('btn-garage-back', 'click', () => {
+  sfx.click();
+  show('screen-menu');
 });
 on('btn-challenges', 'click', () => {
   sfx.click();
