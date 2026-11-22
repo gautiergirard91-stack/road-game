@@ -366,3 +366,12 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] `node tests/break.test.mjs` : section V (migration, isolation, max/min, mergeRemote, bestFlat)
 - [ ] Test manuel : record niveau 3 en Auto école ≠ record en Pilote (cartes selon la difficulté choisie) ; ancienne save migrée sans perte
 - [ ] CI verte + CACHE sw bumpé (roadtap-v52) + VERSION 1.3.44 + version.json 1.3.44
+
+## Checklist v1.3.45 (wideWindows hors classement + « Recommencer » dans la pause)
+
+- [ ] `core.canSubmitToLeaderboard(save)` = pseudo + uid + !wideWindows, utilisé aux **3** envois (score / speedrun / défi du jour) dans `onGameEnd`
+- [ ] Classement : entrées `wideWindows: true` filtrées à l'affichage (`cleanEntry`/`cleanTimeEntry`) + avis « ♿ fenêtres élargies actives… » dans `#lb-source`
+- [ ] Règles RTDB : `newData.child('wideWindows').val() != true` ajouté aux 3 `.write` (scores/speedrun/challenges) — **À RE-PUBLIER dans la console Firebase** (miroir docs/FIREBASE.md §2 à jour)
+- [ ] Menu pause : nouveau bouton « 🔄 Recommencer » (`btn-pause-retry`) → `startLevel(currentLevel)`
+- [ ] `node tests/break.test.mjs` : section W (garde pur, 3 sites, filtres local+speedrun, règles, bouton pause)
+- [ ] CI verte + CACHE sw bumpé (roadtap-v53) + VERSION 1.3.45 + version.json 1.3.45

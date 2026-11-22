@@ -21,7 +21,7 @@ En production, remplacer les règles de test par :
       ".read": true,
       "$mode": {
         "$id": {
-          ".write": "!data.exists() && newData.exists() && newData.hasChildren(['pseudo','score','level','mode','date']) && auth != null && newData.child('uid').val() == auth.uid && newData.child('score').val() <= 1000000 && newData.child('pseudo').val().length <= 16"
+          ".write": "!data.exists() && newData.exists() && newData.hasChildren(['pseudo','score','level','mode','date']) && auth != null && newData.child('uid').val() == auth.uid && newData.child('score').val() <= 1000000 && newData.child('pseudo').val().length <= 16 && newData.child('wideWindows').val() != true"
         },
         ".indexOn": [
           "score"
@@ -32,7 +32,7 @@ En production, remplacer les règles de test par :
       ".read": true,
       "$level": {
         "$id": {
-          ".write": "!data.exists() && newData.exists() && newData.hasChildren(['pseudo','timeMs','level','date']) && auth != null && newData.child('uid').val() == auth.uid && newData.child('timeMs').val() >= 1000 && newData.child('timeMs').val() <= 3600000 && newData.child('pseudo').val().length <= 16"
+          ".write": "!data.exists() && newData.exists() && newData.hasChildren(['pseudo','timeMs','level','date']) && auth != null && newData.child('uid').val() == auth.uid && newData.child('timeMs').val() >= 1000 && newData.child('timeMs').val() <= 3600000 && newData.child('pseudo').val().length <= 16 && newData.child('wideWindows').val() != true"
         },
         ".indexOn": [
           "timeMs"
@@ -43,7 +43,7 @@ En production, remplacer les règles de test par :
       ".read": true,
       "$day": {
         "$id": {
-          ".write": "!data.exists() && newData.exists() && newData.hasChildren(['pseudo','score','mode','date']) && auth != null && newData.child('uid').val() == auth.uid && newData.child('score').val() <= 1000000 && newData.child('pseudo').val().length <= 16"
+          ".write": "!data.exists() && newData.exists() && newData.hasChildren(['pseudo','score','mode','date']) && auth != null && newData.child('uid').val() == auth.uid && newData.child('score').val() <= 1000000 && newData.child('pseudo').val().length <= 16 && newData.child('wideWindows').val() != true"
         },
         ".indexOn": [
           "score"
@@ -80,6 +80,7 @@ En production, remplacer les règles de test par :
 2. **Anti-usurpation + compte Google OBLIGATOIRE (v1.3.37)** : `auth != null && newData.child('uid').val() == auth.uid` → **plus d'écriture anonyme du tout** : seuls les comptes Google connectés peuvent ajouter un score/temps (le client envoie `uid` + `?auth=<idToken>`). Un joueur connecté ne peut poster que sous SON uid. **⚠️ À re-publier dans la console Firebase** (Règles → Publier) pour activer cette version. La parade complémentaire reste App Check en enforce (voir §6).
 3. **`.indexOn`** : ajouté sur `$mode`/`$day`/`$level` (`score` / `timeMs`) pour permettre plus tard des requêtes serveur `orderBy` + `limitToLast` (le jeu lit toujours le nœud entier + tri client, donc rien ne casse sans index).
 4. **`players` verrouillé** : `.read`/`.write` = `auth != null && auth.uid == $id` uniquement → la sauvegarde cloud n’est lisible/modifiable QUE par le propriétaire du compte Google. **Conséquence produit** : sans compte Google, plus de sauvegarde cloud (le pseudo est public, donc un nœud keyed par pseudo était usurpable) — la progression reste en `localStorage` local ; l’UI invite à lier Google pour la synchro.
+5. **v1.3.45 — fenêtres élargies exclues du classement** : les 3 règles d'écriture (`scores`, `speedrun`, `challenges`) contiennent désormais `newData.child('wideWindows').val() != true` → toute entrée marquée `wideWindows: true` est **refusée côté serveur** (les joueurs avec l'option accessibilité « fenêtres élargies » ne peuvent pas apparaître dans le classement ; le client ne les envoie de toute façon pas, voir `canSubmitToLeaderboard` dans `js/core.js`, et ils sont filtrés à l'affichage). **À re-publier dans la console Firebase.**
 5. **`analytics` verrouillé** : `.write` seulement en création (`!data.exists()`, champ `at` requis) au niveau `$name/$id` → plus de suppression/écrasement massif des stats.
 
 > ⚠️ **Piège classique (corrigé en v1.3.29)** : le jeu envoie les scores en **POST push** (`/scores/<mode>.json` → crée `/scores/<mode>/<pushId>`). La validation doit donc être au niveau **`$mode/$id`**, pas au niveau `$mode` : à ce niveau, `newData` a pour enfants les *push IDs*, donc `hasChildren(['pseudo','score',...])` est FAUX → **403 pour toutes les écritures** → le nœud `scores` n'est jamais créé → « on ne voit que soi en local ». Symptôme exact constaté (capture console : `scores` absent, `players` vides).

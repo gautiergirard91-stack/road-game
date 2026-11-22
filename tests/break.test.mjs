@@ -609,7 +609,7 @@ console.log('R. v1.3.40 : jouer SANS compte (local), Google requis seulement pou
   // on joue avec seulement un pseudo (plus besoin d'uid)
   ok('ensurePseudoThen : jouer ne requiert QUE le pseudo', /function ensurePseudoThen\(fn\) \{\s*if \(save\.pseudo\) \{/.test(mainSrc));
   ok('plus de ensureAccountThen (Google plus obligatoire pour jouer)', !mainSrc.includes('ensureAccountThen'));
-  ok('le classement exige toujours un compte lié (envois si save.uid)', mainSrc.includes('save.pseudo && save.uid'));
+  ok('le classement exige toujours un compte lié (garde canSubmitToLeaderboard, v1.3.45)', mainSrc.includes('canSubmitToLeaderboard(save)'));
   ok('main.js : déconnexion (btn-google-out) appelle store.resetProgress()', /on\('btn-google-out'[\s\S]*?store\.resetProgress\(\)/.test(mainSrc));
 
   // resetProgress : repart de 0, garde les prefs matérielles de l'appareil
@@ -797,6 +797,39 @@ console.log('V. v1.3.44 : records best/bestTime isolés par difficulté (clé "m
   store.mergeRemote({ best: { 'auto:3': 9000, 'pilote:3': 1000 }, bestTime: { 'auto:3': 30000 } });
   ok('mergeRemote cloud : best max / bestTime min sur clés "mode:level"', store.getBest('auto', 3) === 9000 && store.getBest('pilote', 3) === 5000 && store.getBestTime('auto', 3) === 30000);
   ok('bestKey compose "mode:levelId"', store.bestKey('pilote', 7) === 'pilote:7');
+}
+
+console.log('W. v1.3.45 : wideWindows hors classement en ligne (garde client + filtre affichage + règle serveur) + « Recommencer » dans la pause');
+{
+  const fs5 = await import('node:fs');
+  const html = fs5.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const mainSrc = fs5.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  const rules = fs5.readFileSync(new URL('../database.rules.json', import.meta.url), 'utf8');
+  const core = await import('../js/core.js');
+
+  ok('canSubmitToLeaderboard : pseudo+uid sans wideWindows -> true', core.canSubmitToLeaderboard({ pseudo: 'A', uid: 'u1', wideWindows: false }) === true);
+  ok('... wideWindows=true -> false (exclu du classement)', core.canSubmitToLeaderboard({ pseudo: 'A', uid: 'u1', wideWindows: true }) === false);
+  ok('... sans uid / sans pseudo / null -> false', !core.canSubmitToLeaderboard({ pseudo: 'A', wideWindows: false }) && !core.canSubmitToLeaderboard({ uid: 'u', wideWindows: false }) && !core.canSubmitToLeaderboard(null));
+  ok('main.js : les 3 envois (score/speedrun/défi) passent par canSubmitToLeaderboard', (mainSrc.match(/canSubmitToLeaderboard\(save\)/g) || []).length >= 3);
+
+  mem['roadtap_leaderboard_local_v1'] = JSON.stringify([
+    { pseudo: 'Normal', score: 500, mode: 'auto' },
+    { pseudo: 'Wide', score: 9999, mode: 'auto', wideWindows: true },
+  ]);
+  const top = await lb.getTopLocal();
+  ok('getTopLocal exclut les entrées wideWindows (le 9999 n\'est pas affiché)', top.length === 1 && top[0].pseudo === 'Normal');
+  mem['roadtap_speedrun_local_v1'] = JSON.stringify([
+    { pseudo: 'Normal', timeMs: 50000, levelId: 1 },
+    { pseudo: 'Wide', timeMs: 1000, levelId: 1, wideWindows: true },
+  ]);
+  const srTop = await lb.getSpeedrunTop('all');
+  ok('getSpeedrunTop exclut aussi wideWindows', srTop.every((e) => e.pseudo !== 'Wide'));
+
+  ok('database.rules.json : les 3 règles .write rejettent wideWindows==true', (rules.match(/wideWindows'\)\.val\(\) != true/g) || []).length === 3);
+
+  const pauseHtml = html.slice(html.indexOf('id="pause-overlay"'), html.indexOf('id="continue-overlay"'));
+  ok('index.html : #btn-pause-retry présent UNE FOIS et dans pause-overlay', (html.match(/id="btn-pause-retry"/g) || []).length === 1 && pauseHtml.includes('btn-pause-retry'));
+  ok('main.js : btn-pause-retry câblé (recommencer = startLevel(currentLevel))', mainSrc.includes("on('btn-pause-retry'") && /on\('btn-pause-retry'[\s\S]*?startLevel\(currentLevel\)/.test(mainSrc));
 }
 
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);
