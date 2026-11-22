@@ -321,3 +321,13 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] Les cases pause sont synchronisées à l'ouverture de la pause ; changer une option dans la pause met aussi à jour la modale menu (et inversement), effet immédiat + toast
 - [ ] `node tests/break.test.mjs` : section Q (IDs `p-opt-*` uniques et dans `pause-overlay`, câblage préfixe `p-`, persistance des setters + snapshot cloud)
 - [ ] CI verte + CACHE sw bumpé (roadtap-v47) + VERSION 1.3.39 + version.json 1.3.39
+
+## Checklist v1.3.40 (jouer sans compte — Google facultatif, requis seulement pour cloud + classement)
+
+- [ ] ▶ Jouer / Tutoriel / carte niveau ne demandent QUE le pseudo (`ensurePseudoThen`) : jouer sans compte Google fonctionne, progression 100 % locale
+- [ ] Modale pseudo : bouton Enregistrer actif dès qu'un pseudo est saisi (Google plus requis) ; hint « facultatif : Connexion Google pour cloud + classement »
+- [ ] Classement : envois (scores/speedrun/challenges) toujours réservés à `save.uid` ; sans compte, l'écran affiche « connecte Google pour apparaître » (règles `auth != null` inchangées, PAS de re-publication nécessaire)
+- [ ] Connexion Google : save locale (anonyme) **fusionnée** avec `players/<uid>` (mergeRemote max/union) puis renvoyée (pull-merge-push) — aucun profil anonyme côté serveur (players = uid auth-only)
+- [ ] Déconnexion (« 🔓 Se délier ») : `store.resetProgress()` → progression locale à 0 (prefs son/musique/accessibilité conservées), cloud conservé ; reconnexion → fusion, progression cloud retrouvée
+- [ ] `node tests/break.test.mjs` : section R (jouer = pseudo seul, LB = uid requis, resetProgress à 0 + prefs gardées + persisté, reconnexion = fusion cloud)
+- [ ] CI verte + CACHE sw bumpé (roadtap-v48) + VERSION 1.3.40 + version.json 1.3.40

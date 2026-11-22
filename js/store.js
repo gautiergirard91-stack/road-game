@@ -441,6 +441,21 @@ export function clearGoogleAccount() {
   persist();
 }
 
+// v1.3.40 : déconnexion Google -> on repart de 0 EN LOCAL. Seules les préférences matérielles
+// de l'appareil sont conservées (son, musique, accessibilité écran). Le cloud players/<uid>
+// n'est PAS touché : à la reconnexion, cette save locale (à 0) fusionne avec le cloud via
+// mergeRemote (max/union par champ) -> la progression cloud revient.
+export function resetProgress() {
+  const keepDevicePrefs = {
+    sound: save.sound,
+    music: save.music,
+    wideWindows: save.wideWindows,
+    colorblind: save.colorblind,
+  };
+  save = sanitize({ ...defaults(), ...keepDevicePrefs });
+  persist();
+}
+
 // --- v1.3.36 : amis (classement « amis » par pseudo) ---
 // 16 car. max comme le pseudo ; la casse est conservée pour l'affichage, la comparaison
 // se fait en minuscules (add/remove/merge et core.filterFriendsByPseudo).

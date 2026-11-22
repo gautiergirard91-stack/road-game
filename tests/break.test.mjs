@@ -601,4 +601,32 @@ console.log('Q. v1.3.39 : options d\'accessibilité aussi dans le menu pause (pr
   ok('désactivation persistée', store.get().wideWindows === false && store.get().colorblind === false && store.get().horizontalZones === false);
 }
 
+console.log('R. v1.3.40 : jouer SANS compte (local), Google requis seulement pour cloud+classement, reset à 0 à la déconnexion, fusion à la reconnexion');
+{
+  const fs4 = await import('node:fs');
+  const mainSrc = fs4.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+
+  // on joue avec seulement un pseudo (plus besoin d'uid)
+  ok('ensurePseudoThen : jouer ne requiert QUE le pseudo', /function ensurePseudoThen\(fn\) \{\s*if \(save\.pseudo\) \{/.test(mainSrc));
+  ok('plus de ensureAccountThen (Google plus obligatoire pour jouer)', !mainSrc.includes('ensureAccountThen'));
+  ok('le classement exige toujours un compte lié (envois si save.uid)', mainSrc.includes('save.pseudo && save.uid'));
+  ok('main.js : déconnexion (btn-google-out) appelle store.resetProgress()', /on\('btn-google-out'[\s\S]*?store\.resetProgress\(\)/.test(mainSrc));
+
+  // resetProgress : repart de 0, garde les prefs matérielles de l'appareil
+  mem['roadtap_save_v1'] = JSON.stringify({
+    wallets: { auto: 5000, permisA: 300, pilote: 100 }, skins: ['default', 'sport'], skin: 'sport',
+    pseudo: 'Testeur', uid: 'uidABC', unlockedLevels: [1, 2, 3], cleared: { 1: true },
+    sound: false, music: false, wideWindows: true, colorblind: true, friends: ['Bob'],
+  });
+  store.load();
+  store.resetProgress();
+  const s = store.get();
+  ok('resetProgress : progression à 0 (wallets/skins/pseudo/uid/niveaux/cleared/friends)', s.wallets.auto === 0 && s.wallets.permisA === 0 && s.wallets.pilote === 0 && s.skins.join(',') === 'default' && s.skin === 'default' && s.pseudo === '' && s.uid === '' && s.unlockedLevels.join(',') === '1' && !s.cleared[1] && s.friends.length === 0);
+  ok('resetProgress : préférences matérielles conservées (son/musique/wideWindows/colorblind)', s.sound === false && s.music === false && s.wideWindows === true && s.colorblind === true);
+  ok('resetProgress : persisté dans localStorage', JSON.parse(mem['roadtap_save_v1']).wallets.auto === 0 && JSON.parse(mem['roadtap_save_v1']).wideWindows === true);
+  // reconnexion : la save locale à 0 fusionne avec le cloud (max/union) -> progression cloud retrouvée
+  store.mergeRemote({ wallets: { auto: 5000, permisA: 300, pilote: 100 }, skins: ['default', 'sport'], unlockedLevels: [1, 2, 3], cleared: { 1: true }, uid: 'uidABC' });
+  ok('reconnexion : fusion local(0) + cloud -> progression cloud retrouvée (max/union)', store.get().wallets.auto === 5000 && store.get().skins.includes('sport') && store.get().unlockedLevels.length === 3 && store.get().cleared[1] === true);
+}
+
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);
