@@ -392,3 +392,12 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] `node tests/break.test.mjs` : section Y (helpers purs, bindKey doublon, setKey persist, sanitize/mergeRemote/snapshot keys, 15 IDs HTML, câblage)
 - [ ] Test manuel : Paramètres → rebind « Roues AV » sur A → en partie, A = tap AV ; doublon refusé ; Échap annule ; version + pastille serveur affichées
 - [ ] CI verte + CACHE sw bumpé (roadtap-v55) + VERSION 1.3.47 + version.json 1.3.47
+
+## Checklist v1.3.48 (fin de partie : combo retiré, récompense réactivité, onglet ⚡ Réaction)
+
+- [ ] Écran de fin : **« Meilleur combo » supprimé** (redondant avec Parfaits) ; « Réaction moy. » et « Précision » conservées
+- [ ] `core.reactionBonus(coins, stats)` : +25% si avg ≤ 40 ms, +15% ≤ 70, +5% ≤ 110, +10% si précision 100% — appliqué aux pièces AVANT le wallet, affiché « ⚡ réactivité +X% (Y ms moy., Z%) »
+- [ ] Classement : `avgMs` envoyé avec le score (champ optionnel, `hasChildren` l'autorise — **pas besoin de re-publier les règles**) ; lignes affichent `score · ⚡Xms` ; nouvel onglet **⚡ Réaction** (tri croissant avgMs, meilleur temps de réaction de tout le monde, filtre niveau + amis OK)
+- [ ] `node tests/break.test.mjs` : section Z (tiers reactionBonus, NaN, combo supprimé, POST avgMs, onglet)
+- [ ] Test manuel : full parfait + réaction rapide = plus de pièces (label ⚡) ; classement → ⚡ Réaction → top = meilleurs temps moyens
+- [ ] CI verte + CACHE sw bumpé (roadtap-v56) + VERSION 1.3.48 + version.json 1.3.48

@@ -901,4 +901,44 @@ console.log('Y. v1.3.47 : menu Paramètres (accessibilité/audio/version/serveur
   ok('main.js : version + état serveur (ping) dans les paramètres', mainSrc.includes("$('#set-version')") && mainSrc.includes("$('#set-server')") && mainSrc.includes('leaderboard.ping()'));
 }
 
+console.log('Z. v1.3.48 : « Meilleur combo » retiré de l\'écran de fin + récompense selon la réactivité + onglet ⚡ Réaction (avgMs) au classement');
+{
+  const core = await import('../js/core.js');
+  const st = (perfects, goods, passables, misses, reactions) => ({ perfects, goods, passables, misses, reactions });
+  // reactionBonus (pur)
+  let rb = core.reactionBonus(1000, st(10, 0, 0, 0, [30, 30]));
+  ok('reactionBonus : avg 30 ms + précision 100% -> +35%', rb.pct === 35 && rb.coins === 350);
+  rb = core.reactionBonus(1000, st(8, 2, 0, 1, [60]));
+  ok('reactionBonus : avg 60 ms, précision 91% (<100) -> +15%', rb.pct === 15 && rb.coins === 150 && rb.acc === 91);
+  rb = core.reactionBonus(1000, st(5, 4, 0, 1, [200]));
+  ok('reactionBonus : avg 200 ms + précision 90% -> +0%', rb.pct === 0 && rb.coins === 0);
+  rb = core.reactionBonus(1000, st(5, 0, 0, 0, []));
+  ok('reactionBonus : aucune réaction -> 0 (pas de NaN)', rb.coins === 0 && rb.avgMs === null);
+  rb = core.reactionBonus(0, st(5, 0, 0, 0, [30]));
+  ok('reactionBonus : coins=0 -> 0', rb.coins === 0);
+  rb = core.reactionBonus(NaN, st(5, 0, 0, 0, [30]));
+  ok('reactionBonus : coins NaN -> 0, pas de crash', rb.coins === 0);
+
+  // écran de fin : plus de « Meilleur combo »
+  const fs8 = await import('node:fs');
+  const mainSrc = fs8.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  ok('main.js : « Meilleur combo » supprimé du over-stats', !mainSrc.includes('Meilleur combo'));
+  ok('main.js : bonus réactivité câblé (reactionBonus + label ⚡)', mainSrc.includes('reactionBonus(coins, stats)') && mainSrc.includes('réactivité +${rb.pct}%'));
+
+  // avgMs envoyé au classement (champ optionnel, hasChildren autorise les champs en plus)
+  const posts3 = [];
+  globalThis.fetch = async (url, opts) => {
+    if (opts && opts.method === 'POST') posts3.push({ url: String(url), body: JSON.parse(opts.body) });
+    return { ok: true, json: async () => null };
+  };
+  await lb.submitScore({ pseudo: 'T', uid: 'u1', score: 500, level: 'L', levelId: 1, mode: 'auto', date: 9, avgMs: 33 }, 'TOK_Z');
+  await lb.submitScore({ pseudo: 'T', uid: 'u1', score: 500, level: 'L', levelId: 1, mode: 'auto', date: 9 }, 'TOK_Z');
+  ok('submitScore envoie avgMs quand présent', posts3.length === 2 && posts3[0].body.avgMs === 33 && !('avgMs' in posts3[1].body));
+  delete globalThis.fetch;
+
+  // onglet ⚡ Réaction
+  ok('main.js : onglet « reaction » dans le filtre + branche isReact (tri croissant avgMs)', mainSrc.includes("{ id: 'reaction', name: '⚡ Réaction' }") && mainSrc.includes('isReact') && mainSrc.includes('a.avgMs - b.avgMs'));
+  ok('main.js : lignes LB affichent ⚡ avgMs quand présent', mainSrc.includes('⚡${e.avgMs}ms'));
+}
+
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);
