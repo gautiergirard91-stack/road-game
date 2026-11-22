@@ -303,4 +303,28 @@ console.log('G. v1.3.28 : zones gauche/droite (mapping pur) + effets jamais auto
   delete globalThis.fetch;
 }
 
+console.log('H. v1.3.29 : contrat des règles RTDB (corps du POST) + nœud scores absent');
+{
+  // Le POST de submitScore doit contenir EXACTEMENT les champs exigés par les règles
+  // (validation au niveau $mode/$id : hasChildren(['pseudo','score','level','mode','date'])).
+  const calls = [];
+  globalThis.fetch = async (url, opts) => {
+    calls.push({ url: String(url), method: opts && opts.method, body: opts && opts.body ? JSON.parse(opts.body) : null });
+    return { ok: true, json: async () => null };
+  };
+  await lb.submitScore({ pseudo: 'Test', score: 123, level: 'Premiers tours', levelId: 1, mode: 'auto', date: 42 });
+  const captured = calls.find((c) => c.method === 'POST'); // submitScore refait un getTop('all') après -> on isole le POST
+  ok('POST vers /scores/auto.json', captured && captured.url.includes('/scores/auto.json') && captured.method === 'POST');
+  const b = captured && captured.body;
+  ok('corps du POST = contrat des règles (5 champs requis présents)', b && ['pseudo', 'score', 'level', 'mode', 'date'].every((k) => k in b));
+  ok('bornes des règles respectées (score <= 1e6, pseudo <= 16)', b && b.score <= 1000000 && String(b.pseudo).length <= 16);
+
+  // nœud scores absent (null) -> lecture OK mais vide -> fallback local, pas de crash
+  globalThis.fetch = async () => ({ ok: true, json: async () => null });
+  const r = await lb.getTop('all');
+  const st = lb.getLbStatus();
+  ok('scores.json = null -> fallback local, source local', Array.isArray(r) && st.source === 'local' && typeof st.error === 'string');
+  delete globalThis.fetch;
+}
+
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);

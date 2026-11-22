@@ -20,7 +20,9 @@ En production, remplacer les règles de test par :
     "scores": {
       ".read": true,
       "$mode": {
-        ".write": "newData.exists() && newData.hasChildren(['pseudo','score','level','mode','date']) && newData.child('score').val() <= 1000000 && newData.child('pseudo').val().length <= 16"
+        "$id": {
+          ".write": "newData.exists() && newData.hasChildren(['pseudo','score','level','mode','date']) && newData.child('score').val() <= 1000000 && newData.child('pseudo').val().length <= 16"
+        }
       }
     },
     "players": {
@@ -34,14 +36,18 @@ En production, remplacer les règles de test par :
       ".write": true
     },
     "challenges": {
+      ".read": true,
       "$day": {
-        ".read": true,
-        ".write": "newData.exists() && newData.hasChildren(['pseudo','score','mode','date']) && newData.child('score').val() <= 1000000 && newData.child('pseudo').val().length <= 16"
+        "$id": {
+          ".write": "newData.exists() && newData.hasChildren(['pseudo','score','mode','date']) && newData.child('score').val() <= 1000000 && newData.child('pseudo').val().length <= 16"
+        }
       }
     }
   }
 }
 ```
+
+> ⚠️ **Piège classique (corrigé en v1.3.29)** : le jeu envoie les scores en **POST push** (`/scores/<mode>.json` → crée `/scores/<mode>/<pushId>`). La validation doit donc être au niveau **`$mode/$id`**, pas au niveau `$mode` : à ce niveau, `newData` a pour enfants les *push IDs*, donc `hasChildren(['pseudo','score',...])` est FAUX → **403 pour toutes les écritures** → le nœud `scores` n'est jamais créé → « on ne voit que soi en local ». Symptôme exact constaté (capture console : `scores` absent, `players` vides).
 
 Puis activer **Firebase App Check** ou au minimum limiter les écritures (les règles ci-dessus bornent score et taille du pseudo). Ne jamais commiter de secret : `FIREBASE_DB_SECRET` reste vide en ligne (les règles remplacent le secret).
 
@@ -81,7 +87,7 @@ export const FIREBASE_DB_SECRET = '';
 
 ## Données envoyées (à déclarer dans la Play Console + PRIVACY.md)
 
-- `/scores/<mode>` : `{ pseudo, score, level, mode, date }` — public en lecture.
+- `/scores/<mode>` : `{ pseudo, score, level, mode, date }` — public en lecture. **Pseudo obligatoire depuis v1.3.29** (modale forcée avant la première partie), envoi systématique : plus d'opt-in.
 - `/players/<pseudo>` : snapshot du profil (pièces, achats, records, succès) — lisible publiquement, modifiable uniquement via l'app.
 - `/challenges/<dayKey>` : `{ pseudo, score, mode, date }` — classement du défi du jour (écriture validée, lecture publique).
 - `/analytics/<event>` : événements agrégés (level_start, game_over, purchase, ad_watched, continue_purchased) — écriture seule.
