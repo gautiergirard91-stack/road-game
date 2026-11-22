@@ -1,7 +1,7 @@
 import { LEVELS, THEMES, SKINS, EFFECTS, DIFFICULTIES, CURRENCIES, WINDOWS, ACHIEVEMENTS, THEME_SHOP, ENDLESS_LEVEL, WEEKEND_LEVEL, PACKS, SOUND_PACKS } from './data.js';
 import { Game, CAR_STYLE_LABEL, renderCarPreview, renderEffectPreview, renderThemePreview, renderPackPreview, renderSoundPreview } from './game.js';
 import * as store from './store.js';
-import { sfx, setEnabled, setMusicEnabled, unlockAudio, applySoundPack } from './audio.js';
+import { sfx, setEnabled, setMusicEnabled, unlockAudio, applySoundPack, setMusicCombo, musicSting, musicVictory } from './audio.js';
 import { coinsForResult, accuracy, avgReaction, continueCost, maxMissesFor, firstClearBonus, isPerfectClear, perfectClearBonus, dailyChallenge, weeklyQuests, fmtTime, zoneFromPoint, keyToAction, isNewerVersion, starsFor, endlessMilestones, isWeekend, weekendCoinMultiplier, filterFriendsByPseudo } from './core.js';
 import { watchRewarded } from './ads.js';
 import { Tutorial } from './tutorial.js';
@@ -346,10 +346,13 @@ function startTutorial() {
     onJudge: (e) => {
       hudScore.textContent = String(e.score);
       hudCombo.textContent = e.combo >= 2 ? `COMBO x${e.combo}` : '';
+      setMusicCombo(e.combo || 0); // v1.3.42 : la musique monte avec le combo
       tut?.onJudge(e);
     },
     onMiss: (m) => {
       updateLives(m);
+      musicSting(); // v1.3.42 : mini-thème d'échec + intensité remise à 0
+      setMusicCombo(0);
       tut?.onMiss();
     },
     onThreshold: () => {},
@@ -882,6 +885,7 @@ function renderGarage() {
 
 function startLevel(level) {
   currentLevel = level;
+  setMusicCombo(0); // v1.3.42 : nouvelle partie -> intensité musicale à 0
   show('screen-game');
   $('#pause-overlay').classList.remove('active');
   hudLevel.textContent = `${level.id}. ${level.name}`;
@@ -904,8 +908,13 @@ function startLevel(level) {
     onJudge: (e) => {
       hudScore.textContent = save.speedrun && game ? fmtTime(game.elapsed) : String(e.score);
       hudCombo.textContent = e.combo >= 2 ? `COMBO x${e.combo}` : '';
+      setMusicCombo(e.combo || 0); // v1.3.42 : tempo/couches montent avec les PARFAIT
     },
-    onMiss: (m) => updateLives(m),
+    onMiss: (m) => {
+      updateLives(m);
+      musicSting(); // v1.3.42 : raté = sting + retour au calme
+      setMusicCombo(0);
+    },
     onThreshold: showContinue,
     onEnd: onGameEnd,
   });
@@ -949,6 +958,10 @@ function startNextCountdown(nextLevel) {
 
 function onGameEnd(stats, level) {
   hideContinue();
+  // v1.3.42 : thème de fin — victoire = arpège montant, défaite = sting ; combo remis à 0
+  if (stats.completed) musicVictory();
+  else musicSting();
+  setMusicCombo(0);
   const sr = Boolean(game && game.speedrun); // v1.3.19 : mode speedrun actif sur cette partie
   const firstClear = !!stats.completed && !save.best[level.id];
   const isRecord = store.setBest(level.id, stats.score);
