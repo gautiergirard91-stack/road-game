@@ -256,3 +256,13 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] `analytics` : POST OK, DELETE/PUT d'un événement existant → 403
 - [ ] `node tests/break.test.mjs` : 88 assertions (contrat ?auth= + uid)
 - [ ] CI verte + CACHE sw bumpé (roadtap-v40) + VERSION 1.3.32 + version.json 1.3.32
+
+## Checklist v1.3.33 (Google Sign-In robuste : repli popup + synchro cloud immédiate)
+
+- [ ] Modale pseudo : bouton GIS officiel + bouton « 🔑 Connexion Google (popup) » (caché une fois connecté)
+- [ ] Connexion via GIS **ou** popup → compte lié, jeton en mémoire, **sauvegarde cloud téléchargée et fusionnée immédiatement** (plus de « page inchangée ») → toast « ☁️ Progression synchronisée »
+- [ ] uBlock/Privacy Badger activés → le bouton GIS échoue proprement, le popup fonctionne (gstatic non bloqué ou whitelister)
+- [ ] Au redémarrage avec `googleRefresh` en localStorage : session restaurée silencieusement (securetoken), cloud rechargé
+- [ ] `database.rules.json` publié (v1.3.32) : `players/<uid>` 200 avec jeton, 401 anonyme ; scores avec `?auth=` + uid → 200, sans uid → 403
+- [ ] `node tests/auth.test.mjs` (nouveau step CI) + `node tests/break.test.mjs` (89) : tout vert
+- [ ] CI verte + CACHE sw bumpé (roadtap-v41) + VERSION 1.3.33 + version.json 1.3.33

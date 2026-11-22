@@ -1,6 +1,6 @@
 // Connexion "Google" sans SDK Firebase : Google Identity Services (bouton officiel)
 // + API REST Firebase (identitytoolkit / securetoken). Zéro dépendance ajoutée.
-import { FIREBASE_WEB_API_KEY, FIREBASE_OAUTH_CLIENT_ID } from './config.js';
+import { FIREBASE_WEB_API_KEY, FIREBASE_OAUTH_CLIENT_ID, FIREBASE_PROJECT_ID, FIREBASE_AUTH_DOMAIN } from './config.js';
 
 let memIdToken = null; // jeton Firebase en mémoire (jamais persisté en clair côté cloud)
 
@@ -33,10 +33,11 @@ function loadGsi() {
   return gsiPromise;
 }
 
-// Échange le jeton Google (ID token) contre une session Firebase (REST, zéro SDK)
+// Échange le jeton Google (ID token) contre une session Firebase (REST, zéro SDK).
+// exporté pour les tests (tests/auth.test.mjs).
 // En form-urlencoded = requête "simple" CORS : AUCUN preflight OPTIONS (celui-ci renvoyait
 // 404 sans Access-Control-Allow-Origin). La réponse POST renvoie ACAO:* si la clé est valide.
-async function exchangeGoogleToken(googleIdToken) {
+export async function exchangeGoogleToken(googleIdToken) {
   const body = new URLSearchParams({
     postBody: `id_token=${encodeURIComponent(googleIdToken)}&providerId=google.com`,
     requestUri: window.location.origin,
@@ -151,4 +152,38 @@ export function signOutGoogle() {
     /* ignore */
   }
   memIdToken = null;
+}
+
+// v1.3.33 : repli "popup" si le bouton GIS est bloqué (uBlock Origin, Privacy Badger, réseau
+// d'entreprise…) : on charge le SDK Firebase officiel depuis gstatic par import dynamique
+// d'URL (zéro build, zéro dépendance) et on fait signInWithPopup. Le jeton Firebase est
+// obtenu directement via getIdToken() — plus besoin d'échange REST dans ce chemin.
+let fbApp = null;
+export async function signInWithPopupGoogle() {
+  if (!isGoogleAuthConfigured()) throw new Error('Google Sign-In non configuré (clés manquantes dans js/config.js — voir docs/FIREBASE.md §5)');
+  const appMod = await import('https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js');
+  const authMod = await import('https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js');
+  if (!fbApp) {
+    fbApp = appMod.initializeApp({
+      apiKey: FIREBASE_WEB_API_KEY,
+      authDomain: FIREBASE_AUTH_DOMAIN,
+      projectId: FIREBASE_PROJECT_ID,
+    });
+  }
+  const auth = authMod.getAuth(fbApp);
+  try {
+    await authMod.setPersistence(auth, authMod.browserLocalPersistence);
+  } catch {
+    /* persistance best-effort */
+  }
+  const cred = await authMod.signInWithPopup(auth, new authMod.GoogleAuthProvider());
+  const user = cred.user;
+  const idToken = await user.getIdToken();
+  return {
+    uid: user.uid,
+    idToken,
+    refreshToken: user.refreshToken || '',
+    email: user.email || '',
+    displayName: user.displayName || '',
+  };
 }

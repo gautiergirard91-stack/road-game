@@ -163,7 +163,13 @@ Difficulté : **modérée** — aucun SDK ajouté : on utilise le bouton officie
 3. **Deux listes de domaines à remplir** (sinon erreur 400 `origin_mismatch` au clic sur le bouton Google) :
    - Firebase : Authentication → **Settings → Authorized domains** → ajouter `roadtap.uk` et `gautiergirard91-stack.github.io` ;
    - **Google Cloud Console** (console.cloud.google.com, même projet) → **API & Services → Credentials** → clic sur le client OAuth `…apps.googleusercontent.com` → **Authorized JavaScript origins** → ajouter `https://roadtap.uk`, `https://gautiergirard91-stack.github.io` (et `http://localhost:8080` pour les tests locaux). Les redirect URIs ne sont pas nécessaires (flux ID-token). Propagation : quelques minutes.
-4. Remplir `FIREBASE_WEB_API_KEY` et `FIREBASE_OAUTH_CLIENT_ID` dans `js/config.js` (clés publiques, commitables).
+4. Remplir `js/config.js` (clés publiques, commitables) : `FIREBASE_WEB_API_KEY`, `FIREBASE_OAUTH_CLIENT_ID`, et depuis v1.3.33 `FIREBASE_PROJECT_ID` + `FIREBASE_AUTH_DOMAIN` (Project settings → Général, ex. `realtime-database-5fd49` / `realtime-database-5fd49.firebaseapp.com`) pour le repli popup.
+6. **v1.3.33 — connexion robuste** : deux chemins de connexion Google coexistent dans la modale pseudo :
+   - le **bouton officiel GIS** (par défaut) ;
+   - un bouton **« 🔑 Connexion Google (popup) »** de repli (visible si GIS est bloqué par uBlock/Privacy Badger) qui charge le SDK Firebase depuis `gstatic` par import dynamique (zéro build) et fait `signInWithPopup`. **À la connexion, la sauvegarde cloud `players/<uid>` est immédiatement téléchargée et fusionnée** (avant v1.3.33 on ne la rechargeait qu'au démarrage → « la page reste inchangée après connexion »).
+   - `database.rules.json` v1.3.32 : `players` exige `auth.uid == $id` → sans compte Google, plus de cloud (100 % local).
+   - Si la connexion échoue : F12 → console + onglet Réseau (`identitytoolkit` / `gstatic` / `accounts.google.com` bloqués ?) + domaines autorisés des deux consoles (étape 3).
+
 5. Règles RTDB : le nœud `players` accepte désormais `(auth != null && auth.uid == $id)` (voir §2) — la sauvegarde cloud est keyed par **uid** quand Google est lié, sinon par pseudo (rétrocompatible).
 
 Données reçues de Google : **uid, email, displayName** (dans le jeton). Le `refreshToken` reste en `localStorage` uniquement et n'est **jamais** envoyé à la base de données. Voir `PRIVACY.md`.
