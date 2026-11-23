@@ -111,3 +111,7 @@ Les touches personnalisées (`save.keys`) ne vivent plus seulement dans `roadtap
 ## v1.3.59 — sonde auth pour départager un HTTP 401
 
 `ping(idToken)` rejoue la requête avec `?auth=` sur 401/403 (`authProbe` dans `getPingStatus()`) : sonde OK = les **règles** exigent une connexion en lecture ; sonde KO = **App Check Enforce** actif sans token valide. `appCheckHeader()` tente un `getToken(ac, true)` (force refresh) avant d'abandonner. L'UI ⚙️ Paramètres affiche la cause exacte.
+
+## v1.3.60 — correction de la clé App Check (cause du 401)
+
+`FIREBASE_APP_CHECK_SITE_KEY` passe à la clé Enterprise « roadtap ent » `6Lf7vCwuAAAAAAamVJvl2tEUsDe-V6mEdVYDc1fW` — la seule avec `roadtap.uk` dans ses domaines autorisés. L'ancienne clé n'émettait aucun jeton (« configuration incomplète » côté Fraud Defense, 0 exécution) → HTTP 401 sous Enforce. Vérifier aussi que Firebase → App Check → Apps enregistre l'app web avec cette même clé.

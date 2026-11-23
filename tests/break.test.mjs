@@ -1217,4 +1217,17 @@ console.log('AK. v1.3.59 : sur 401/403 le ping sonde AVEC jeton auth (authProbe)
   if (origFetch3 === undefined) delete globalThis.fetch; else globalThis.fetch = origFetch3;
 }
 
+console.log('AL. v1.3.60 : la site key App Check = la clé Enterprise « roadtap ent » (6Lf7…) qui a roadtap.uk autorisé (sinon 401 sous Enforce)');
+{
+  const fsJ = await import('node:fs');
+  const cfg = await import('../js/config.js');
+  const ac = await import('../js/appcheck.js');
+  const fireDoc = fsJ.readFileSync(new URL('../docs/FIREBASE.md', import.meta.url), 'utf8');
+
+  ok('config : FIREBASE_APP_CHECK_SITE_KEY = 6Lf7vCwuAAAAAAamVJvl2tEUsDe-V6mEdVYDc1fW (clé « roadtap ent », domaines autorisés roadtap.uk/github.io/localhost)', cfg.FIREBASE_APP_CHECK_SITE_KEY === '6Lf7vCwuAAAAAAamVJvl2tEUsDe-V6mEdVYDc1fW');
+  ok('config : plus aucune trace de l\'ancienne clé 6LecyCwu… hors commentaire', !/6LecyCwu[0-9A-Za-z_-]{10,}/.test(fsJ.readFileSync(new URL('../js/config.js', import.meta.url), 'utf8').replace(/\/\/[^\n]*/g, '')));
+  ok('appcheck : isAppCheckEnabled() true avec cette clé', ac.isAppCheckEnabled() === true);
+  ok('docs/FIREBASE.md : la clé 6Lf7… documentée + gotcha « configuration incomplète »', fireDoc.includes('6Lf7vCwuAAAAAAamVJvl2tEUsDe-V6mEdVYDc1fW') && fireDoc.includes('configuration incompl'));
+}
+
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);

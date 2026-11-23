@@ -1,6 +1,6 @@
 # ✅ Assurance qualité
 
-> **Note (v1.3.59)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.59**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
+> **Note (v1.3.60)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.60**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
 
 ## Processus de test
 
@@ -499,3 +499,12 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] `node tests/break.test.mjs` : section AK (8 assertions : ping+authProbe 3 scénarios, wiring main.js, textes 401 désambigués)
 - [ ] Test manuel : connecté, si le serveur répond 401 → ⚙️ Paramètres affiche la cause exacte (règles vs App Check)
 - [ ] CI verte + CACHE sw bumpé (roadtap-v67) + VERSION 1.3.59 + version.json 1.3.59
+
+## Checklist v1.3.60 (bonne clé App Check Enterprise « roadtap ent » — branche `vibe/cle-appcheck-264a24`)
+
+- [ ] `js/config.js` : `FIREBASE_APP_CHECK_SITE_KEY = '6Lf7vCwuAAAAAAamVJvl2tEUsDe-V6mEdVYDc1fW'` (clé avec roadtap.uk/github.io/localhost autorisés) — plus aucune trace de l'ancienne `6LecyCwu…` hors commentaire explicatif
+- [ ] `docs/FIREBASE.md` §8 : cause racine documentée (« configuration incomplète » = mauvaise clé côté site)
+- [ ] `node tests/break.test.mjs` : section AL (4 assertions : clé = 6Lf7…, ancienne clé absente du code, isAppCheckEnabled, doc)
+- [ ] Côté console (à faire) : Firebase → App Check → Apps : l'app web `realtime-database-5fd49.firebaseapp.com` doit utiliser le provider reCAPTCHA Enterprise avec **la même clé 6Lf7vCwu…** ; puis attendre « verified » avant de garder Enforce
+- [ ] Test manuel après déploiement : ⚙️ Paramètres → serveur 🟢 avec « App Check 🟢 token OK » ; Fraud Defense → la clé « roadtap ent » affiche des exécutions/scores (>0)
+- [ ] CI verte + CACHE sw bumpé (roadtap-v68) + VERSION 1.3.60 + version.json 1.3.60
