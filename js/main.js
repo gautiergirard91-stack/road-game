@@ -1312,17 +1312,21 @@ function serverStatusText(ok, p, ac) {
   }
   // v1.3.59 : un 401 a DEUX causes possibles — la sonde auth (ping avec jeton) les départage :
   // sonde OK = règles exigent auth en lecture ; sonde KO = App Check Enforce sans token valide.
+  // v1.3.62 : on ajoute l'état du token App Check (obtenu ou pas + erreur) pour cibler la cause.
+  const acTxt = ac && ac.configured
+    ? ` · App Check ${ac.tokenOk === true ? '🟢 token OK' : ac.tokenOk === false ? `🔴 token KO (${ac.lastError || 'erreur inconnue'})` : '🟡 non testé'}`
+    : '';
   if (p && p.reason === 'http-401') {
-    if (p.authProbe && p.authProbe.ok) return '🟠 HTTP 401 anonyme mais OK connecté — les RÈGLES exigent auth en lecture : republier database.rules.json (scores/speedrun/challenges en ".read": true) — mode local';
-    return '🟠 HTTP 401 même connecté — App Check Enforce actif sans token valide : ajouter roadtap.uk aux domaines autorisés reCAPTCHA Enterprise + vérifier la site key (console) — mode local';
+    if (p.authProbe && p.authProbe.ok) return '🟠 HTTP 401 anonyme mais OK connecté — les RÈGLES exigent auth en lecture : republier database.rules.json (scores/speedrun/challenges en ".read": true) — mode local' + acTxt;
+    return '🟠 HTTP 401 même connecté — App Check Enforce actif sans token valide : la clé 6Lf7vCwu… doit être enregistrée dans Firebase → App Check → Apps (app web) + reCAPTCHA Enterprise API activée + roadtap.uk autorisé — mode local' + acTxt;
   }
   if (p && p.reason === 'http-403') {
-    if (p.authProbe && p.authProbe.ok) return '🟠 HTTP 403 anonyme mais OK connecté — les RÈGLES refusent la lecture publique : republier database.rules.json — mode local';
-    return '🟠 Firebase refuse (HTTP 403) — règles RTDB : scores/speedrun/challenges doivent garder ".read": true (voir database.rules.json) — mode local';
+    if (p.authProbe && p.authProbe.ok) return '🟠 HTTP 403 anonyme mais OK connecté — les RÈGLES refusent la lecture publique : republier database.rules.json — mode local' + acTxt;
+    return '🟠 Firebase refuse (HTTP 403) — règles RTDB : scores/speedrun/challenges doivent garder ".read": true (voir database.rules.json) — mode local' + acTxt;
   }
-  if (p && p.reason && p.reason.startsWith('http-')) return `🟠 Firebase répond HTTP ${p.status} — mode local (voir docs/FIREBASE.md §9)`;
-  if (p && p.reason === 'network') return `🔴 Firebase injoignable (réseau/DNS/CORS — ${p.error || 'essaie sans bloqueur d\'extensions'}) — mode local`;
-  return '🔴 Serveur injoignable (mode local)';
+  if (p && p.reason && p.reason.startsWith('http-')) return `🟠 Firebase répond HTTP ${p.status} — mode local (voir docs/FIREBASE.md §9)` + acTxt;
+  if (p && p.reason === 'network') return `🔴 Firebase injoignable (réseau/DNS/CORS — ${p.error || 'essaie sans bloqueur d\'extensions'}) — mode local` + acTxt;
+  return '🔴 Serveur injoignable (mode local)' + acTxt;
 }
 
 async function updateServerStatus() {

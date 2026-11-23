@@ -119,3 +119,7 @@ Les touches personnalisées (`save.keys`) ne vivent plus seulement dans `roadtap
 ## v1.3.61 — doc App Check
 
 Précision : le bandeau Fraud Defense « demander des scores (évaluations) » vise la vérification **backend** (siteverify + clé secrète), que Road Tap Racer ne fait pas — Firebase App Check vérifie les jetons reCAPTCHA côté serveur. Seules les **exécutions** (jetons) comptent, et elles sont active depuis v1.3.60 (clé `6Lf7vCwu…`).
+
+## v1.3.62 — diagnostic 401 « même connecté » : état du jeton App Check affiché + timeout borné
+
+La sonde auth (v1.3.59) a prouvé que le 401 persistant venait d'**App Check Enforce sans jeton accepté** (pas des règles). v1.3.62 affiche l'état réel du jeton dans ⚙️ Paramètres (`token OK` vs `token KO + erreur exacte`) et borne `getToken` à 4 s pour ne jamais bloquer les requêtes. Cause n°1 restante : la clé `6Lf7vCwu…` doit être enregistrée telle quelle dans **Firebase → App Check → Apps** pour l'app web (provider reCAPTCHA Enterprise).

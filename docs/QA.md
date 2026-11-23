@@ -1,6 +1,6 @@
 # ✅ Assurance qualité
 
-> **Note (v1.3.61)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.61**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
+> **Note (v1.3.62)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.62**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
 
 ## Processus de test
 
@@ -515,3 +515,12 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] Vérifs post-déploiement v1.3.60 : Fraud Defense « roadtap ent » exécutions > 0 ; App Check → APIs RTDB « verified » ; site ⚙️ Paramètres 🟢 « App Check 🟢 token OK » ; classement en ligne
 - [ ] Aucun changement de code fonctionnel (docs uniquement) + triple bump v1.3.61/roadtap-v69
 - [ ] CI verte + 6 tests + audit ✅
+
+## Checklist v1.3.62 (401 même connecté → état du token App Check affiché + timeout du jeton — branche `vibe/diag-token-401-264a24`)
+
+- [ ] `appcheck.js` : `appCheckHeader()` avec **timeout borné** (4 s, `_setTokenTimeoutMs` pour tests, timer `unref`) — un getToken qui pend ne bloque plus les requêtes RTDB
+- [ ] `main.js` `serverStatusText()` : TOUTES les branches d'erreur (401/403/http/network) suffixées par `· App Check 🟢 token OK / 🔴 token KO (lastError) / 🟡 non testé` ; branche 401 cite la clé `6Lf7vCwu…` + « Firebase → App Check → Apps »
+- [ ] `docs/FIREBASE.md` §9 : mise à jour v1.3.62 (4 causes ordonnées du « 401 même connecté » + filet de sécurité Unprotected)
+- [ ] `node tests/break.test.mjs` : section AM (4 assertions : acTxt dans les branches, message 401, timeout borné avec provider qui pend < 1 s)
+- [ ] Test manuel : ⚙️ Paramètres → serveur en 401 affiche « App Check 🔴 token KO (…) » ou « 🟢 token OK » → on sait si le jeton est obtenu
+- [ ] CI verte + 6 tests + audit ✅ + CACHE roadtap-v70 + VERSION 1.3.62 + version.json 1.3.62
