@@ -1252,4 +1252,27 @@ console.log('AM. v1.3.62 : 401 même connecté = App Check Enforce sans token �
   ac._setTokenTimeoutMs(4000);
 }
 
+console.log('AN. v1.3.63 : FIREBASE_APP_ID (ID d\'application de l\'app web) passé à initializeApp — sans lui l\'échange de jeton App Check renvoie 400 (throttled) → 401 sous Enforce');
+{
+  const fsL = await import('node:fs');
+  const cfg = await import('../js/config.js');
+  const acSrc = fsL.readFileSync(new URL('../js/appcheck.js', import.meta.url), 'utf8');
+  const authSrc = fsL.readFileSync(new URL('../js/auth.js', import.meta.url), 'utf8');
+  const mainSrc = fsL.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  const ac = await import('../js/appcheck.js');
+
+  ok('config.js : FIREBASE_APP_ID exporté (placeholder documenté, publique)', 'FIREBASE_APP_ID' in cfg && acSrc.includes('FIREBASE_APP_ID'));
+  ok('appcheck.js : initializeApp reçoit appId: FIREBASE_APP_ID', acSrc.includes('appId: FIREBASE_APP_ID'));
+  ok('auth.js : initializeApp reçoit aussi appId (même app web)', authSrc.includes('appId: FIREBASE_APP_ID'));
+  ok('appcheck.js : sans appId, initAppCheck échoue proprement avec lastError explicite', acSrc.includes('FIREBASE_APP_ID manquant'));
+  ok('appCheckDebug() : champ appIdMissing cohérent avec la config', ac.appCheckDebug().appIdMissing === !cfg.FIREBASE_APP_ID);
+  ok('main.js : serverStatusText affiche le hint FIREBASE_APP_ID manquant si appIdMissing', mainSrc.includes('FIREBASE_APP_ID manquant'));
+
+  // comportement : appId vide (placeholder) -> init null + header vide, jamais de throw
+  if (!cfg.FIREBASE_APP_ID) {
+    const h = await ac.appCheckHeader();
+    ok('appId vide : appCheckHeader() -> {} sans throw + lastError mentionne FIREBASE_APP_ID', !h['X-Firebase-AppCheck'] && /FIREBASE_APP_ID/.test(ac.appCheckDebug().lastError || ''));
+  }
+}
+
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);

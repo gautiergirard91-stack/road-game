@@ -1314,7 +1314,7 @@ function serverStatusText(ok, p, ac) {
   // sonde OK = règles exigent auth en lecture ; sonde KO = App Check Enforce sans token valide.
   // v1.3.62 : on ajoute l'état du token App Check (obtenu ou pas + erreur) pour cibler la cause.
   const acTxt = ac && ac.configured
-    ? ` · App Check ${ac.tokenOk === true ? '🟢 token OK' : ac.tokenOk === false ? `🔴 token KO (${ac.lastError || 'erreur inconnue'})` : '🟡 non testé'}`
+    ? ` · App Check ${ac.appIdMissing ? '🔴 FIREBASE_APP_ID manquant — copier l\'ID d\'application de l\'app web (Firebase → ⚙️ Paramètres du projet → Vos applications) dans js/config.js' : ac.tokenOk === true ? '🟢 token OK' : ac.tokenOk === false ? `🔴 token KO (${ac.lastError || 'erreur inconnue'})` : '🟡 non testé'}`
     : '';
   if (p && p.reason === 'http-401') {
     if (p.authProbe && p.authProbe.ok) return '🟠 HTTP 401 anonyme mais OK connecté — les RÈGLES exigent auth en lecture : republier database.rules.json (scores/speedrun/challenges en ".read": true) — mode local' + acTxt;

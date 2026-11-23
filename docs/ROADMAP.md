@@ -123,3 +123,7 @@ Précision : le bandeau Fraud Defense « demander des scores (évaluations) » v
 ## v1.3.62 — diagnostic 401 « même connecté » : état du jeton App Check affiché + timeout borné
 
 La sonde auth (v1.3.59) a prouvé que le 401 persistant venait d'**App Check Enforce sans jeton accepté** (pas des règles). v1.3.62 affiche l'état réel du jeton dans ⚙️ Paramètres (`token OK` vs `token KO + erreur exacte`) et borne `getToken` à 4 s pour ne jamais bloquer les requêtes. Cause n°1 restante : la clé `6Lf7vCwu…` doit être enregistrée telle quelle dans **Firebase → App Check → Apps** pour l'app web (provider reCAPTCHA Enterprise).
+
+## v1.3.63 — FIREBASE_APP_ID (cause racine du 401 sous Enforce)
+
+L'échange de jeton App Check exige l'**ID d'application** de l'app web (`1:…:web:…`, Firebase → Paramètres du projet → Vos applications) passé à `initializeApp`. Sans lui : `getToken` → 400 → throttled → 0 % de requêtes validées → RTDB Enforced renvoie 401 partout. `FIREBASE_APP_ID` est ajouté à `js/config.js` (à remplir), passé dans `appcheck.js` et `auth.js`, et le diagnostic ⚙️ Paramètres signale explicitement « FIREBASE_APP_ID manquant » si le placeholder est vide.
