@@ -13,6 +13,9 @@ let initPromise = null;
 let appCheckInstance = null;
 let tokenProvider = null; // injectable pour les tests (tests/appcheck.test.mjs)
 let fetchInstalled = false;
+// v1.3.58 : état de debug pour expliquer « serveur injoignable » dans ⚙️ Paramètres
+let lastTokenOk = null; // null = jamais tenté, true/false sinon
+let lastAppCheckError = null;
 
 export function isAppCheckEnabled() {
   return Boolean(FIREBASE_APP_CHECK_SITE_KEY);
@@ -41,6 +44,7 @@ export async function initAppCheck() {
       return appCheckInstance;
     } catch (e) {
       console.warn('[appcheck] init impossible (hors ligne / gstatic bloqué ?):', (e && e.message) || e);
+      lastAppCheckError = String((e && e.message) || e); // v1.3.58
       appCheckInstance = null;
       return null;
     }
@@ -48,13 +52,28 @@ export async function initAppCheck() {
   return initPromise;
 }
 
+// v1.3.58 : état lisible par l'UI (diagnostic serveur) — jamais de throw
+export function appCheckDebug() {
+  return {
+    configured: isAppCheckEnabled(),
+    initAttempted: Boolean(initPromise),
+    initialized: Boolean(appCheckInstance),
+    tokenOk: lastTokenOk,
+    lastError: lastAppCheckError,
+  };
+}
+
 // Renvoie { 'X-Firebase-AppCheck': token } ou {} (jamais de throw)
 export async function appCheckHeader() {
   if (tokenProvider) {
     try {
       const t = await tokenProvider();
+      lastTokenOk = Boolean(t); // v1.3.58
+      if (!t) lastAppCheckError = 'token vide (provider de test)';
       return t ? { 'X-Firebase-AppCheck': t } : {};
-    } catch {
+    } catch (e) {
+      lastTokenOk = false; // v1.3.58
+      lastAppCheckError = String((e && e.message) || e);
       return {};
     }
   }
@@ -64,8 +83,12 @@ export async function appCheckHeader() {
   try {
     const acMod = await import(AC_MOD);
     const { token } = await acMod.getToken(ac, false);
+    lastTokenOk = Boolean(token); // v1.3.58
+    if (!token) lastAppCheckError = 'getToken a renvoyé un token vide';
     return token ? { 'X-Firebase-AppCheck': token } : {};
-  } catch {
+  } catch (e) {
+    lastTokenOk = false; // v1.3.58 — typiquement « domain not authorized » (roadtap.uk absent des domaines autorisés)
+    lastAppCheckError = String((e && e.message) || e);
     return {};
   }
 }

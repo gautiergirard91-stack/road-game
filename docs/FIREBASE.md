@@ -194,3 +194,21 @@ La clé `FIREBASE_WEB_API_KEY` (`AIzaSy…`) dans `js/config.js` est **publique 
 ## 8. App Check (reCAPTCHA v3) — anti-scripts sur RTDB (v1.3.34)
 
 Le jeu pose automatiquement le header `X-Firebase-AppCheck` sur tous les appels REST RTDB (`js/appcheck.js` + `FIREBASE_APP_CHECK_SITE_KEY` dans `js/config.js`, provider **reCAPTCHA Enterprise / Fraud Defense** — v3 déprécié par Firebase). Procédure console (détail dans `docs/SECURITY.md`) : clé Enterprise score-based dans Cloud Console → enregistrer l'app web dans **Security > App Check > Apps** avec le provider reCAPTCHA Enterprise → déployer le code → vérifier les métriques « verified » → **Enforce** sur Realtime Database (APIs). Ordre impératif : code d'abord, enforce ensuite (sinon les vieux clients sont rejetés). La sonde `version.json` + reset SW auto (v1.3.30) font monter les testeurs sur la bonne version automatiquement.
+
+## 9. Dépannage : le site affiche « Serveur injoignable » (v1.3.58)
+
+Depuis v1.3.58, ⚙️ Paramètres → « 🔃 Revérifier le serveur » affiche **la cause** (ligne 🏠 hébergement + ligne Firebase avec HTTP ou ms, et l'état du token App Check). Lecture des causes :
+
+| Symptôme | Cause la plus probable | Où vérifier |
+|---|---|---|
+| 🟠 **HTTP 401** sur Firebase, App Check « token INDISPONIBLE » | App Check **Enforce** actif sur RTDB mais le navigateur n'obtient pas de token → `roadtap.uk` absent des **domaines autorisés** de la clé reCAPTCHA Enterprise (ou mauvaise site key) | Cloud Console → Security → reCAPTCHA Enterprise (Fraud Defense) → domaines autorisés : ajouter `roadtap.uk` (+ `localhost` pour les tests) ; App Check → Apps : l'app web enregistrée avec cette clé ; `FIREBASE_APP_CHECK_SITE_KEY` dans `js/config.js` = la même clé |
+| 🟠 **HTTP 403** sur Firebase | Règles RTDB modifiées : `scores` / `speedrun` / `challenges` n'ont plus `".read": true` (lecture publique) | Firebase console → Realtime Database → Règles : comparer avec `database.rules.json` (miroir §2) |
+| 🔴 **réseau / CORS** | Extension bloqueuse (uBlock, Privacy Badger) qui bloque `firebasedatabase.app` ou gstatic, DNS, ou hors ligne | Navigateur sans extension, `navigator.onLine`, console réseau (erreur CORS = domaine bloqué) |
+| 🏠 hébergement 🔴 | Le site lui-même ne répond pas (Pages down ?) | `https://roadtap.uk/version.json` dans un navigateur / `curl` |
+
+Contrôles rapides :
+
+- `curl "https://<FIREBASE_DB_URL>/scores.json?shallow=true"` → **200** si App Check non enforce ; **401** si Enforce est actif **sans token** (comportement attendu — le navigateur, lui, envoie le header `X-Firebase-AppCheck` automatiquement, voir `js/appcheck.js`).
+- App Check → APIs : la métrique Realtime Database doit passer à « verified » quelques minutes après le déploiement du code.
+- Ordre impératif : **code déployé d'abord, Enforce ensuite** (sinon les clients sans token valide sont rejetés → « serveur injoignable » pour tout le monde).
+- La ligne de diagnostic du classement (`#lb-source`, ex. « HTTP 401 sur scores/auto — affichage local ») confirme la même cause côté lecture.

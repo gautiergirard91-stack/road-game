@@ -10,6 +10,11 @@ let lastLbError = null;       // ex: 'HTTP 401 sur scores/auto' (lecture) | null
 let lastLbWriteError = null;  // ex: 'écriture HTTP 403 sur scores/auto' (envoi) | null — v1.3.28 : conservé même après une lecture
 let lastLbCount = 0;          // nb d'entrées lues depuis Firebase à la dernière lecture
 let lastLbSource = 'local';   // 'firebase' | 'local'
+// v1.3.58 : dernier ping détaillé { ok, status, reason: 'ok'|'http-XXX'|'network'|'unconfigured', ms, at, error? }
+let lastPing = null;
+export function getPingStatus() {
+  return lastPing;
+}
 export function getLbStatus() {
   return { error: lastLbError, writeError: lastLbWriteError, count: lastLbCount, source: lastLbSource, online: isOnline() };
 }
@@ -24,15 +29,26 @@ export function isOnline() {
 }
 
 export async function ping() {
-  if (!isOnline()) return false;
+  // v1.3.58 : on conserve le détail du dernier ping pour expliquer la cause exacte
+  // (réseau vs HTTP 401 App Check vs HTTP 403 règles) dans ⚙️ Paramètres > Serveur.
+  if (!isOnline()) {
+    lastPing = { ok: false, status: 0, reason: 'unconfigured', ms: null, at: Date.now() };
+    return false;
+  }
+  const t0 = Date.now();
   try {
     const base = FIREBASE_DB_URL.replace(/\/$/, '');
     const q = FIREBASE_DB_SECRET ? `auth=${FIREBASE_DB_SECRET}&shallow=true` : 'shallow=true';
     // la racine n'est volontairement PAS lisible publiquement (règles RTDB) :
     // on pingue un nœud public (scores, ".read": true) pour tester la connexion
     const res = await fetch(`${base}/scores/.json?${q}`);
+    const ms = Date.now() - t0;
+    lastPing = res.ok
+      ? { ok: true, status: res.status, reason: 'ok', ms, at: Date.now() }
+      : { ok: false, status: res.status, reason: 'http-' + res.status, ms, at: Date.now() };
     return res.ok;
-  } catch {
+  } catch (e) {
+    lastPing = { ok: false, status: 0, reason: 'network', ms: Date.now() - t0, at: Date.now(), error: String((e && e.message) || e) };
     return false;
   }
 }
