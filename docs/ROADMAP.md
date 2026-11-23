@@ -103,3 +103,7 @@ Le mode speedrun n'existe plus qu'en **Permis A** : verrouillé dans l'UI (picke
 ## v1.3.57 — touches sauvegardées avec le compte
 
 Les touches personnalisées (`save.keys`) ne vivent plus seulement dans `roadtap_save_v1` : elles sont **calées sur le compte** à deux niveaux — cloud (`players/<uid>.keys`, déjà en place) et **backup locale par compte** (`roadtap_keys_v1_<uid|pseudo>`), restaurée au chargement si la save principale a perdu les touches. Un CTRL+F5, un clear partiel ou une save corrompue n'efface plus la config. La déconnexion (`resetProgress`) remet la progression à 0 mais **conserve la config** (touches, zones, son/musique, accessibilité).
+
+## v1.3.58 — diagnostic « serveur injoignable » avec la cause exacte
+
+`ping()` détaille désormais le dernier échec (`getPingStatus()` : `ok` / `http-401` / `http-403` / `network` + latence ms), `appCheckDebug()` expose l'état du token App Check, et ⚙️ Paramètres teste **séparément** l'hébergement (sonde `version.json`) et Firebase. Causes typiques : App Check **Enforce** actif avec token indisponible (domaine `roadtap.uk` absent des domaines autorisés reCAPTCHA Enterprise → HTTP 401), règles RTDB modifiées (`scores` plus en `.read: true` → HTTP 403), ou réseau/CORS (extension bloqueuse). Voir `docs/FIREBASE.md` §9.

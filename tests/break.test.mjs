@@ -1137,4 +1137,45 @@ console.log('AI. v1.3.57 : touches sauvegardées AVEC LE COMPTE (backup local ro
   ok("store.js : préfixe 'roadtap_keys_v1_' + restoreKeysForAccount() appelé dans load()", storeSrc.includes("'roadtap_keys_v1_'") && storeSrc.includes('restoreKeysForAccount();'));
 }
 
+console.log('AJ. v1.3.58 : diagnostic serveur détaillé — ping avec cause (ok/http-XXX/network + ms), App Check tokenOk, hébergement propre testé à part');
+{
+  const fsH = await import('node:fs');
+  const html = fsH.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const mainSrc = fsH.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  const lbSrc = fsH.readFileSync(new URL('../js/leaderboard.js', import.meta.url), 'utf8');
+  const ac = await import('../js/appcheck.js');
+
+  ok('HTML : ligne #set-host ajoutée dans ⚙️ Paramètres', html.includes('id="set-host"') && html.includes('id="set-server"'));
+  ok('leaderboard.js : getPingStatus() exporté + ping() enregistre lastPing (ok/http/network)', lbSrc.includes('export function getPingStatus()') && lbSrc.includes("reason: 'http-' + res.status") && lbSrc.includes("reason: 'network'"));
+  ok('main.js : updateServerStatus async + teste version.json (no-store) + getPingStatus + appCheckDebug + serverStatusText', mainSrc.includes('async function updateServerStatus()') && mainSrc.includes('hostEl') && mainSrc.includes("cache: 'no-store'") && mainSrc.includes('serverStatusText(') && mainSrc.includes('appCheckDebug()'));
+  ok('main.js : serverStatusText distingue 401 (App Check/domaines) vs 403 (règles) vs réseau', mainSrc.includes("p.reason === 'http-401'") && mainSrc.includes("p.reason === 'http-403'") && mainSrc.includes("p.reason === 'network'"));
+
+  // ping OK -> true + reason ok + ms mesuré
+  const origFetch2 = globalThis.fetch;
+  globalThis.fetch = async () => ({ ok: true, status: 200, json: async () => ({}) });
+  let okPing = await lb.ping();
+  let ps = lb.getPingStatus();
+  ok('ping OK -> true, reason=ok, status 200, ms nombre', okPing === true && ps.reason === 'ok' && ps.status === 200 && typeof ps.ms === 'number');
+  // ping HTTP 401 (App Check Enforce sans token valide)
+  globalThis.fetch = async () => ({ ok: false, status: 401 });
+  okPing = await lb.ping();
+  ps = lb.getPingStatus();
+  ok('ping HTTP 401 -> false, reason=http-401 (diagnostic App Check)', okPing === false && ps.reason === 'http-401' && ps.status === 401);
+  // ping réseau KO
+  globalThis.fetch = async () => { throw new TypeError('Failed to fetch'); };
+  okPing = await lb.ping();
+  ps = lb.getPingStatus();
+  ok('ping réseau KO -> false, reason=network, erreur conservée', okPing === false && ps.reason === 'network' && typeof ps.error === 'string' && ps.error.includes('Failed to fetch'));
+  if (origFetch2 === undefined) delete globalThis.fetch; else globalThis.fetch = origFetch2;
+
+  // appCheckDebug + appCheckHeader
+  ac._setTokenProvider(async () => 'TOK');
+  const h1 = await ac.appCheckHeader();
+  ok('appCheckHeader (provider OK) -> header posé + appCheckDebug().tokenOk === true', h1['X-Firebase-AppCheck'] === 'TOK' && ac.appCheckDebug().tokenOk === true && ac.appCheckDebug().configured === true);
+  ac._setTokenProvider(async () => { throw new Error('domain not authorized'); });
+  const h2 = await ac.appCheckHeader();
+  ok('token en échec -> header vide + tokenOk=false + lastError (cause « serveur injoignable »)', !h2['X-Firebase-AppCheck'] && ac.appCheckDebug().tokenOk === false && /domain not authorized/.test(ac.appCheckDebug().lastError || ''));
+  ac._setTokenProvider(null);
+}
+
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);

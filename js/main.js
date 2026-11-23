@@ -8,7 +8,7 @@ import { Tutorial } from './tutorial.js';
 import * as leaderboard from './leaderboard.js';
 import * as cloudsave from './cloudsave.js';
 import { restoreGoogleSession, setAuthToken, getAuthToken, signOutGoogle, isGoogleAuthConfigured, signInWithPopupGoogle } from './auth.js';
-import { initAppCheck, installAppCheckFetch } from './appcheck.js';
+import { initAppCheck, installAppCheckFetch, appCheckDebug } from './appcheck.js';
 import { logEvent } from './analytics.js';
 import { VERSION } from './config.js';
 
@@ -458,8 +458,15 @@ function refreshStatus() {
   el.textContent = '🟡 Connexion au serveur…';
   el.className = 'net-pill local';
   leaderboard.ping().then((ok) => {
-    el.textContent = ok ? '🟢 En ligne — serveur OK' : '🟠 Serveur injoignable (mode local)';
-    el.className = 'net-pill ' + (ok ? 'on' : 'local');
+    // v1.3.58 : on affiche la CAUSE (HTTP xxx / réseau / ms) et pas juste « injoignable »
+    const p = leaderboard.getPingStatus();
+    if (ok && p) {
+      el.textContent = `🟢 En ligne — ${p.ms} ms`;
+      el.className = 'net-pill on';
+    } else {
+      el.textContent = p && p.reason && p.reason.startsWith('http-') ? `🟠 HTTP ${p.status} (mode local)` : '🔴 Injoignable (mode local)';
+      el.className = 'net-pill local';
+    }
   });
 }
 
@@ -1297,9 +1304,35 @@ function renderSettings() {
   updateServerStatus();
 }
 
-function updateServerStatus() {
+// v1.3.58 : texte explicite de la CAUSE quand le serveur semble « injoignable »
+function serverStatusText(ok, p, ac) {
+  if (ok && p) {
+    const acTxt = ac && ac.configured ? ` · App Check ${ac.tokenOk === true ? '🟢 token OK' : ac.tokenOk === false ? '🔴 token INDISPONIBLE' : '🟡 non testé'}` : '';
+    return `🟢 Firebase en ligne — ping ${p.ms} ms${acTxt}`;
+  }
+  if (p && p.reason === 'http-401') return '🟠 Firebase refuse (HTTP 401) — App Check Enforce actif mais token absent/invalide : vérifier que roadtap.uk est dans les domaines autorisés reCAPTCHA Enterprise (console) — mode local';
+  if (p && p.reason === 'http-403') return '🟠 Firebase refuse (HTTP 403) — règles RTDB : scores/speedrun/challenges doivent garder ".read": true (voir database.rules.json) — mode local';
+  if (p && p.reason && p.reason.startsWith('http-')) return `🟠 Firebase répond HTTP ${p.status} — mode local (voir docs/FIREBASE.md §9)`;
+  if (p && p.reason === 'network') return `🔴 Firebase injoignable (réseau/DNS/CORS — ${p.error || 'essaie sans bloqueur d\'extensions'}) — mode local`;
+  return '🔴 Serveur injoignable (mode local)';
+}
+
+async function updateServerStatus() {
   const el = $('#set-server');
+  const hostEl = $('#set-host');
   if (!el) return;
+  // v1.3.58 : on teste AUSSI notre propre hébergement (version.json same-origin, jamais caché
+  // par le SW) pour distinguer « notre site ne répond pas » de « Firebase refuse ».
+  if (hostEl) hostEl.textContent = '🏠 Hébergement : vérification…';
+  try {
+    const r = await fetch(`version.json?ts=${Date.now()}`, { cache: 'no-store' });
+    if (r.ok) {
+      const d = await r.json();
+      if (hostEl) hostEl.textContent = `🏠 Hébergement : 🟢 OK${d && d.version ? ` (v${d.version} déployée)` : ''}`;
+    } else if (hostEl) hostEl.textContent = `🏠 Hébergement : 🟠 HTTP ${r.status}`;
+  } catch {
+    if (hostEl) hostEl.textContent = '🏠 Hébergement : 🔴 injoignable (hors ligne ?)';
+  }
   if (!navigator.onLine) {
     el.textContent = '🔴 Hors ligne (navigateur) — progression locale uniquement';
     return;
@@ -1308,13 +1341,12 @@ function updateServerStatus() {
     el.textContent = '🟡 Mode local (serveur non configuré) — voir docs/FIREBASE.md';
     return;
   }
-  el.textContent = '🟡 Connexion au serveur…';
-  leaderboard.ping().then((ok) => {
-    const st = leaderboard.getLbStatus();
-    el.textContent = ok
-      ? `🟢 En ligne — serveur OK${st && st.writeError ? ` (⚠ ${st.writeError})` : ''}`
-      : '🔴 Serveur injoignable (mode local)';
-  });
+  el.textContent = '🟡 Firebase : connexion au serveur…';
+  const ok = await leaderboard.ping();
+  const st = leaderboard.getLbStatus();
+  let ac = null;
+  try { ac = appCheckDebug(); } catch { ac = null; }
+  el.textContent = serverStatusText(ok, leaderboard.getPingStatus(), ac) + (ok && st && st.writeError ? ` (⚠ ${st.writeError})` : '');
 }
 
 let settingsFrom = 'menu'; // 'menu' | 'pause' — d'où vient l'ouverture des Paramètres

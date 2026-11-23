@@ -1,6 +1,6 @@
 # ✅ Assurance qualité
 
-> **Note (v1.3.57)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.57**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
+> **Note (v1.3.58)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.58**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
 
 ## Processus de test
 
@@ -479,3 +479,14 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] Test manuel : compte Google connecté → changer une touche dans ⚙️ Paramètres → vérifier `localStorage["roadtap_keys_v1_<uid>"]` → **CTRL+F5** → la touche est toujours là ; supprimer `roadtap_save_v1` seul → recharger → les touches reviennent depuis la backup ; se déconnecter → touches conservées, progression à 0 ; se reconnecter → touches du cloud fusionnées
 - [ ] Joueur anonyme : touches dans `roadtap_save_v1` (survit au CTRL+F5, localStorage n'est jamais vidé par un rechargement)
 - [ ] CI verte + CACHE sw bumpé (roadtap-v65) + VERSION 1.3.57 + version.json 1.3.57
+
+## Checklist v1.3.58 (diagnostic « serveur injoignable » avec la cause — branche `vibe/diag-serveur-264a24`)
+
+- [ ] `leaderboard.js` : `ping()` enregistre `lastPing { ok, status, reason: ok|http-XXX|network|unconfigured, ms, error? }` + `getPingStatus()` exporté (retour booléen inchangé)
+- [ ] `appcheck.js` : `appCheckDebug()` exporté (`configured/initAttempted/initialized/tokenOk/lastError`) ; `appCheckHeader()` met à jour `tokenOk`/`lastError` (succès, token vide, exception « domain not authorized »…)
+- [ ] `main.js` : `updateServerStatus()` async teste **l'hébergement** (`version.json` no-store, ligne `#set-host`) **puis Firebase** (`serverStatusText` : 🟢 ms + App Check / 🟠 HTTP 401 App Check Enforce sans token / 🟠 HTTP 403 règles / 🔴 réseau) ; pilule réseau affiche aussi HTTP xxx ou ms
+- [ ] `index.html` : nouvelle ligne `id="set-host"` dans ⚙️ Paramètres
+- [ ] `docs/FIREBASE.md` §9 : dépannage « Serveur injoignable » (domaines autorisés roadtap.uk, Enforce, règles `.read: true`, extensions bloqueuses, curl de contrôle)
+- [ ] `node tests/break.test.mjs` : section AJ (10 assertions : ping ok/401/réseau, appCheckDebug, wiring HTML/JS)
+- [ ] Test manuel : ⚙️ Paramètres → « 🔃 Revérifier le serveur » affiche hébergement + Firebase avec cause ; couper le réseau → 🔴 réseau/hors ligne ; bloquer firebasedatabase.app (uBlock) → 🔴 réseau
+- [ ] CI verte + CACHE sw bumpé (roadtap-v66) + VERSION 1.3.58 + version.json 1.3.58
