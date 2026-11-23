@@ -99,3 +99,7 @@ Le mode speedrun n'existe plus qu'en **Permis A** : verrouillé dans l'UI (picke
 - Contrat speedrun corrigé dans `leaderboard.js` : fallback `mode` = `permisA` (cohérence avec v1.3.54).
 - Vérification en profondeur du classement (contrat client ↔ règles RTDB : create-only, `auth != null`, `uid == auth.uid`, rejet `wideWindows`, `.indexOn`, échappement HTML des pseudos) : **conforme**, aucun trou trouvé côté client. À confirmer côté console Firebase que les règles publiées = `database.rules.json` (miroir `docs/FIREBASE.md` §2) et que App Check est passé en **Enforce** sur RTDB.
 - Rappel sécurité : aucun secret hors `js/config.js` (audit §10), en-tête App Check limité aux URLs `firebasedatabase.app`.
+
+## v1.3.57 — touches sauvegardées avec le compte
+
+Les touches personnalisées (`save.keys`) ne vivent plus seulement dans `roadtap_save_v1` : elles sont **calées sur le compte** à deux niveaux — cloud (`players/<uid>.keys`, déjà en place) et **backup locale par compte** (`roadtap_keys_v1_<uid|pseudo>`), restaurée au chargement si la save principale a perdu les touches. Un CTRL+F5, un clear partiel ou une save corrompue n'efface plus la config. La déconnexion (`resetProgress`) remet la progression à 0 mais **conserve la config** (touches, zones, son/musique, accessibilité).

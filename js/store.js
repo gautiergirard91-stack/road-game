@@ -166,6 +166,7 @@ export function load() {
   } catch {
     save = sanitize(defaults());
   }
+  restoreKeysForAccount(); // v1.3.57 : récupère les touches du compte si la save principale les a perdues
   return save;
 }
 
@@ -335,12 +336,50 @@ export function setKey(action, code) {
   if (!next) return false;
   save.keys = next;
   persist();
+  backupKeysForAccount(); // v1.3.57 : la config touches suit le compte, pas seulement la save principale
   return true;
 }
 
 export function setKeys(keys) {
   save.keys = sanitizeKeys(keys);
   persist();
+  backupKeysForAccount(); // v1.3.57
+}
+
+// v1.3.57 : les touches sont sauvegardées AVEC LE COMPTE, à deux niveaux :
+// - cloud : players/<uid>.keys via snapshot()/mergeRemote() (déjà en place depuis v1.3.47)
+// - local : clé dédiée par compte roadtap_keys_v1_<uid|pseudo>, écrite à chaque rebind et à
+//   chaque connexion, restaurée au chargement si la save principale a perdu les touches
+//   (clear site data partiel, save corrompue, ancien resetProgress) -> un CTRL+F5 ou un
+//   rechargement ne efface plus jamais la config du joueur.
+const KEYS_ACCT_PREFIX = 'roadtap_keys_v1_';
+export function keysAccountId() {
+  return save.uid || save.pseudo || '';
+}
+export function backupKeysForAccount() {
+  const id = keysAccountId();
+  if (!id) return false;
+  try {
+    localStorage.setItem(KEYS_ACCT_PREFIX + id, JSON.stringify(save.keys));
+    return true;
+  } catch {
+    return false;
+  }
+}
+export function restoreKeysForAccount() {
+  const id = keysAccountId();
+  if (!id) return false;
+  try {
+    const raw = localStorage.getItem(KEYS_ACCT_PREFIX + id);
+    if (!raw) return false;
+    const k = sanitizeKeys(JSON.parse(raw));
+    if (JSON.stringify(k) === JSON.stringify(save.keys)) return false;
+    save.keys = k;
+    persist();
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function setSound(on) {
@@ -495,8 +534,9 @@ export function clearGoogleAccount() {
   persist();
 }
 
-// v1.3.40 : déconnexion Google -> on repart de 0 EN LOCAL. Seules les préférences matérielles
-// de l'appareil sont conservées (son, musique, accessibilité écran). Le cloud players/<uid>
+// v1.3.40 : déconnexion Google -> on repart de 0 EN LOCAL. Seules les préférences de l'appareil
+// sont conservées (son, musique, accessibilité écran + v1.3.57 : touches personnalisées, qui sont
+// de la config, pas de la progression). Le cloud players/<uid>
 // n'est PAS touché : à la reconnexion, cette save locale (à 0) fusionne avec le cloud via
 // mergeRemote (max/union par champ) -> la progression cloud revient.
 export function resetProgress() {
@@ -505,6 +545,8 @@ export function resetProgress() {
     music: save.music,
     wideWindows: save.wideWindows,
     colorblind: save.colorblind,
+    horizontalZones: save.horizontalZones, // v1.3.57 : préférence d'accessibilité = config, pas progression
+    keys: save.keys, // v1.3.57 : les touches sont la config du joueur — JAMAIS effacées par une déconnexion
   };
   save = sanitize({ ...defaults(), ...keepDevicePrefs });
   persist();
