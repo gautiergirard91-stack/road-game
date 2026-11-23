@@ -76,61 +76,61 @@ export const LEVELS = [
 
 export const SKINS = [
   { id: 'default', name: 'Berline grise', color: '#9aa3b2', cost: 0, currency: 'auto', model: 'berline', style: 'photo' },
-  { id: 'rouge', name: 'Berline rouge', color: '#e0393e', cost: 200, currency: 'auto', model: 'berline' },
-  { id: 'bleue', name: 'Citadine bleue', color: '#2f7de1', cost: 200, currency: 'auto', model: 'citadine' },
-  { id: 'verte', name: 'Berline verte', color: '#2fae5f', cost: 300, currency: 'auto', model: 'berline' },
-  { id: 'jaune', name: 'Citadine lime', color: '#a8c93a', cost: 400, currency: 'auto', model: 'citadine' },
-  { id: 'sport', name: 'Sport orange', color: '#ffb020', cost: 600, currency: 'permisA', model: 'sport' },
-  { id: 'taxi', name: 'Taxi', color: '#f7d117', cost: 800, currency: 'permisA', model: 'citadine' },
-  { id: 'suv', name: '4x4 vert', color: '#3f7d4e', cost: 2500, currency: 'permisA', model: 'suv' },
-  { id: 'suvnoir', name: '4x4 noir mat', color: '#23262e', cost: 3200, currency: 'permisA', model: 'suv', shine: true },
-  { id: 'or', name: 'Berline or', color: '#f5c542', cost: 1200, currency: 'pilote', model: 'berline', shine: true },
-  { id: 'arc', name: 'Sport arc-en-ciel', color: '#ff5c8a', cost: 2000, currency: 'pilote', model: 'sport', rainbow: true },
-  { id: 'police', name: 'Police', color: '#eef2f7', cost: 3000, currency: 'pilote', model: 'berline' },
+  { id: 'rouge', name: 'Berline rouge', color: '#e0393e', cost: 600, currency: 'auto', model: 'berline' },
+  { id: 'bleue', name: 'Citadine bleue', color: '#2f7de1', cost: 600, currency: 'auto', model: 'citadine' },
+  { id: 'verte', name: 'Berline verte', color: '#2fae5f', cost: 900, currency: 'auto', model: 'berline' },
+  { id: 'jaune', name: 'Citadine lime', color: '#a8c93a', cost: 1200, currency: 'auto', model: 'citadine' },
+  { id: 'sport', name: 'Sport orange', color: '#ffb020', cost: 1800, currency: 'permisA', model: 'sport' },
+  { id: 'taxi', name: 'Taxi', color: '#f7d117', cost: 2400, currency: 'permisA', model: 'citadine' },
+  { id: 'suv', name: '4x4 vert', color: '#3f7d4e', cost: 7500, currency: 'permisA', model: 'suv' },
+  { id: 'suvnoir', name: '4x4 noir mat', color: '#23262e', cost: 9600, currency: 'permisA', model: 'suv', shine: true },
+  { id: 'or', name: 'Berline or', color: '#f5c542', cost: 3600, currency: 'pilote', model: 'berline', shine: true },
+  { id: 'arc', name: 'Sport arc-en-ciel', color: '#ff5c8a', cost: 6000, currency: 'pilote', model: 'sport', rainbow: true },
+  { id: 'police', name: 'Police', color: '#eef2f7', cost: 9000, currency: 'pilote', model: 'berline' },
   // v1.3.35 : récompense Survie ∞ (50 lignes) — coût 0 = jamais achetable (voir store.buySkin)
   { id: 'endless_or', name: '🏆 Survie d’or', color: '#ffd700', cost: 0, currency: 'auto', model: 'limo', style: 'holo', shine: true },
-  { id: 'f1rouge', name: 'F1 rouge', color: '#d21f2b', cost: 5000, currency: 'pilote', model: 'f1' },
-  { id: 'f1noire', name: 'F1 noire', color: '#15171c', cost: 6500, currency: 'pilote', model: 'f1', shine: true },
+  { id: 'f1rouge', name: 'F1 rouge', color: '#d21f2b', cost: 15000, currency: 'pilote', model: 'f1' },
+  { id: 'f1noire', name: 'F1 noire', color: '#15171c', cost: 19500, currency: 'pilote', model: 'f1', shine: true },
   // v1.3.12 : styles de rendu variés (du photoréaliste aux blocs)
   { id: 'blocs', name: 'Classique (blocs)', color: '#8a93a6', cost: 0, currency: 'auto', model: 'citadine', style: 'flat' },
-  { id: 'pixel', name: 'Pixel 8-bit', color: '#54f0ff', cost: 1200, currency: 'auto', model: 'citadine', style: 'pixel' },
-  { id: 'retro', name: 'Rétro 80s', color: '#e05c9a', cost: 1800, currency: 'auto', model: 'berline', style: 'retro' },
-  { id: 'toy', name: 'Jouet plastique', color: '#ff8a3d', cost: 2200, currency: 'permisA', model: 'citadine', style: 'toy' },
-  { id: 'neoncar', name: 'Néon', color: '#54f0ff', cost: 3500, currency: 'permisA', model: 'sport', style: 'neon' },
-  { id: 'holo', name: 'Hologramme', color: '#9ef0ff', cost: 5500, currency: 'pilote', model: 'sport', style: 'holo' },
+  { id: 'pixel', name: 'Pixel 8-bit', color: '#54f0ff', cost: 3600, currency: 'auto', model: 'citadine', style: 'pixel' },
+  { id: 'retro', name: 'Rétro 80s', color: '#e05c9a', cost: 5400, currency: 'auto', model: 'berline', style: 'retro' },
+  { id: 'toy', name: 'Jouet plastique', color: '#ff8a3d', cost: 6600, currency: 'permisA', model: 'citadine', style: 'toy' },
+  { id: 'neoncar', name: 'Néon', color: '#54f0ff', cost: 10500, currency: 'permisA', model: 'sport', style: 'neon' },
+  { id: 'holo', name: 'Hologramme', color: '#9ef0ff', cost: 16500, currency: 'pilote', model: 'sport', style: 'holo' },
   // v1.3.15 : nouveaux modèles top-down
-  { id: 'kart', name: 'Kart', color: '#ff6b35', cost: 1500, currency: 'auto', model: 'kart' },
-  { id: 'deuxcv', name: '2CV vintage', color: '#7fb3d5', cost: 2000, currency: 'auto', model: '2cv', style: 'retro' },
-  { id: 'van', name: 'Fourgon', color: '#e8e8e8', cost: 2800, currency: 'permisA', model: 'van' },
-  { id: 'decab', name: 'Décapotable', color: '#d21f2b', cost: 3200, currency: 'permisA', model: 'decapotable' },
-  { id: 'camion', name: 'Camion benne', color: '#f39c12', cost: 4500, currency: 'pilote', model: 'camion' },
-  { id: 'monster', name: 'Monster truck', color: '#8e44ad', cost: 6000, currency: 'pilote', model: 'monster' },
-  { id: 'limo', name: 'Limousine', color: '#1a1a22', cost: 8000, currency: 'pilote', model: 'limo', shine: true },
-  { id: 'supercar', name: 'Supercar', color: '#00c2ff', cost: 9500, currency: 'pilote', model: 'supercar' },
+  { id: 'kart', name: 'Kart', color: '#ff6b35', cost: 4500, currency: 'auto', model: 'kart' },
+  { id: 'deuxcv', name: '2CV vintage', color: '#7fb3d5', cost: 6000, currency: 'auto', model: '2cv', style: 'retro' },
+  { id: 'van', name: 'Fourgon', color: '#e8e8e8', cost: 8400, currency: 'permisA', model: 'van' },
+  { id: 'decab', name: 'Décapotable', color: '#d21f2b', cost: 9600, currency: 'permisA', model: 'decapotable' },
+  { id: 'camion', name: 'Camion benne', color: '#f39c12', cost: 13500, currency: 'pilote', model: 'camion' },
+  { id: 'monster', name: 'Monster truck', color: '#8e44ad', cost: 18000, currency: 'pilote', model: 'monster' },
+  { id: 'limo', name: 'Limousine', color: '#1a1a22', cost: 24000, currency: 'pilote', model: 'limo', shine: true },
+  { id: 'supercar', name: 'Supercar', color: '#00c2ff', cost: 28500, currency: 'pilote', model: 'supercar' },
 ];
 
 export const EFFECTS = [
-  { id: 'trail', name: 'Traînée de particules', desc: 'La voiture laisse une traînée derrière elle.', cost: 400, currency: 'auto' },
-  { id: 'glow', name: 'Lignes lumineuses', desc: 'Les lignes brillent quand tu les réussis.', cost: 400, currency: 'auto' },
-  { id: 'shake', name: 'Secousse', desc: "L'écran vibre à chaque PARFAIT.", cost: 600, currency: 'auto' },
-  { id: 'confetti', name: 'Confettis', desc: 'Des confettis explosent à chaque PARFAIT.', cost: 1000, currency: 'auto' },
-  { id: 'rain', name: '🌧 Pluie', desc: "Il pleut sur la route (effet météo).", cost: 800, currency: 'permisA' },
-  { id: 'snowfall', name: '❄ Neige qui tombe', desc: 'Des flocons tombent (effet météo).', cost: 800, currency: 'permisA' },
-  { id: 'rainbow', name: '🌈 Lignes arc-en-ciel', desc: 'Les lignes changent de couleur en continu.', cost: 1500, currency: 'permisA' },
-  { id: 'vignette', name: '🎥 Vignette cinéma', desc: "Assombrit les bords de l'écran.", cost: 900, currency: 'permisA' },
-  { id: 'fire', name: '🔥 Traînée de feu', desc: 'La voiture crache des flammes quand ton combo atteint 10.', cost: 1500, currency: 'pilote' },
-  { id: 'ghost', name: '👻 Voiture fantôme', desc: 'Une silhouette fantôme marque les changements de voie.', cost: 2000, currency: 'pilote' },
+  { id: 'trail', name: 'Traînée de particules', desc: 'La voiture laisse une traînée derrière elle.', cost: 1200, currency: 'auto' },
+  { id: 'glow', name: 'Lignes lumineuses', desc: 'Les lignes brillent quand tu les réussis.', cost: 1200, currency: 'auto' },
+  { id: 'shake', name: 'Secousse', desc: "L'écran vibre à chaque PARFAIT.", cost: 1800, currency: 'auto' },
+  { id: 'confetti', name: 'Confettis', desc: 'Des confettis explosent à chaque PARFAIT.', cost: 3000, currency: 'auto' },
+  { id: 'rain', name: '🌧 Pluie', desc: "Il pleut sur la route (effet météo).", cost: 2400, currency: 'permisA' },
+  { id: 'snowfall', name: '❄ Neige qui tombe', desc: 'Des flocons tombent (effet météo).', cost: 2400, currency: 'permisA' },
+  { id: 'rainbow', name: '🌈 Lignes arc-en-ciel', desc: 'Les lignes changent de couleur en continu.', cost: 4500, currency: 'permisA' },
+  { id: 'vignette', name: '🎥 Vignette cinéma', desc: "Assombrit les bords de l'écran.", cost: 2700, currency: 'permisA' },
+  { id: 'fire', name: '🔥 Traînée de feu', desc: 'La voiture crache des flammes quand ton combo atteint 10.', cost: 4500, currency: 'pilote' },
+  { id: 'ghost', name: '👻 Voiture fantôme', desc: 'Une silhouette fantôme marque les changements de voie.', cost: 6000, currency: 'pilote' },
 ];
 
 export const THEME_SHOP = [
-  { id: 'neon', name: '🌃 Thème Néon', desc: 'Remplace le décor de tous les niveaux par la ville néon.', cost: 2500, currency: 'permisA' },
-  { id: 'sunset', name: '🌇 Thème Coucher de soleil', desc: 'Remplace le décor de tous les niveaux.', cost: 2500, currency: 'permisA' },
+  { id: 'neon', name: '🌃 Thème Néon', desc: 'Remplace le décor de tous les niveaux par la ville néon.', cost: 7500, currency: 'permisA' },
+  { id: 'sunset', name: '🌇 Thème Coucher de soleil', desc: 'Remplace le décor de tous les niveaux.', cost: 7500, currency: 'permisA' },
 ];
 
 // Packs : plusieurs cosmétiques à prix réduit, payés dans une seule monnaie
 export const PACKS = [
   {
-    id: 'pack_debutant', name: '🎁 Pack Débutant', currency: 'auto', cost: 500,
+    id: 'pack_debutant', name: '🎁 Pack Débutant', currency: 'auto', cost: 1500,
     desc: 'Berline rouge + lignes lumineuses + secousse (économie de 300 🪙).',
     items: [
       { type: 'skin', id: 'rouge' },
@@ -139,7 +139,7 @@ export const PACKS = [
     ],
   },
   {
-    id: 'pack_sport', name: '🏎️ Pack Sport', currency: 'pilote', cost: 6500,
+    id: 'pack_sport', name: '🏎️ Pack Sport', currency: 'pilote', cost: 19500,
     desc: 'Sport orange + F1 rouge + confettis + traînée de feu.',
     items: [
       { type: 'skin', id: 'sport' },
@@ -153,8 +153,8 @@ export const PACKS = [
 // Packs de sons : remplacent les bruitages du jeu (100 % cosmétiques)
 export const SOUND_PACKS = [
   { id: 'default', name: '🔊 Sons standard', desc: 'Les sons de base du jeu.', cost: 0, currency: 'auto' },
-  { id: 'arcade', name: '🕹️ Pack Arcade 8-bit', desc: 'Bruitages rétro pour PARFAIT, ratés, pièces…', cost: 1200, currency: 'permisA' },
-  { id: 'synthwave', name: '🌆 Pack Synthwave', desc: 'Sons futuristes avec montées en fréquence.', cost: 2500, currency: 'pilote' },
+  { id: 'arcade', name: '🕹️ Pack Arcade 8-bit', desc: 'Bruitages rétro pour PARFAIT, ratés, pièces…', cost: 3600, currency: 'permisA' },
+  { id: 'synthwave', name: '🌆 Pack Synthwave', desc: 'Sons futuristes avec montées en fréquence.', cost: 7500, currency: 'pilote' },
 ];
 
 export const ENDLESS_LEVEL = {
@@ -185,4 +185,18 @@ export const ACHIEVEMENTS = [
   { id: 'survie1000', name: 'Légende de la survie', desc: '1000 points en mode Survie ∞', reward: 500, test: (c) => c.level.endless && c.stats.score >= 1000 },
   { id: 'champion', name: 'Champion', desc: 'Terminer les 12 niveaux', reward: 2000, test: (c) => LEVELS.filter((l) => !l.endless).every((l) => (c.best[l.id] || 0) > 0) },
   { id: 'trophy_all', name: 'Collectionneur', desc: 'Médaille 🥇 (full parfait) sur tous les niveaux', reward: 3000, test: (c) => Object.keys(c.trophies || {}).length >= LEVELS.filter((l) => !l.endless).length },
+  // v1.3.66 : +12 succès
+  { id: 'overtake1', name: 'Premier dépassement', desc: 'Réussir un dépassement', reward: 50, test: (c) => c.totals.overtakes >= 1 },
+  { id: 'overtake25', name: 'As du volant', desc: '25 dépassements au total', reward: 400, test: (c) => c.totals.overtakes >= 25 },
+  { id: 'overtake100', name: 'Routard', desc: '100 dépassements au total', reward: 1000, test: (c) => c.totals.overtakes >= 100 },
+  { id: 'perfects1000', name: 'Laser', desc: '1000 PARFAIT au total', reward: 800, test: (c) => c.totals.perfects >= 1000 },
+  { id: 'combo100', name: 'Inarrêtable', desc: 'Atteindre un combo de 100', reward: 1500, test: (c) => c.stats.bestCombo >= 100 },
+  { id: 'star3', name: 'Étoile filante', desc: 'Une médaille 🥇 (3 étoiles) sur un niveau', reward: 300, test: (c) => Object.values(c.trophies || {}).some((v) => v >= 3) },
+  { id: 'speedrun1', name: 'Speedrunner', desc: 'Avoir un temps enregistré en mode Speedrun', reward: 500, test: (c) => Object.keys(c.bestTime || {}).length >= 1 },
+  { id: 'reflex40', name: "Réflexes d'acier", desc: 'Réaction moyenne ≤ 40 ms sur une partie (≥ 10 lignes)', reward: 700, test: (c) => { const r = (c.stats.reactions || []); return r.length >= 10 && r.reduce((s2, x) => s2 + x, 0) / r.length <= 40; } },
+  { id: 'streak7', name: 'Semaine parfaite', desc: 'Streak de 7 jours', reward: 400, test: (c) => (c.streak || 0) >= 7 },
+  { id: 'rich10k', name: 'Économe', desc: '10 000 pièces au total dans les portefeuilles', reward: 600, test: (c) => Object.values(c.wallets || {}).reduce((s2, v) => s2 + (v || 0), 0) >= 10000 },
+  { id: 'friend1', name: 'Sociable', desc: 'Ajouter un ami au classement', reward: 100, test: (c) => (c.friends || []).length >= 1 },
+  { id: 'weekend_win', name: 'Week-ender', desc: 'Terminer le niveau week-end 🎉', reward: 800, test: (c) => c.stats.completed && c.level && c.level.weekend === true },
+  { id: 'all_modes', name: 'Triple couronne', desc: 'Un record > 0 dans les 3 difficultés', reward: 1200, test: (c) => ['auto', 'permisA', 'pilote'].every((m) => Object.keys(c.best || {}).some((k) => k.startsWith(m + ':') && c.best[k] > 0)) },
 ];

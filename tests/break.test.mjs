@@ -1310,4 +1310,58 @@ console.log('AO. v1.3.65 : liste du joueur — tuto raccourci (9 étapes, ❤ r�
   ok('game.js : plus de shadowBlur=18/22 dans le rendu des lignes (pulse/glow en alpha)', !/shadowBlur = (18|22)/.test(renderZone));
 }
 
+console.log('AP. v1.3.66 : liste du joueur (2/2) — prix boutique x3, affichage boutique/garage réparé (fuite // + canvas #game sous les menus), +13 succès, file hors-ligne -> serveur au retour en ligne');
+{
+  const fsN = await import('node:fs');
+  const data = await import('../js/data.js');
+  const mainSrc = fsN.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  const lbSrc = fsN.readFileSync(new URL('../js/leaderboard.js', import.meta.url), 'utf8');
+  const css = fsN.readFileSync(new URL('../css/style.css', import.meta.url), 'utf8');
+  const dataSrc = fsN.readFileSync(new URL('../js/data.js', import.meta.url), 'utf8');
+
+  // prix x3 (arrondi 50) côté boutique, niveaux inchangés
+  ok('boutique : prix x3 arrondis (rouge 200->600, f1noire 6500->19500, effet trail 400->1200)', data.SKINS.find((x) => x.id === 'rouge').cost === 600 && data.SKINS.find((x) => x.id === 'f1noire').cost === 19500 && data.EFFECTS.find((x) => x.id === 'trail').cost === 1200);
+  ok('niveaux : coûts de déblocage inchangés (niveau 2 = 150)', data.LEVELS.find((l) => l.id === 2).cost === 150);
+  ok('cost: 0 préservé (skins gratuites)', data.SKINS.find((x) => x.id === 'default').cost === 0 && data.SKINS.find((x) => x.id === 'blocs').cost === 0);
+
+  // affichage boutique/garage
+  ok('main.js : plus de fuite de commentaire // dans les templates de cartes', !mainSrc.includes('</div> //'));
+  ok('main.js : show() cache le canvas #game hors écran de jeu (plus de frame fantôme sous les menus)', mainSrc.includes("gc.classList.toggle('hidden', id !== 'screen-game')"));
+  ok('css : #game.hidden { display:none }', css.includes('#game.hidden'));
+  const shopH = mainSrc.slice(mainSrc.indexOf("on('btn-shop'"), mainSrc.indexOf("on('btn-mode-normal'"));
+  const garH = mainSrc.slice(mainSrc.indexOf("on('btn-garage'"), mainSrc.indexOf("on('btn-garage-back'"));
+  ok('main.js : ouverture boutique/garage = show() AVANT render (aperçus visibles)', shopH.indexOf("show('screen-shop')") > -1 && shopH.indexOf("show('screen-shop')") < shopH.indexOf('renderShop()') && garH.indexOf("show('screen-garage')") > -1 && garH.indexOf("show('screen-garage')") < garH.indexOf('renderGarage()'));
+  ok('css : .shop-card .swatch n\'impose plus 52x52 (taille portée par canvas.swatch.*)', !/\.shop-card \.swatch \{[^}]*width: 52px/.test(css));
+
+  // +13 succès (27 au total) + contexte enrichi
+  ok('data.js : 27 succès (14 + 13 nouveaux v1.3.66)', data.ACHIEVEMENTS.length === 27);
+  ok('main.js : checkAchievements enrichi (bestTime/wallets/friends/streak)', mainSrc.includes('bestTime: store.get().bestTime') && mainSrc.includes('streak: save.streak'));
+  // les nouveaux succès ne plantent jamais (test() robuste sur ctx vide)
+  const badCtx = { stats: {}, level: {}, totals: {}, mode: 'auto', best: {}, trophies: {}, bestTime: {}, wallets: {}, friends: [], streak: 0 };
+  ok('tous les tests de succès passent sans throw sur ctx minimal', data.ACHIEVEMENTS.every((a) => { try { a.test(badCtx); return true; } catch { return false; } }));
+
+  // file hors-ligne -> serveur
+  ok('leaderboard.js : QUEUE_KEY roadtap_lb_queue_v1 + flushQueue exporté + enqueue dans submit*', lbSrc.includes("roadtap_lb_queue_v1") && lbSrc.includes('export async function flushQueue') && (lbSrc.match(/enqueue\('/g) || []).length >= 6);
+  ok('main.js : flushQueue câblé (online + connexion + ouverture classement + ping OK)', (mainSrc.split('flushQueue(').length - 1) >= 4 && mainSrc.includes("addEventListener('online'"));
+
+  // fonctionnel : submit sans jeton -> file ; flush avec jeton -> envoyé + file vidée + uid rattaché
+  delete mem['roadtap_lb_queue_v1'];
+  await lb.submitScore({ pseudo: 'HorsLigne', uid: '', score: 500, level: 'Accélération', levelId: 2, mode: 'auto', date: 1 }, null);
+  ok('submitScore sans jeton -> mis en file (queueSize=1), gardé en local', lb.queueSize() === 1);
+  const origF = globalThis.fetch;
+  const posts = [];
+  globalThis.fetch = async (url, opts) => {
+    posts.push({ url: String(url), body: opts && opts.body ? JSON.parse(opts.body) : null });
+    return { ok: true, status: 200, json: async () => ({}) };
+  };
+  const sent = await lb.flushQueue('TOK', 'uid-9');
+  const post = posts.find((c) => c.url.includes('/scores/auto.json') && c.body && c.body.score === 500);
+  ok('flushQueue(TOK, uid) -> 1 envoyé, POST /scores/auto.json avec uid rattaché, file vidée', sent === 1 && lb.queueSize() === 0 && !!post && post.body.uid === 'uid-9');
+  // flush sans jeton -> rien
+  await lb.submitScore({ pseudo: 'Anon', uid: '', score: 1, level: 'X', levelId: 1, mode: 'auto', date: 2 }, null);
+  const sent2 = await lb.flushQueue(null, '');
+  ok('flushQueue sans jeton -> 0 envoyé, la file reste (attente connexion)', sent2 === 0 && lb.queueSize() === 1);
+  if (origF === undefined) delete globalThis.fetch; else globalThis.fetch = origF;
+}
+
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);

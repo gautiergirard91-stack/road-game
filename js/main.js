@@ -446,7 +446,7 @@ function renderAchievements() {
 }
 
 function checkAchievements(stats, level) {
-  const ctx = { stats, level, totals: store.get().totals, mode: save.difficulty, best: store.bestFlat(), trophies: store.get().trophies || {} }; // v1.3.44 : best aplati (succès tous modes)
+  const ctx = { stats, level, totals: store.get().totals, mode: save.difficulty, best: store.bestFlat(), trophies: store.get().trophies || {}, bestTime: store.get().bestTime || {}, wallets: store.get().wallets || {}, friends: save.friends || [], streak: save.streak || 0 }; // v1.3.44 best aplati ; v1.3.66 : + bestTime/wallets/friends/streak pour les nouveaux succès
   const newly = [];
   for (const a of ACHIEVEMENTS) {
     if (!save.achievements.includes(a.id)) {
@@ -490,6 +490,7 @@ function refreshStatus() {
     if (ok && p) {
       el.textContent = `🟢 En ligne — ${p.ms} ms`;
       el.className = 'net-pill on';
+      leaderboard.flushQueue(getAuthToken(), save.uid); // v1.3.66 : en ligne -> on vide la file
     } else {
       el.textContent = p && p.reason && p.reason.startsWith('http-') ? `🟠 HTTP ${p.status} (mode local)` : '🔴 Injoignable (mode local)';
       el.className = 'net-pill local';
@@ -510,6 +511,8 @@ function updateWeekendBanner() {
 function show(id) {
   currentScreen = id;
   $$('.screen').forEach((s) => s.classList.toggle('active', s.id === id));
+  const gc = $('#game');
+  if (gc) gc.classList.toggle('hidden', id !== 'screen-game'); // v1.3.66 : canvas visible UNIQUEMENT en jeu (sinon sa dernière frame transparaît sous les menus)
   $('#hud').classList.toggle('hidden', id !== 'screen-game');
   // la bannière de tutoriel ne s'affiche que si un tutoriel est réellement actif
   $('#tut-banner').classList.toggle('hidden', id !== 'screen-game' || !tutActive);
@@ -519,7 +522,12 @@ function show(id) {
   }
 }
 
-window.addEventListener('online', refreshStatus);
+window.addEventListener('online', () => { // v1.3.66 : de retour en ligne -> on vide la file hors ligne vers le serveur (si connecté)
+  refreshStatus();
+  leaderboard.flushQueue(getAuthToken(), save.uid).then((n) => {
+    if (n > 0) toast(`☁️ ${n} résultat(s) hors ligne envoyé(s) au classement`);
+  });
+});
 window.addEventListener('offline', refreshStatus);
 
 const cur = (diff) => CURRENCIES[diff] || CURRENCIES.auto;
@@ -708,11 +716,12 @@ function renderShop() {
     const selected = save.skin === s.id;
     const card = document.createElement('div');
     card.className = 'card shop-card';
+    // v1.3.50 : le libellé 'photo' est vidé (CAR_STYLE_LABEL.photo = '')
     card.innerHTML = `
       <canvas class="swatch car-preview" aria-label="Aperçu ${s.name}"></canvas>
       <div class="card-body">
         <div class="card-title">${s.name}</div>
-        <div class="card-sub">${[MODEL_LABEL[s.model] || 'Berline', CAR_STYLE_LABEL[s.style || 'photo']].filter(Boolean).join(' · ')}</div> // v1.3.50 : libellé 'photo' vidé
+        <div class="card-sub">${[MODEL_LABEL[s.model] || 'Berline', CAR_STYLE_LABEL[s.style || 'photo']].filter(Boolean).join(' · ')}</div>
       </div>
       <button class="btn small">${selected ? '✓ Équipée' : owned ? 'Équiper' : (s.cost > 0 ? `${s.cost} ${cur(s.currency || 'auto').icon}` : '🏆 Survie ∞ 50 lignes')}</button>`;
     card.querySelector('button').addEventListener('click', () => {
@@ -913,11 +922,12 @@ function renderGarage() {
     const selected = save.skin === s.id;
     const card = document.createElement('div');
     card.className = 'card shop-card garage-card' + (selected ? ' selected' : '');
+    // v1.3.50 : le libellé 'photo' est vidé (CAR_STYLE_LABEL.photo = '')
     card.innerHTML = `
       <canvas class="swatch garage-preview" aria-label="Aperçu ${s.name}"></canvas>
       <div class="card-body">
         <div class="card-title">${selected ? '✓ ' : ''}${escapeHtml(s.name)}</div>
-        <div class="card-sub">${[MODEL_LABEL[s.model] || 'Berline', CAR_STYLE_LABEL[s.style || 'photo']].filter(Boolean).join(' · ')}</div> // v1.3.50 : libellé 'photo' vidé
+        <div class="card-sub">${[MODEL_LABEL[s.model] || 'Berline', CAR_STYLE_LABEL[s.style || 'photo']].filter(Boolean).join(' · ')}</div>
       </div>
       <button class="btn small">${selected ? '✓ Équipée' : 'Équiper'}</button>`;
     card.querySelector('button').addEventListener('click', () => {
@@ -1449,6 +1459,7 @@ on('btn-leaderboard', 'click', () => {
     lbLevelFilter = 'all';
     saveLbFilters();
   }
+  leaderboard.flushQueue(getAuthToken(), save.uid); // v1.3.66 : file hors ligne vidée si possible
   renderLbScope(); // v1.3.36 : onglets 🌍 Tous / 👥 Amis
   renderFriends();
   renderLbFilter();
@@ -1469,8 +1480,8 @@ on('friend-input', 'keydown', (e) => {
 });
 on('btn-garage', 'click', () => {
   sfx.click();
+  show('screen-garage'); // v1.3.66 : on affiche AVANT de rendre (aperçus canvas)
   renderGarage(); // v1.3.36 : garage purement visuel
-  show('screen-garage');
 });
 on('btn-garage-back', 'click', () => {
   sfx.click();
@@ -1524,6 +1535,9 @@ async function completeGoogleSignIn(sess) {
   }
   pushCloud();
   store.backupKeysForAccount(); // v1.3.57 : les touches fusionnées (cloud) sont aussi calées sur le compte en local
+  leaderboard.flushQueue(getAuthToken(), save.uid).then((n) => { // v1.3.66 : résultats hors ligne -> serveur
+    if (n > 0) toast(`☁️ ${n} résultat(s) hors ligne envoyé(s) au classement`);
+  });
 }
 
 function updateGoogleStatus() {
@@ -1651,9 +1665,9 @@ on('btn-pseudo-save', 'click', () => {
 });
 on('btn-shop', 'click', () => {
   sfx.click();
+  show('screen-shop'); // v1.3.66 : on affiche AVANT de rendre (les aperçus canvas ont besoin de l'écran visible)
   renderShop();
   showShopPage(shopCat);
-  show('screen-shop');
 });
 on('btn-mode-normal', 'click', () => {
   store.setSpeedrun(false);

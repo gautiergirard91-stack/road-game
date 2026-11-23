@@ -28,6 +28,12 @@ body {
   touch-action: none;
 }
 
+/* v1.3.66 : hors écran de jeu, le canvas est caché (les .screen sont transparents :
+   sinon la dernière frame du jeu, popups compris, transparaît sous garage/boutique/...) */
+#game.hidden {
+  display: none;
+}
+
 .hidden {
   display: none !important;
 }
@@ -368,9 +374,10 @@ canvas.card-theme.level-preview {
   margin-top: 8px;
 }
 
+/* v1.3.66 : plus de width/height ici — la taille des canvas swatch est portée par les règles
+   canvas.swatch.*-preview (56×64 / 72×84) + le style inline posé par le rendu ; un conflit 52×52
+   déformait les voitures (mélange de versions SW). */
 .shop-card .swatch {
-  width: 52px;
-  height: 52px;
   border-radius: 12px;
   flex-shrink: 0;
   border: 2px solid rgba(255, 255, 255, 0.25);

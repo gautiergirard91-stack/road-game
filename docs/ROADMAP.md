@@ -135,3 +135,9 @@ L'échange de jeton App Check exige l'**ID d'application** de l'app web (`1:…:
 - **Classement** : filtres (mode/niveau/amis) **mémorisés** dans `roadtap_lb_filters_v1` et restaurés à la réouverture.
 - **Musique** : démarre dès le lancement de la partie (`musicKick()` au clic « Jouer » — reprend l'AudioContext dans le geste utilisateur).
 - **Perf** : suppression des `shadowBlur` sur les lignes/voiture en jeu (halos en alpha) → plus de freeze au tap sur mobile.
+
+## v1.3.66 — liste du joueur (partie 2 : boutique / affichage / succès / hors-ligne)
+
+- **Boutique** : prix des objets ×3 (arrondi au 50, gratuits inchangés) ; affichage réparé (commentaire `//` qui fuyait dans les cartes, canvas `#game` qui transparaissait sous les menus → `#game.hidden` hors écran de jeu, `show()` avant `render*` boutique/garage, conflit de taille `.shop-card .swatch` supprimé).
+- **Succès** : 27 au total (+13 : dépassements, 1000 PARFAIT, combo x100, 🥇, speedrun, réaction ≤ 40 ms, streak 7 j, 10 000 pièces, ami, week-end, triple couronne).
+- **Hors ligne → serveur** : les résultats faits hors ligne ou sans compte partent dans `roadtap_lb_queue_v1` et sont renvoyés automatiquement au retour en ligne + connexion (événement `online`, login Google, ouverture du classement, ping OK).
