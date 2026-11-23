@@ -895,7 +895,7 @@ console.log('Y. v1.3.47 : menu Paramètres (accessibilité/audio/version/serveur
   ok('main.js : 3e panneau accessibilité câblé (s-)', mainSrc.includes("wireAccessCheckboxes('s-')") && mainSrc.includes("syncAccessCheckboxes('s-')"));
   ok('main.js : capture de touche dans keydown + keyToAction(save.keys)', mainSrc.includes('keyCapture') && mainSrc.includes('keyToAction(e.code, save.horizontalZones, save.keys)'));
   ok('main.js : 3 boutons de rebinding câblés', mainSrc.includes("'btn-key-front'") && mainSrc.includes("'btn-key-rear'") && mainSrc.includes("'btn-key-swipe'"));
-  ok('main.js : version + état serveur (ping) dans les paramètres', mainSrc.includes("$('#set-version')") && mainSrc.includes("$('#set-server')") && mainSrc.includes('leaderboard.ping()'));
+  ok('main.js : version + état serveur (ping avec jeton, v1.3.59) dans les paramètres', mainSrc.includes("$('#set-version')") && mainSrc.includes("$('#set-server')") && mainSrc.includes('leaderboard.ping(getAuthToken())'));
 }
 
 console.log('Z. v1.3.48 : « Meilleur combo » retiré de l\'écran de fin + récompense selon la réactivité + onglet ⚡ Réaction (avgMs) au classement');
@@ -1176,6 +1176,45 @@ console.log('AJ. v1.3.58 : diagnostic serveur détaillé — ping avec cause (ok
   const h2 = await ac.appCheckHeader();
   ok('token en échec -> header vide + tokenOk=false + lastError (cause « serveur injoignable »)', !h2['X-Firebase-AppCheck'] && ac.appCheckDebug().tokenOk === false && /domain not authorized/.test(ac.appCheckDebug().lastError || ''));
   ac._setTokenProvider(null);
+}
+
+console.log('AK. v1.3.59 : sur 401/403 le ping sonde AVEC jeton auth (authProbe) pour distinguer règles-auth vs App Check Enforce sans token');
+{
+  const fsI = await import('node:fs');
+  const mainSrc = fsI.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  const lbSrc = fsI.readFileSync(new URL('../js/leaderboard.js', import.meta.url), 'utf8');
+
+  ok('leaderboard.js : ping(idToken) + authProbe enregistré sur 401/403', lbSrc.includes('export async function ping(idToken)') && lbSrc.includes('authProbe'));
+  ok('main.js : ping(getAuthToken()) dans updateServerStatus ET refreshStatus (sonde auth active)', (mainSrc.match(/leaderboard\.ping\(getAuthToken\(\)\)/g) || []).length >= 2);
+  ok('main.js : serverStatusText départage 401 sonde-ok (règles auth) vs sonde-ko (App Check)', mainSrc.includes("p.reason === 'http-401'") && mainSrc.includes('p.authProbe && p.authProbe.ok'));
+
+  const origFetch3 = globalThis.fetch;
+  const urls = [];
+  // 401 anonyme, 200 avec auth=TOK -> cause = règles exigent auth en lecture
+  globalThis.fetch = async (url) => {
+    urls.push(String(url));
+    if (String(url).includes('auth=TOK')) return { ok: true, status: 200, json: async () => ({}) };
+    return { ok: false, status: 401 };
+  };
+  let okP = await lb.ping('TOK');
+  let ps = lb.getPingStatus();
+  ok('ping 401 + sonde auth OK -> reason http-401, authProbe.ok=true, 2 requêtes (anonyme + auth)', okP === false && ps.reason === 'http-401' && ps.authProbe && ps.authProbe.ok === true && urls.some((u) => u.includes('auth=TOK')) && urls.length === 2);
+  // 401 partout -> cause = App Check Enforce sans token
+  globalThis.fetch = async () => ({ ok: false, status: 401 });
+  await lb.ping('TOK');
+  ps = lb.getPingStatus();
+  ok('ping 401 + sonde auth 401 -> authProbe.ok=false, status 401 (App Check Enforce sans token)', ps.reason === 'http-401' && ps.authProbe && ps.authProbe.ok === false && ps.authProbe.status === 401);
+  // sans jeton -> pas de sonde
+  globalThis.fetch = async () => ({ ok: false, status: 403 });
+  await lb.ping();
+  ps = lb.getPingStatus();
+  ok('ping 403 sans jeton -> authProbe null (pas de sonde)', ps.reason === 'http-403' && !ps.authProbe);
+  // OK -> authProbe null et retour true
+  globalThis.fetch = async () => ({ ok: true, status: 200, json: async () => ({}) });
+  okP = await lb.ping('TOK');
+  ps = lb.getPingStatus();
+  ok('ping OK -> true, reason ok, authProbe null (pas de sonde inutile)', okP === true && ps.reason === 'ok' && !ps.authProbe);
+  if (origFetch3 === undefined) delete globalThis.fetch; else globalThis.fetch = origFetch3;
 }
 
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);

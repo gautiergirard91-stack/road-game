@@ -28,11 +28,14 @@ export function isOnline() {
   return Boolean(FIREBASE_DB_URL);
 }
 
-export async function ping() {
+export async function ping(idToken) {
   // v1.3.58 : on conserve le détail du dernier ping pour expliquer la cause exacte
-  // (réseau vs HTTP 401 App Check vs HTTP 403 règles) dans ⚙️ Paramètres > Serveur.
+  // (réseau vs HTTP 401 vs HTTP 403) dans ⚙️ Paramètres > Serveur.
+  // v1.3.59 : sur 401/403, sonde AVEC jeton auth pour distinguer les deux causes d'un 401 :
+  //   - sonde OK   -> les règles exigent auth en lecture (".read": true retiré côté console)
+  //   - sonde 401  -> App Check Enforce actif sans token valide (domaines autorisés ?)
   if (!isOnline()) {
-    lastPing = { ok: false, status: 0, reason: 'unconfigured', ms: null, at: Date.now() };
+    lastPing = { ok: false, status: 0, reason: 'unconfigured', ms: null, at: Date.now(), authProbe: null };
     return false;
   }
   const t0 = Date.now();
@@ -44,11 +47,19 @@ export async function ping() {
     const res = await fetch(`${base}/scores/.json?${q}`);
     const ms = Date.now() - t0;
     lastPing = res.ok
-      ? { ok: true, status: res.status, reason: 'ok', ms, at: Date.now() }
-      : { ok: false, status: res.status, reason: 'http-' + res.status, ms, at: Date.now() };
+      ? { ok: true, status: res.status, reason: 'ok', ms, at: Date.now(), authProbe: null }
+      : { ok: false, status: res.status, reason: 'http-' + res.status, ms, at: Date.now(), authProbe: null };
+    if (!res.ok && (res.status === 401 || res.status === 403) && idToken) {
+      try {
+        const res2 = await fetch(`${base}/scores/.json?auth=${encodeURIComponent(idToken)}&shallow=true`);
+        lastPing.authProbe = { status: res2.status, ok: res2.ok, reason: res2.ok ? 'ok' : 'http-' + res2.status };
+      } catch (e) {
+        lastPing.authProbe = { status: 0, ok: false, reason: 'network', error: String((e && e.message) || e) };
+      }
+    }
     return res.ok;
   } catch (e) {
-    lastPing = { ok: false, status: 0, reason: 'network', ms: Date.now() - t0, at: Date.now(), error: String((e && e.message) || e) };
+    lastPing = { ok: false, status: 0, reason: 'network', ms: Date.now() - t0, at: Date.now(), error: String((e && e.message) || e), authProbe: null };
     return false;
   }
 }

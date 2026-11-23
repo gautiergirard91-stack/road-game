@@ -1,6 +1,6 @@
 # ✅ Assurance qualité
 
-> **Note (v1.3.58)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.58**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
+> **Note (v1.3.59)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.59**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
 
 ## Processus de test
 
@@ -490,3 +490,12 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] `node tests/break.test.mjs` : section AJ (10 assertions : ping ok/401/réseau, appCheckDebug, wiring HTML/JS)
 - [ ] Test manuel : ⚙️ Paramètres → « 🔃 Revérifier le serveur » affiche hébergement + Firebase avec cause ; couper le réseau → 🔴 réseau/hors ligne ; bloquer firebasedatabase.app (uBlock) → 🔴 réseau
 - [ ] CI verte + CACHE sw bumpé (roadtap-v66) + VERSION 1.3.58 + version.json 1.3.58
+
+## Checklist v1.3.59 (sonde auth sur 401/403 — branche `vibe/diag-401-264a24`)
+
+- [ ] `leaderboard.js` : `ping(idToken)` — sur 401/403, 2ᵉ requête avec `?auth=<idToken>` et `lastPing.authProbe { status, ok, reason }` enregistré ; sans jeton → pas de sonde ; retour booléen = 1ʳᵉ tentative (inchangé)
+- [ ] `appcheck.js` : si `getToken(ac, false)` échoue, UN retry avec `getToken(ac, true)` (force refresh) avant d'abandonner
+- [ ] `main.js` : `ping(getAuthToken())` dans `updateServerStatus()` ET `refreshStatus()` ; `serverStatusText` départage : 401 + sonde OK → **règles exigent auth** (republier rules) ; 401 + sonde KO → **App Check Enforce sans token** (domaines autorisés)
+- [ ] `node tests/break.test.mjs` : section AK (8 assertions : ping+authProbe 3 scénarios, wiring main.js, textes 401 désambigués)
+- [ ] Test manuel : connecté, si le serveur répond 401 → ⚙️ Paramètres affiche la cause exacte (règles vs App Check)
+- [ ] CI verte + CACHE sw bumpé (roadtap-v67) + VERSION 1.3.59 + version.json 1.3.59
