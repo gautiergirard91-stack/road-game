@@ -4,7 +4,7 @@
 // en header "X-Firebase-AppCheck" sur CHAQUE appel REST vers *.firebasedatabase.app.
 // Dégradé gracieux : si App Check est indisponible (hors ligne, gstatic bloqué, pas de clé),
 // on n'ajoute aucun header — les appels passent tant que l'enforce n'est pas activé côté console.
-import { FIREBASE_WEB_API_KEY, FIREBASE_PROJECT_ID, FIREBASE_AUTH_DOMAIN, FIREBASE_APP_CHECK_SITE_KEY } from './config.js';
+import { FIREBASE_WEB_API_KEY, FIREBASE_PROJECT_ID, FIREBASE_AUTH_DOMAIN, FIREBASE_APP_CHECK_SITE_KEY, FIREBASE_APP_ID } from './config.js';
 
 const FB_MOD = 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
 const AC_MOD = 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app-check.js';
@@ -31,6 +31,13 @@ export function _setTokenProvider(fn) {
 
 export async function initAppCheck() {
   if (!isAppCheckEnabled()) return null;
+  // v1.3.63 : sans appId, l'échange de jeton App Check échoue (400 → throttled → 401 sous Enforce).
+  // On échoue proprement et le diagnostic l'affiche.
+  if (!FIREBASE_APP_ID) {
+    lastAppCheckError = "FIREBASE_APP_ID manquant — copier l'ID d'application de l'app web (Firebase → Paramètres du projet → Vos applications) dans js/config.js";
+    console.warn('[appcheck]', lastAppCheckError);
+    return null;
+  }
   if (initPromise) return initPromise;
   initPromise = (async () => {
     try {
@@ -38,7 +45,7 @@ export async function initAppCheck() {
       const acMod = await import(AC_MOD);
       const app = appMod.getApps().length
         ? appMod.getApp()
-        : appMod.initializeApp({ apiKey: FIREBASE_WEB_API_KEY, authDomain: FIREBASE_AUTH_DOMAIN, projectId: FIREBASE_PROJECT_ID });
+        : appMod.initializeApp({ apiKey: FIREBASE_WEB_API_KEY, appId: FIREBASE_APP_ID, authDomain: FIREBASE_AUTH_DOMAIN, projectId: FIREBASE_PROJECT_ID });
       appCheckInstance = acMod.initializeAppCheck(app, {
         // v1.3.34 : reCAPTCHA ENTERPRISE (Fraud Defense) — l'onboarding v3 est déprécié par Firebase
         provider: new acMod.ReCaptchaEnterpriseProvider(FIREBASE_APP_CHECK_SITE_KEY), // site key Enterprise, publique
@@ -59,6 +66,8 @@ export async function initAppCheck() {
 export function appCheckDebug() {
   return {
     configured: isAppCheckEnabled(),
+    appIdMissing: !FIREBASE_APP_ID, // v1.3.63
+    appId: FIREBASE_APP_ID ? FIREBASE_APP_ID.slice(0, 14) + '…' : '', // masqué dans l'UI
     initAttempted: Boolean(initPromise),
     initialized: Boolean(appCheckInstance),
     tokenOk: lastTokenOk,

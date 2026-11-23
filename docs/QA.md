@@ -1,6 +1,6 @@
 # ✅ Assurance qualité
 
-> **Note (v1.3.62)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.62**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
+> **Note (v1.3.63)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.63**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
 
 ## Processus de test
 
@@ -524,3 +524,14 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] `node tests/break.test.mjs` : section AM (4 assertions : acTxt dans les branches, message 401, timeout borné avec provider qui pend < 1 s)
 - [ ] Test manuel : ⚙️ Paramètres → serveur en 401 affiche « App Check 🔴 token KO (…) » ou « 🟢 token OK » → on sait si le jeton est obtenu
 - [ ] CI verte + 6 tests + audit ✅ + CACHE roadtap-v70 + VERSION 1.3.62 + version.json 1.3.62
+
+## Checklist v1.3.63 (FIREBASE_APP_ID requis pour l'échange de jeton App Check — branche `vibe/appid-appcheck-264a24`)
+
+- [ ] ⚠️ **Action manuelle requise** : copier l'**ID d'application** de l'app web (Firebase → ⚙️ Paramètres du projet → Vos applications → app web → « ID d'application », format `1:804737015370:web:…`) dans `FIREBASE_APP_ID` dans `js/config.js`, commit, push
+- [ ] `js/config.js` : `FIREBASE_APP_ID` exporté (placeholder + commentaire avec l'emplacement exact)
+- [ ] `js/appcheck.js` : `initializeApp({ ..., appId: FIREBASE_APP_ID })` ; sans appId → init null + `lastError` explicite ; `appCheckDebug()` expose `appIdMissing` + appId masqué
+- [ ] `js/auth.js` : `initializeApp` reçoit aussi `appId`
+- [ ] `main.js` : `serverStatusText` affiche « 🔴 FIREBASE_APP_ID manquant — … » si appId vide
+- [ ] `node tests/break.test.mjs` : section AN (6 assertions : wiring appId ×2, init propre sans appId, appIdMissing cohérent, hint UI)
+- [ ] Post-déploiement : App Check → APIs → RTDB « verified » > 0 % ; site ⚙️ Paramètres 🟢 « App Check 🟢 token OK » ; plus de 401
+- [ ] CI verte + 6 tests + audit ✅ + CACHE roadtap-v71 + VERSION 1.3.63 + version.json 1.3.63

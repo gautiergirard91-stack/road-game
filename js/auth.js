@@ -1,6 +1,6 @@
 // Connexion "Google" sans SDK Firebase : Google Identity Services (bouton officiel)
 // + API REST Firebase (identitytoolkit / securetoken). Zéro dépendance ajoutée.
-import { FIREBASE_WEB_API_KEY, FIREBASE_OAUTH_CLIENT_ID, FIREBASE_PROJECT_ID, FIREBASE_AUTH_DOMAIN } from './config.js';
+import { FIREBASE_WEB_API_KEY, FIREBASE_OAUTH_CLIENT_ID, FIREBASE_PROJECT_ID, FIREBASE_AUTH_DOMAIN, FIREBASE_APP_ID } from './config.js';
 
 let memIdToken = null; // jeton Firebase en mémoire (jamais persisté en clair côté cloud)
 
@@ -98,6 +98,7 @@ export async function signInWithPopupGoogle() {
   if (!fbApp) {
     fbApp = appMod.initializeApp({
       apiKey: FIREBASE_WEB_API_KEY,
+      appId: FIREBASE_APP_ID || undefined, // v1.3.63 : ID d'application de l'app web (public)
       authDomain: FIREBASE_AUTH_DOMAIN,
       projectId: FIREBASE_PROJECT_ID,
     });
