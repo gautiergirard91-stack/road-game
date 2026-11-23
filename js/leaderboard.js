@@ -81,10 +81,27 @@ function cleanEntry(e) {
   const score = typeof e.score === 'number' && Number.isFinite(e.score) ? e.score : 0;
   return { ...e, score };
 }
+// v1.3.67 : UNE SEULE entrée par joueur dans un classement (niveau/difficulté) — on garde SON
+// meilleur score (ou son meilleur temps en speedrun / sa meilleure réaction moyenne).
+export function dedupeByPlayer(arr, kind = 'score') {
+  const best = new Map();
+  for (const e of arr || []) {
+    if (!e || e.pseudo == null || e.pseudo === '') continue;
+    const key = e.uid ? 'u:' + String(e.uid) : 'p:' + String(e.pseudo).toLowerCase();
+    const prev = best.get(key);
+    if (!prev) { best.set(key, e); continue; }
+    const better = kind === 'speedrun'
+      ? (e.timeMs || Infinity) < (prev.timeMs || Infinity)
+      : kind === 'reaction'
+        ? ((e.avgMs ?? Infinity) < (prev.avgMs ?? Infinity))
+        : ((e.score || 0) > (prev.score || 0));
+    if (better) best.set(key, e);
+  }
+  return [...best.values()];
+}
+
 function sortDesc(arr) {
-  return arr
-    .map(cleanEntry)
-    .filter(Boolean)
+  return dedupeByPlayer(arr.map(cleanEntry).filter(Boolean), 'score') // v1.3.67 : 1 entrée/joueur (meilleur score)
     .sort((a, b) => b.score - a.score)
     .slice(0, TOP);
 }
@@ -350,9 +367,7 @@ function sortAscTime(arr) {
 
 // v1.3.36 : tri croissant SANS slice — utilisé par getSpeedrunAll (classement amis)
 function sortAscTimeUnbounded(arr) {
-  return arr
-    .map(cleanTimeEntry)
-    .filter(Boolean)
+  return dedupeByPlayer(arr.map(cleanTimeEntry).filter(Boolean), 'speedrun') // v1.3.67 : 1 entrée/joueur (meilleur temps)
     .sort((a, b) => a.timeMs - b.timeMs);
 }
 

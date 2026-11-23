@@ -141,3 +141,9 @@ L'échange de jeton App Check exige l'**ID d'application** de l'app web (`1:…:
 - **Boutique** : prix des objets ×3 (arrondi au 50, gratuits inchangés) ; affichage réparé (commentaire `//` qui fuyait dans les cartes, canvas `#game` qui transparaissait sous les menus → `#game.hidden` hors écran de jeu, `show()` avant `render*` boutique/garage, conflit de taille `.shop-card .swatch` supprimé).
 - **Succès** : 27 au total (+13 : dépassements, 1000 PARFAIT, combo x100, 🥇, speedrun, réaction ≤ 40 ms, streak 7 j, 10 000 pièces, ami, week-end, triple couronne).
 - **Hors ligne → serveur** : les résultats faits hors ligne ou sans compte partent dans `roadtap_lb_queue_v1` et sont renvoyés automatiquement au retour en ligne + connexion (événement `online`, login Google, ouverture du classement, ping OK).
+
+## v1.3.67 — classement : une seule entrée par joueur + filtres explicites
+
+- `dedupeByPlayer()` : dans chaque vue (difficulté/niveau), un joueur n'apparaît **qu'une fois**, avec **son meilleur score** (min `timeMs` en speedrun, min `avgMs` en réaction). Clé d'identité = `uid` Google, sinon pseudo (insensible à la casse).
+- Filtre niveau : option **🌐 Tous niveaux** explicite en tête → à l'ouverture un filtre est toujours visiblement sélectionné (les filtres mémorisés v1.3.65 restent restaurés).
+- Lignes : nom du niveau résolu via `levelId` (plus de « L 1 » sur les vieilles entrées) ; statut « N chargé(s) — M affiché(s) ici » ; liste vide avec filtre niveau → message dédié « joue ce niveau pour passer 1er ».
