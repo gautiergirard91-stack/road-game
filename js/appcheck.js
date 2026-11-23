@@ -82,7 +82,13 @@ export async function appCheckHeader() {
   if (!ac) return {};
   try {
     const acMod = await import(AC_MOD);
-    const { token } = await acMod.getToken(ac, false);
+    let token = null;
+    try {
+      ({ token } = await acMod.getToken(ac, false));
+    } catch {
+      // v1.3.59 : token caché rejeté (expiration, domaine non autorisé…) -> on force UN refresh
+      ({ token } = await acMod.getToken(ac, true));
+    }
     lastTokenOk = Boolean(token); // v1.3.58
     if (!token) lastAppCheckError = 'getToken a renvoyé un token vide';
     return token ? { 'X-Firebase-AppCheck': token } : {};

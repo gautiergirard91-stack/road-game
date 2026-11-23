@@ -107,3 +107,7 @@ Les touches personnalisées (`save.keys`) ne vivent plus seulement dans `roadtap
 ## v1.3.58 — diagnostic « serveur injoignable » avec la cause exacte
 
 `ping()` détaille désormais le dernier échec (`getPingStatus()` : `ok` / `http-401` / `http-403` / `network` + latence ms), `appCheckDebug()` expose l'état du token App Check, et ⚙️ Paramètres teste **séparément** l'hébergement (sonde `version.json`) et Firebase. Causes typiques : App Check **Enforce** actif avec token indisponible (domaine `roadtap.uk` absent des domaines autorisés reCAPTCHA Enterprise → HTTP 401), règles RTDB modifiées (`scores` plus en `.read: true` → HTTP 403), ou réseau/CORS (extension bloqueuse). Voir `docs/FIREBASE.md` §9.
+
+## v1.3.59 — sonde auth pour départager un HTTP 401
+
+`ping(idToken)` rejoue la requête avec `?auth=` sur 401/403 (`authProbe` dans `getPingStatus()`) : sonde OK = les **règles** exigent une connexion en lecture ; sonde KO = **App Check Enforce** actif sans token valide. `appCheckHeader()` tente un `getToken(ac, true)` (force refresh) avant d'abandonner. L'UI ⚙️ Paramètres affiche la cause exacte.

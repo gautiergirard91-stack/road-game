@@ -457,7 +457,7 @@ function refreshStatus() {
   }
   el.textContent = '🟡 Connexion au serveur…';
   el.className = 'net-pill local';
-  leaderboard.ping().then((ok) => {
+  leaderboard.ping(getAuthToken()).then((ok) => { // v1.3.59 : sonde auth incluse
     // v1.3.58 : on affiche la CAUSE (HTTP xxx / réseau / ms) et pas juste « injoignable »
     const p = leaderboard.getPingStatus();
     if (ok && p) {
@@ -1310,8 +1310,16 @@ function serverStatusText(ok, p, ac) {
     const acTxt = ac && ac.configured ? ` · App Check ${ac.tokenOk === true ? '🟢 token OK' : ac.tokenOk === false ? '🔴 token INDISPONIBLE' : '🟡 non testé'}` : '';
     return `🟢 Firebase en ligne — ping ${p.ms} ms${acTxt}`;
   }
-  if (p && p.reason === 'http-401') return '🟠 Firebase refuse (HTTP 401) — App Check Enforce actif mais token absent/invalide : vérifier que roadtap.uk est dans les domaines autorisés reCAPTCHA Enterprise (console) — mode local';
-  if (p && p.reason === 'http-403') return '🟠 Firebase refuse (HTTP 403) — règles RTDB : scores/speedrun/challenges doivent garder ".read": true (voir database.rules.json) — mode local';
+  // v1.3.59 : un 401 a DEUX causes possibles — la sonde auth (ping avec jeton) les départage :
+  // sonde OK = règles exigent auth en lecture ; sonde KO = App Check Enforce sans token valide.
+  if (p && p.reason === 'http-401') {
+    if (p.authProbe && p.authProbe.ok) return '🟠 HTTP 401 anonyme mais OK connecté — les RÈGLES exigent auth en lecture : republier database.rules.json (scores/speedrun/challenges en ".read": true) — mode local';
+    return '🟠 HTTP 401 même connecté — App Check Enforce actif sans token valide : ajouter roadtap.uk aux domaines autorisés reCAPTCHA Enterprise + vérifier la site key (console) — mode local';
+  }
+  if (p && p.reason === 'http-403') {
+    if (p.authProbe && p.authProbe.ok) return '🟠 HTTP 403 anonyme mais OK connecté — les RÈGLES refusent la lecture publique : republier database.rules.json — mode local';
+    return '🟠 Firebase refuse (HTTP 403) — règles RTDB : scores/speedrun/challenges doivent garder ".read": true (voir database.rules.json) — mode local';
+  }
   if (p && p.reason && p.reason.startsWith('http-')) return `🟠 Firebase répond HTTP ${p.status} — mode local (voir docs/FIREBASE.md §9)`;
   if (p && p.reason === 'network') return `🔴 Firebase injoignable (réseau/DNS/CORS — ${p.error || 'essaie sans bloqueur d\'extensions'}) — mode local`;
   return '🔴 Serveur injoignable (mode local)';
@@ -1342,7 +1350,7 @@ async function updateServerStatus() {
     return;
   }
   el.textContent = '🟡 Firebase : connexion au serveur…';
-  const ok = await leaderboard.ping();
+  const ok = await leaderboard.ping(getAuthToken()); // v1.3.59 : sonde auth pour départager un 401
   const st = leaderboard.getLbStatus();
   let ac = null;
   try { ac = appCheckDebug(); } catch { ac = null; }

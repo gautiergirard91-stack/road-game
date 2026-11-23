@@ -212,3 +212,5 @@ Contrôles rapides :
 - App Check → APIs : la métrique Realtime Database doit passer à « verified » quelques minutes après le déploiement du code.
 - Ordre impératif : **code déployé d'abord, Enforce ensuite** (sinon les clients sans token valide sont rejetés → « serveur injoignable » pour tout le monde).
 - La ligne de diagnostic du classement (`#lb-source`, ex. « HTTP 401 sur scores/auto — affichage local ») confirme la même cause côté lecture.
+
+> **Mise à jour v1.3.59** : sur un 401/403, le jeu rejoue automatiquement la sonde **avec** `?auth=<idToken>` (si connecté) — `authProbe` dans le diagnostic. Sonde **OK** = les règles exigent `auth` en lecture (republier `database.rules.json`) ; sonde **KO** = App Check Enforce sans token valide (voir tableau ci-dessus). Le texte affiché dans ⚙️ Paramètres dit directement laquelle des deux.
