@@ -1230,4 +1230,26 @@ console.log('AL. v1.3.60 : la site key App Check = la clé Enterprise « roadtap
   ok('docs/FIREBASE.md : la clé 6Lf7… documentée + gotcha « configuration incomplète »', fireDoc.includes('6Lf7vCwuAAAAAAamVJvl2tEUsDe-V6mEdVYDc1fW') && fireDoc.includes('configuration incompl'));
 }
 
+console.log('AM. v1.3.62 : 401 même connecté = App Check Enforce sans token — l\'UI affiche maintenant l\'état du token (OK/KO + lastError), et appCheckHeader a un timeout borné');
+{
+  const fsK = await import('node:fs');
+  const mainSrc = fsK.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  const acSrc = fsK.readFileSync(new URL('../js/appcheck.js', import.meta.url), 'utf8');
+  const ac = await import('../js/appcheck.js');
+
+  ok('main.js : serverStatusText ajoute l\'état App Check (token KO + lastError) à TOUTES les branches d\'erreur', mainSrc.includes('🔴 token KO (${ac.lastError') && (mainSrc.match(/\+ acTxt/g) || []).length >= 5);
+  ok('main.js : branche 401 cite la clé 6Lf7vCwu… + App Check → Apps (cause probable)', mainSrc.includes('6Lf7vCwu… doit être enregistrée dans Firebase → App Check → Apps'));
+  ok('appcheck.js : timeout borné du token (_setTokenTimeoutMs + withTimeout via Promise.race)', acSrc.includes('tokenTimeoutMs') && acSrc.includes('export function _setTokenTimeoutMs') && acSrc.includes('withTimeout') && acSrc.includes('Promise.race'));
+
+  // timeout : provider qui pend -> header vide, tokenOk=false, lastError=timeout, sans attendre 4s
+  ac._setTokenTimeoutMs(60);
+  ac._setTokenProvider(() => new Promise(() => {})); // ne résout jamais
+  const t0 = Date.now();
+  const h = await ac.appCheckHeader();
+  const dt = Date.now() - t0;
+  ok('appCheckHeader avec provider qui pend : retour {} en < 1s, tokenOk=false, lastError=timeout', !h['X-Firebase-AppCheck'] && ac.appCheckDebug().tokenOk === false && /timeout/.test(ac.appCheckDebug().lastError || '') && dt < 1000);
+  ac._setTokenProvider(null);
+  ac._setTokenTimeoutMs(4000);
+}
+
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);

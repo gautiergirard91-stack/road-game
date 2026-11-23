@@ -16,6 +16,9 @@ let fetchInstalled = false;
 // v1.3.58 : état de debug pour expliquer « serveur injoignable » dans ⚙️ Paramètres
 let lastTokenOk = null; // null = jamais tenté, true/false sinon
 let lastAppCheckError = null;
+// v1.3.62 : un getToken qui bloque ne doit JAMAIS bloquer les requêtes RTDB (timeout borné)
+let tokenTimeoutMs = 4000;
+export function _setTokenTimeoutMs(ms) { tokenTimeoutMs = ms; } // tests uniquement
 
 export function isAppCheckEnabled() {
   return Boolean(FIREBASE_APP_CHECK_SITE_KEY);
@@ -65,9 +68,14 @@ export function appCheckDebug() {
 
 // Renvoie { 'X-Firebase-AppCheck': token } ou {} (jamais de throw)
 export async function appCheckHeader() {
+  // v1.3.62 : timeout borné — sans jeton on envoie quand même la requête (Enforce OFF) au lieu de pendre
+  const withTimeout = (p) => Promise.race([
+    Promise.resolve(p),
+    new Promise((_, rej) => setTimeout(() => rej(new Error('appcheck timeout (' + tokenTimeoutMs + 'ms)')), tokenTimeoutMs)),
+  ]);
   if (tokenProvider) {
     try {
-      const t = await tokenProvider();
+      const t = await withTimeout(tokenProvider());
       lastTokenOk = Boolean(t); // v1.3.58
       if (!t) lastAppCheckError = 'token vide (provider de test)';
       return t ? { 'X-Firebase-AppCheck': t } : {};
@@ -84,10 +92,10 @@ export async function appCheckHeader() {
     const acMod = await import(AC_MOD);
     let token = null;
     try {
-      ({ token } = await acMod.getToken(ac, false));
+      ({ token } = await withTimeout(acMod.getToken(ac, false)));
     } catch {
       // v1.3.59 : token caché rejeté (expiration, domaine non autorisé…) -> on force UN refresh
-      ({ token } = await acMod.getToken(ac, true));
+      ({ token } = await withTimeout(acMod.getToken(ac, true)));
     }
     lastTokenOk = Boolean(token); // v1.3.58
     if (!token) lastAppCheckError = 'getToken a renvoyé un token vide';
