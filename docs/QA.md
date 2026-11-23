@@ -1,6 +1,6 @@
 # ✅ Assurance qualité
 
-> **Note (v1.3.65)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.65**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
+> **Note (v1.3.66)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.66**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
 
 ## Processus de test
 
@@ -546,3 +546,13 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] `node tests/break.test.mjs` : section AO (8 assertions)
 - [ ] Test manuel : tuto fluide (étape 4 perd bien un ❤, étape 5 avance après 3 lignes) ; musique dès le 1er écran de jeu ; aucun freeze au tap sur téléphone ; filtres LB retrouvés après être sorti de la page ; niveau 4/5 = 1 seul passage piéton
 - [ ] CI verte + CACHE sw bumpé (roadtap-v73) + VERSION 1.3.65 + version.json 1.3.65
+
+## Checklist v1.3.66 (liste du joueur, partie 2 : boutique/affichage/succès/offline — branche `vibe/todo-liste2-264a24`)
+
+- [ ] **Prix boutique ×3** (arrondi au 50, `cost: 0` préservé) sur SKINS/EFFECTS/PACKS/THEME_SHOP/SOUND_PACKS — coûts de déblocage des NIVEAUX inchangés
+- [ ] **Affichage réparé** (vu sur les photos) : plus de fuite du commentaire `// v1.3.50…` dans les templates de cartes boutique/garage ; canvas `#game` caché hors écran de jeu (`#game.hidden` + toggle dans `show()`) → plus de frame/popup fantôme sous les menus ; ouverture boutique/garage = `show()` AVANT `render*` ; `.shop-card .swatch` n'impose plus 52×52 (conflit de taille avec les canvas 56×64/72×84)
+- [ ] **+13 succès** (27 au total) : dépassements 1/25/100, 1000 PARFAIT, combo x100, 1ère 🥇, speedrun, réaction ≤40 ms, streak 7j, 10 000 🪙, 1 ami, week-end, record dans les 3 modes — `checkAchievements` enrichi (bestTime/wallets/friends/streak), aucun `test()` ne plante sur ctx minimal
+- [ ] **File hors-ligne** : `roadtap_lb_queue_v1` (plafond 200, anti-doublon) alimentée par submitScore/submitSpeedrun/submitChallengeScore hors ligne ou sans jeton ; `flushQueue(idToken, uid)` rejoué au `online`, à la connexion Google, à l'ouverture du classement et après un ping OK ; refus HTTP (règles) PAS remis en file ; `uid` rattaché au compte à l'envoi
+- [ ] `node tests/break.test.mjs` : section AP (16 assertions, dont test fonctionnel de la file)
+- [ ] Test manuel : cartes boutique/garage sans texte parasite, plus rien du jeu sous le garage ; prix affichés x3 ; succès débloquables ; jouer hors ligne sans compte → revenir en ligne + connecté → toast « N résultat(s) envoyé(s) »
+- [ ] CI verte + CACHE sw bumpé (roadtap-v74) + VERSION 1.3.66 + version.json 1.3.66

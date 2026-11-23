@@ -93,6 +93,57 @@ export function getTopLocal() {
   return sortDesc(localList());
 }
 
+// v1.3.66 : file d'envoi hors ligne — un score/temps/challenge fait hors ligne (ou sans compte)
+// est stocké dans roadtap_lb_queue_v1 puis rejoué automatiquement dès que le joueur est en ligne
+// ET connecté (retour réseau, reconnexion Google, ouverture du classement).
+const QUEUE_KEY = 'roadtap_lb_queue_v1';
+function readQueue() {
+  try {
+    const raw = localStorage.getItem(QUEUE_KEY);
+    const arr = raw ? JSON.parse(raw) : [];
+    return Array.isArray(arr) ? arr : [];
+  } catch {
+    return [];
+  }
+}
+function enqueue(kind, payload) {
+  try {
+    const arr = readQueue();
+    if (arr.some((q) => q.kind === kind && JSON.stringify(q.payload) === JSON.stringify(payload))) return; // pas de doublon
+    arr.push({ kind, payload, at: Date.now() });
+    localStorage.setItem(QUEUE_KEY, JSON.stringify(arr.slice(-200))); // plafond 200
+  } catch { /* stockage indisponible */ }
+}
+export function queueSize() {
+  return readQueue().length;
+}
+// rejoue la file vers le serveur. Retourne le nombre d'entrées envoyées.
+export async function flushQueue(idToken, uid) {
+  if (!isOnline() || !hasAuth(idToken)) return 0;
+  let arr = readQueue();
+  if (!arr.length) return 0;
+  let sent = 0;
+  for (const item of arr) {
+    try {
+      const pl = item.payload;
+      if (uid && pl && typeof pl === 'object' && !pl.uid) pl.uid = uid; // rattache au compte connecté
+      lastLbWriteError = null;
+      if (item.kind === 'speedrun') await submitSpeedrun(pl.levelId, pl.entry, idToken);
+      else if (item.kind === 'challenge') await submitChallengeScore(pl.dayId, pl.entry, idToken);
+      else await submitScore(pl, idToken);
+      if (lastLbWriteError) break; // refus serveur (règles/401) -> on garde en local, réessai à la prochaine connexion
+      sent++;
+    } catch {
+      break; // réseau HS -> on arrête, on réessaiera plus tard
+    }
+  }
+  if (sent > 0) {
+    arr = arr.slice(sent);
+    try { localStorage.setItem(QUEUE_KEY, JSON.stringify(arr)); } catch { /* ignore */ }
+  }
+  return sent;
+}
+
 export function submitLocal(entry) {
   const arr = localList();
   arr.push(entry);
@@ -140,9 +191,10 @@ const ANON_WRITE_MSG = '⚠ v1.3.37 : envoi réservé aux comptes Google connect
 
 export async function submitScore(entry, idToken) {
   const mode = modeOf(entry);
-  if (!isOnline()) return submitLocal(entry);
+  if (!isOnline()) { enqueue('score', entry); return submitLocal(entry); } // v1.3.66 : file hors ligne
   if (!hasAuth(idToken)) {
     lastLbWriteError = ANON_WRITE_MSG;
+    enqueue('score', entry); // v1.3.66 : rejoué à la connexion
     return submitLocal(entry);
   }
   try {
@@ -162,6 +214,7 @@ export async function submitScore(entry, idToken) {
   } catch (e) {
     const msg = String((e && e.message) ? e.message : e);
     if (!lastLbWriteError) lastLbWriteError = msg;
+    if (!/HTTP \d+/.test(msg)) enqueue('score', entry); // v1.3.66 : erreur réseau -> file (un refus HTTP = règles, on ne boucle pas)
     setLbStatus('local', 0, lastLbError && lastLbError !== msg ? lastLbError : null);
     return submitLocal(entry);
   }
@@ -231,9 +284,10 @@ export async function getAll(mode = 'all') {
 
 // --- Classement du défi du jour (nœud /challenges/<dayKey>) ---
 export async function submitChallengeScore(dayId, entry, idToken) {
-  if (!isOnline()) return false;
+  if (!isOnline()) { enqueue('challenge', { dayId, entry }); return false; } // v1.3.66
   if (!hasAuth(idToken)) {
     lastLbWriteError = ANON_WRITE_MSG;
+    enqueue('challenge', { dayId, entry }); // v1.3.66
     return false;
   }
   try {
@@ -317,9 +371,10 @@ export function submitSpeedrunLocal(entry) {
 export async function submitSpeedrun(levelId, entry, idToken) {
   // v1.3.54 : le speedrun n'existe qu'en Permis A -> mode par défaut 'permisA' (main.js transmet de toute façon le mode réellement joué)
   const body = { pseudo: entry.pseudo, uid: entry.uid || '', timeMs: entry.timeMs, level: entry.level, levelId, mode: entry.mode || 'permisA', date: entry.date };
-  if (!isOnline()) return submitSpeedrunLocal(body);
+  if (!isOnline()) { enqueue('speedrun', { levelId, entry: body }); return submitSpeedrunLocal(body); } // v1.3.66
   if (!hasAuth(idToken)) {
     lastLbWriteError = ANON_WRITE_MSG;
+    enqueue('speedrun', { levelId, entry: body }); // v1.3.66
     return submitSpeedrunLocal(body);
   }
   try {
@@ -337,6 +392,7 @@ export async function submitSpeedrun(levelId, entry, idToken) {
     lastLbWriteError = null;
   } catch (e) {
     if (!lastLbWriteError) lastLbWriteError = String((e && e.message) || e);
+    if (!/HTTP \d+/.test(String(lastLbWriteError))) enqueue('speedrun', { levelId, entry: body }); // v1.3.66 : réseau -> file
     return submitSpeedrunLocal(body);
   }
   return getSpeedrunTop('all');
