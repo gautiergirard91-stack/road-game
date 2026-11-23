@@ -110,21 +110,29 @@ function paintCar(ctx, cx, baseY, m, col, style) {
   };
 
   if (style === 'neon') {
+    // v1.3.65 : pas de shadowBlur (trop lent sur mobile) — halo = trait translucide en plus
     ctx.save();
-    ctx.shadowColor = col.color;
-    ctx.shadowBlur = 16;
     ctx.fillStyle = '#0b0d16';
     rr(ctx, cx - bw / 2, top, bw, len, 12);
     ctx.fill();
     ctx.strokeStyle = col.color;
+    ctx.lineWidth = 5;
+    ctx.globalAlpha = 0.35;
+    rr(ctx, cx - bw / 2, top, bw, len, 12);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
     ctx.lineWidth = 2.5;
     rr(ctx, cx - bw / 2, top, bw, len, 12);
     ctx.stroke();
     ctx.fillStyle = 'rgba(84,240,255,0.85)';
-    ctx.shadowColor = '#54f0ff';
-    ctx.shadowBlur = 10;
     rr(ctx, cabX + 3, roofF, cabW - 6, roofR - roofF, 5);
     ctx.fill();
+    ctx.strokeStyle = 'rgba(84,240,255,0.6)';
+    ctx.lineWidth = 4;
+    ctx.globalAlpha = 0.4;
+    rr(ctx, cabX + 3, roofF, cabW - 6, roofR - roofF, 5);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
     ctx.shadowBlur = 0;
     ctx.strokeStyle = col.color;
     ctx.lineWidth = 2;
@@ -854,9 +862,15 @@ export class Game {
     if (line) line.hits[axle] = 'missed';
     const ay = line ? this.lineAxleY(axle) : this.wheelY;
     if (this.tutorial) {
-      this.popups.push({ text: 'Réessaie !', y: ay - 70, life: 0.8, color: '#9ecbff' });
-      this.audio.tap?.();
-      this.onMiss(0);
+      // v1.3.65 : en tutoriel le raté compte VRAIMENT (perte de ❤ affichée dans le HUD,
+      // sting, vibration) — mais on ne déclenche JAMAIS l'écran de fin pendant le tutoriel.
+      this.stats.misses++;
+      this.combo = 0;
+      this.popups.push({ text: 'RATÉ −1 ❤', y: ay - 70, life: 0.9, color: '#ff5c5c' });
+      this.shake = 8;
+      this.audio.miss?.();
+      if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
+      this.onMiss(this.stats.misses);
       return;
     }
     this.stats.misses++;
@@ -1586,9 +1600,9 @@ export class Game {
       } else {
         const glow = line.glow > 0 && this.hasEffect('glow');
         if (glow) {
+          // v1.3.65 : halo en alpha (PAS de shadowBlur : trop lent sur mobile -> freeze au tap)
           ctx.save();
-          ctx.shadowColor = theme.line;
-          ctx.shadowBlur = 22;
+          ctx.globalAlpha = Math.min(0.5, line.glow);
           ctx.strokeStyle = theme.lineEdge;
           ctx.fillStyle = theme.lineEdge;
           this.drawLineShape(line.type, y, roadX, roadW, false);
@@ -1635,12 +1649,13 @@ export class Game {
         const tutorialPulse = this.tutorial && line === firstPending ? 0.4 + 0.4 * Math.abs(Math.sin(this.time * 8)) : 0;
         const pulse = Math.max(approachPulse, tutorialPulse);
         if (pulse > 0) {
+          // v1.3.65 : halo = 2 passes alpha (pas de shadowBlur -> plus de freeze quand on clique sur une ligne)
           ctx.save();
-          ctx.globalAlpha = pulse;
-          ctx.shadowColor = theme.line;
-          ctx.shadowBlur = 18;
+          ctx.globalAlpha = pulse * 0.4;
           ctx.strokeStyle = theme.line;
           ctx.fillStyle = theme.line;
+          this.drawLineShape(line.type, y, roadX, roadW, false);
+          ctx.globalAlpha = pulse;
           this.drawLineShape(line.type, y, roadX, roadW, false);
           ctx.restore();
         }

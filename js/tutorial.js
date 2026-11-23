@@ -17,12 +17,12 @@ export class Tutorial {
     this.lastEvent = null;
     this.overtakes = 0;
     this.saw = { front: false, rear: false };
+    this.okLines = 0; // v1.3.65 : lignes réussies (étape Permis A = 3)
     this.stepStart = performance.now();
     this.finished = false;
     // v1.3.21 : le texte du tuto s'adapte aux zones (haut/bas ou gauche/droite)
-    const zonesTxt = store.get().horizontalZones
-      ? "Tap à GAUCHE de l'écran = roues AV, tap à DROITE = roues AR"
-      : "Tap en HAUT de l'écran = roues AV, tap en BAS = roues AR";
+    // v1.3.65 : version courte
+    const zonesTxt = store.get().horizontalZones ? 'Gauche = AV · Droite = AR' : 'Haut = AV · Bas = AR';
     this.steps = [
       {
         text: "👆 Bienvenue ! Tape l'écran (ou Espace) quand la ligne blanche atteint les roues de la voiture.",
@@ -37,19 +37,19 @@ export class Tutorial {
         done: (t, e) => Boolean(e) && e.combo >= 3,
       },
       {
-        text: "💥 Ligne manquée ou clic dans le vide = −1 ❤️ (3 vies en Auto école, 5 en Permis A/Pilote). Laisse passer une ligne volontairement : tu perds VRAIMENT un ❤️ et l'effet reste visible 0,5 s !",
+        text: '❌ Ligne manquée = −1 ❤️. Laisse passer une ligne exprès pour voir !',
         missStep: true,
       },
       {
-        text: `🎚️ Permis A : chaque ligne se joue 2 fois, indépendamment ! ${zonesTxt}. Fais les deux sur une même ligne.`,
+        text: `🎚️ Permis A : chaque ligne se joue 2 fois (AV + AR) — ${zonesTxt}. 3 lignes réussies = on passe.`,
         enter: (g) => {
           g.mode = 'permisA';
           g.axles = ['front', 'rear'];
         },
-        done: (t) => t.saw.front && t.saw.rear,
+        done: (t) => t.okLines >= 3, // v1.3.65 : 3 lignes réussies
       },
       {
-        text: '🚗 Pilote : une voiture lente est devant toi ! SWIPE vers la gauche (ou touche ⬅) pour doubler. (1er essai) — attends que ta voiture soit revenue à droite !',
+        text: '🚗 Pilote : voiture lente devant ! SWIPE ← (ou ⬅) pour doubler. Ta voiture revient à droite toute seule — attends !',
         enter: (g) => {
           g.mode = 'pilote';
           g.axles = ['front', 'rear'];
@@ -57,12 +57,6 @@ export class Tutorial {
         },
         poll: true, // on laisse le temps de voir la voiture doubler ET revenir à droite
         done: (t) => t.overtakes >= 1 && t.game.laneTarget === 0.72 && t.game.carXFrac > 0.68,
-      },
-      {
-        text: '🔁 Encore un dépassement ! (2ème) — puis laisse ta voiture revenir complètement dans la voie de droite avant de continuer.',
-        enter: (g) => g.forceBlocker(),
-        poll: true,
-        done: (t) => t.overtakes >= 2 && t.game.laneTarget === 0.72 && t.game.carXFrac > 0.68,
       },
       {
         text: "🚶 En ville : le passage piéton (bandes blanches) est une ligne à cliquer comme les autres — et la voiture s'arrête seule pour laisser passer les piétons. Tape quand IL atteint les roues !",
@@ -166,6 +160,7 @@ export class Tutorial {
     this.missed = false;
     this.lastEvent = null;
     this.saw = { front: false, rear: false };
+    this.okLines = 0; // v1.3.65
     this.stepStart = performance.now();
     if (this.i >= this.steps.length) return this.finish();
     const s = this.steps[this.i];
@@ -180,6 +175,7 @@ export class Tutorial {
     if (e.axle === 'front') this.saw.front = true;
     if (e.axle === 'rear') this.saw.rear = true;
     if (e.overtake) this.overtakes++;
+    if (e.result) this.okLines++; // v1.3.65 : toute ligne réussie compte
     const s = this.steps[this.i];
     if (s.done && performance.now() - this.stepStart >= (s.minTime || 0) && s.done(this, e)) this.next();
   }

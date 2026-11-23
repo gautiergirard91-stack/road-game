@@ -1,6 +1,6 @@
 # ✅ Assurance qualité
 
-> **Note (v1.3.63)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.63**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
+> **Note (v1.3.65)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.65**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
 
 ## Processus de test
 
@@ -535,3 +535,14 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] `node tests/break.test.mjs` : section AN (6 assertions : wiring appId ×2, init propre sans appId, appIdMissing cohérent, hint UI)
 - [ ] Post-déploiement : App Check → APIs → RTDB « verified » > 0 % ; site ⚙️ Paramètres 🟢 « App Check 🟢 token OK » ; plus de 401
 - [ ] CI verte + 6 tests + audit ✅ + CACHE roadtap-v71 + VERSION 1.3.63 + version.json 1.3.63
+
+## Checklist v1.3.65 (liste du joueur : tuto, musique, freeze, ville, filtres LB — branche `vibe/todo-liste-264a24`)
+
+- [ ] **Tutoriel** : 9 étapes (le « 2ème dépassement » supprimé) ; étape raté = texte court + **perte de ❤ réelle** (`stats.misses++` + HUD, mais pas de game over en tuto) ; étape Permis A = **3 lignes réussies** (`okLines >= 3`) ; étape Pilote sans « 1er essai », « revient à droite toute seule » ; `tests/tutorial.test.mjs` MAJ (index piéton 7→6) + 4 nouvelles assertions
+- [ ] **Ville** : max **1 passage piéton** par niveau (`crosswalks < 1` dans `buildPattern`, test sur 40 seeds)
+- [ ] **Filtres classement mémorisés** : `roadtap_lb_filters_v1` (filter/level/scope), restaurés à l'ouverture ; défaut = difficulté courante si jamais mémorisé
+- [ ] **Musique au lancement** : `startLevel` → `unlockAudio()` + `setMusicEnabled(...)` + `musicKick()` (reprend le contexte au clic « Jouer » = geste, resync du séquenceur)
+- [ ] **Anti-freeze au tap** : plus de `shadowBlur` 18/22 dans le rendu des lignes (pulse/glow → passes alpha) ni dans la voiture néon ; `AudioContext` créé au clic « Jouer » plutôt qu'au 1er tap
+- [ ] `node tests/break.test.mjs` : section AO (8 assertions)
+- [ ] Test manuel : tuto fluide (étape 4 perd bien un ❤, étape 5 avance après 3 lignes) ; musique dès le 1er écran de jeu ; aucun freeze au tap sur téléphone ; filtres LB retrouvés après être sorti de la page ; niveau 4/5 = 1 seul passage piéton
+- [ ] CI verte + CACHE sw bumpé (roadtap-v73) + VERSION 1.3.65 + version.json 1.3.65

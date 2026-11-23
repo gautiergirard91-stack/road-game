@@ -39,6 +39,7 @@ export function buildPattern(level, seed, mode = 'auto') {
   const axle = () => (mode === 'auto' ? 'rear' : rand() < 0.5 ? 'front' : 'rear');
   const lines = [];
   let dist = Math.max(gapMax, 620);
+  let crosswalks = 0; // v1.3.65 : MAX 1 passage piéton par niveau (niveaux "ville")
   lines.push({ type: 'dash', dist, axle: axle() });
   for (let i = 1; i < nLines; i++) {
     const r = rand();
@@ -51,7 +52,7 @@ export function buildPattern(level, seed, mode = 'auto') {
         break;
       }
     }
-    if (level.crosswalk && i > 2 && rand() < 0.1) type = 'crosswalk';
+    if (level.crosswalk && crosswalks < 1 && i > 2 && rand() < 0.1) { type = 'crosswalk'; crosswalks++; } // v1.3.65 : cap à 1
     const gap = gapMin + rand() * (gapMax - gapMin);
     dist += gap;
     lines.push({ type, dist, axle: axle() });

@@ -115,8 +115,8 @@ while (!done && !quit && simT < 240) {
 console.log('étapes parcourues :', stepLog.join(' → '), '| terminé =', done, '| simT =', simT.toFixed(1) + 's');
 assert.ok(!quit, 'le tutoriel n\'a pas été quitté');
 assert.ok(done, `le tutoriel va jusqu'au bout sans se coincer (bloqué étape ${tut.i}/${tut.steps.length})`);
-assert.ok(stepLog.includes(7), 'étape passage piéton (index 7) atteinte');
-assert.ok(stepLog.indexOf(7) < stepLog.length - 1, 'étape SUIVANTE atteinte après le passage piéton (pas coincé dessus)');
+assert.ok(stepLog.includes(6), 'étape passage piéton (index 6 après suppression de l\'étape 2ème dépassement, v1.3.65) atteinte');
+assert.ok(stepLog.indexOf(6) < stepLog.length - 1, 'étape SUIVANTE atteinte après le passage piéton (pas coincé dessus)');
 console.log(`(info) 1er passage piéton raté volontairement dans ce run : ${cwMissedOnce}`);
 
 // v1.3.26 : test unitaire déterministe du respawn — s'il ne reste aucun passage piéton
@@ -130,7 +130,7 @@ console.log(`(info) 1er passage piéton raté volontairement dans ce run : ${cwM
     },
   };
   const t2 = new Tutorial(fakeGame, els, () => {}, () => {});
-  t2.i = 7; // étape passage piéton
+  t2.i = 6; // v1.3.65 : étape passage piéton (index 6 depuis la suppression du 2ème dépassement)
   t2.reading = false;
   t2.stepStart = performance.now();
   t2.tick();
