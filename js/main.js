@@ -211,7 +211,8 @@ function renderLbLevelFilter() {
   if (!el) return;
   el.innerHTML = '';
   const opts = [
-    ...LEVELS.map((l) => ({ id: String(l.id), name: `${l.id}. ${l.name}` })), // v1.3.50 : plus d'option « Tous niveaux »
+    { id: 'all', name: '🌐 Tous niveaux' }, // v1.3.67 : option explicite — à l'ouverture un filtre est TOUJOURS sélectionné
+    ...LEVELS.map((l) => ({ id: String(l.id), name: `${l.id}. ${l.name}` })),
     { id: String(ENDLESS_LEVEL.id), name: '∞ Survie' },
     { id: String(WEEKEND_LEVEL.id), name: '🎉 Week-end' }, // v1.3.46 : l'événement week-end a son propre filtre dans le classement
   ];
@@ -250,6 +251,10 @@ function renderLbFilter() {
   }
 }
 
+// v1.3.67 : nom du niveau affiché = LEVEL_NAMES[levelId] (les vieilles entrées ont level brut ex. 'L 1')
+const LEVEL_NAME_BY_ID = { ...Object.fromEntries(LEVELS.map((l) => [l.id, l.name])), [ENDLESS_LEVEL.id]: ENDLESS_LEVEL.name, [WEEKEND_LEVEL.id]: WEEKEND_LEVEL.name };
+const levelLabel = (e) => (e && e.levelId != null && LEVEL_NAME_BY_ID[Number(e.levelId)]) || (e && e.level) || '';
+
 async function renderLeaderboard() {
   const list = $('#leaderboard-list');
   list.innerHTML = '<div class="card-sub">Chargement…</div>';
@@ -263,11 +268,11 @@ async function renderLeaderboard() {
       let arr = all.filter((e) => typeof e.avgMs === 'number' && Number.isFinite(e.avgMs));
       arr = leaderboard.filterLevel(arr, lbLevelFilter);
       if (lbScope === 'friends') arr = filterFriendsByPseudo(arr, save.friends);
-      top = arr.sort((a, b) => a.avgMs - b.avgMs).slice(0, 50);
+      top = leaderboard.dedupeByPlayer(arr.sort((a, b) => a.avgMs - b.avgMs), 'reaction').slice(0, 50); // v1.3.67
     } else if (lbScope === 'friends') {
       // v1.3.36 : on récupère TOUT le classement (sans limite) puis on filtre par pseudos d'amis côté client
       const all = isSr ? await leaderboard.getSpeedrunAll() : await leaderboard.getAll(lbLevelFilter !== 'all' ? 'all' : lbFilter); // v1.3.50 : idem pour les amis
-      top = filterFriendsByPseudo(leaderboard.filterLevel(all, lbLevelFilter), save.friends).slice(0, 50);
+      top = leaderboard.dedupeByPlayer(filterFriendsByPseudo(leaderboard.filterLevel(all, lbLevelFilter), save.friends), isSr ? 'speedrun' : 'score').slice(0, 50); // v1.3.67
     } else {
       top = isSr ? await leaderboard.getSpeedrunTop(lbLevelFilter) : await leaderboard.getTop(lbLevelFilter !== 'all' ? 'all' : lbFilter, lbLevelFilter); // v1.3.50 : filtre par niveau => on balaie tous les modes (bug testeur niveau 2)
     }
@@ -280,7 +285,7 @@ async function renderLeaderboard() {
   if (!leaderboard.isOnline()) {
     srcEl.textContent = 'Classement local — configure Firebase dans js/config.js pour un classement en ligne (voir README)';
   } else if (st && st.source === 'firebase') {
-    srcEl.textContent = `${isSr ? '⏱ Classement speedrun' : isReact ? '⚡ Classement réaction' : 'Classement'} en ligne (Firebase) — ${st.count} ${isSr ? 'temps' : isReact ? 'réactions' : 'score(s)'} chargé(s)` + (st.error ? ` — ⚠ ${st.error}` : '');
+    srcEl.textContent = `${isSr ? '⏱ Classement speedrun' : isReact ? '⚡ Classement réaction' : 'Classement'} en ligne (Firebase) — ${st.count} ${isSr ? 'temps' : isReact ? 'réactions' : 'score(s)'} chargé(s)${lbLevelFilter !== 'all' || lbScope === 'friends' ? ` — ${top.length} affiché(s) ici` : ''}` + (st.error ? ` — ⚠ ${st.error}` : ''); // v1.3.67 : compte = lignes affichées quand filtre actif
   } else if (st && st.error) {
     srcEl.textContent = `⚠ ${isSr ? 'Speedrun' : 'Firebase'} injoignable ou refusé : ${st.error} — affichage local`;
   } else {
@@ -303,11 +308,17 @@ async function renderLeaderboard() {
       list.innerHTML = '<div class="card-sub">Aucun de tes amis n\'a encore de score ici — invite-les à jouer ! 🎮</div>';
       return;
     }
-    const hint = leaderboard.isOnline()
-      ? (isSr
-        ? 'Aucun temps speedrun en ligne — finis un niveau en mode ⏱ Speedrun ! (règles RTDB : nœud /speedrun, voir docs/FIREBASE.md)'
-        : 'Vérifie les règles RTDB : ouvre ' + 'https://realtime-database-5fd49-default-rtdb.europe-west1.firebasedatabase.app/scores.json' + ' (doit répondre 200 avec des données ou null).')
-      : (isSr ? 'Aucun temps pour l\'instant — joue en mode ⏱ Speedrun !' : isReact ? 'Aucune réaction enregistrée — joue une partie !' : 'Aucun score pour l\'instant — joue une partie !');
+    // v1.3.67 : filtre niveau actif + rien -> message dédié (l'indice « règles » ne sert que sans filtre)
+    const lvlName = LEVEL_NAME_BY_ID[Number(lbLevelFilter)] || lbLevelFilter;
+    const hint = lbLevelFilter !== 'all'
+      ? (leaderboard.isOnline()
+          ? `Aucun ${isSr ? 'temps' : 'score'} en ligne pour « ${lvlName} » — joue ce niveau pour passer 1er ! 🏁`
+          : `Aucun ${isSr ? 'temps' : 'score'} local pour « ${lvlName} » — joue une partie !`)
+      : leaderboard.isOnline()
+        ? (isSr
+          ? 'Aucun temps speedrun en ligne — finis un niveau en mode ⏱ Speedrun ! (règles RTDB : nœud /speedrun, voir docs/FIREBASE.md)'
+          : 'Vérifie les règles RTDB : ouvre ' + 'https://realtime-database-5fd49-default-rtdb.europe-west1.firebasedatabase.app/scores.json' + ' (doit répondre 200 avec des données ou null).')
+        : (isSr ? 'Aucun temps pour l\'instant — joue en mode ⏱ Speedrun !' : isReact ? 'Aucune réaction enregistrée — joue une partie !' : 'Aucun score pour l\'instant — joue une partie !');
     list.innerHTML = `<div class="card-sub">${hint}</div>`;
     return;
   }
@@ -316,7 +327,7 @@ async function renderLeaderboard() {
     row.className = 'card lb-row';
     const me = save.pseudo && e.pseudo === save.pseudo;
     const right = isSr ? `⏱ ${fmtTime((e.timeMs || 0) / 1000)}` : isReact ? `⚡ ${e.avgMs} ms` : (typeof e.avgMs === 'number' ? `${e.score} · ⚡${e.avgMs}ms` : e.score); // v1.3.31/v1.3.48
-    row.innerHTML = `<span class="lb-rank">${i + 1}</span><span class="lb-name${me ? ' me' : ''}">${escapeHtml(e.pseudo || 'Anonyme')}</span><span class="lb-level">${escapeHtml(e.level || '')}</span><span class="lb-score">${right}</span>`;
+    row.innerHTML = `<span class="lb-rank">${i + 1}</span><span class="lb-name${me ? ' me' : ''}">${escapeHtml(e.pseudo || 'Anonyme')}</span><span class="lb-level">${escapeHtml(levelLabel(e))}</span><span class="lb-score">${right}</span>`;
     list.appendChild(row);
   });
 }

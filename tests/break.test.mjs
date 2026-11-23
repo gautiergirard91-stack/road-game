@@ -1364,4 +1364,55 @@ console.log('AP. v1.3.66 : liste du joueur (2/2) — prix boutique x3, affichage
   if (origF === undefined) delete globalThis.fetch; else globalThis.fetch = origF;
 }
 
+console.log('AQ. v1.3.67 : classement — 1 entrée par joueur (meilleur score/temps/réaction), filtre niveau « 🌐 Tous niveaux » toujours sélectionné à l\'ouverture, libellés de niveau fiables, message dédié quand un niveau filtré est vide');
+{
+  const fsO = await import('node:fs');
+  const mainSrc = fsO.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  const lbSrc = fsO.readFileSync(new URL('../js/leaderboard.js', import.meta.url), 'utf8');
+
+  // dédoublonnage : score (max), speedrun (min timeMs), réaction (min avgMs), clé uid > pseudo
+  const dd = lb.dedupeByPlayer([
+    { pseudo: 'GigG', uid: 'u1', score: 50, levelId: 1 },
+    { pseudo: 'GigG', uid: 'u1', score: 3910, levelId: 3 },
+    { pseudo: 'gigg', score: 9999, levelId: 1 }, // même joueur sans uid -> même clé pseudo (casse-insensible)
+    { pseudo: 'Test', uid: 'u2', score: 10 },
+    { pseudo: 'Test', uid: 'u2', score: 5 },
+  ], 'score');
+  ok('dedupe score : 1 entrée/joueur (clé uid sinon pseudo minuscule), meilleur score gardé', dd.length === 3 && dd.find((e) => e.uid === 'u1').score === 3910 && dd.find((e) => e.pseudo === 'gigg').score === 9999 && dd.find((e) => e.uid === 'u2').score === 10);
+  const dds = lb.dedupeByPlayer([
+    { pseudo: 'A', uid: 'u1', timeMs: 90000 }, { pseudo: 'A', uid: 'u1', timeMs: 60000 }, { pseudo: 'B', uid: 'u2', timeMs: 45000 },
+  ], 'speedrun');
+  ok('dedupe speedrun : meilleur temps (min timeMs) gardé', dds.length === 2 && dds.find((e) => e.pseudo === 'A').timeMs === 60000);
+  const ddr = lb.dedupeByPlayer([
+    { pseudo: 'A', avgMs: 80 }, { pseudo: 'A', avgMs: 35 }, { pseudo: 'B', avgMs: 50 },
+  ], 'reaction');
+  ok('dedupe réaction : meilleur avgMs (min) gardé', ddr.length === 2 && ddr.find((e) => e.pseudo === 'A').avgMs === 35);
+  ok('dedupe : entrées sans pseudo ignorées', lb.dedupeByPlayer([{ score: 5 }, null, { pseudo: '', score: 1 }], 'score').length === 0);
+  ok('leaderboard.js : dedupe intégré à sortDesc (score) et sortAscTimeUnbounded (speedrun)', lbSrc.includes("dedupeByPlayer(arr.map(cleanEntry).filter(Boolean), 'score')") && lbSrc.includes("dedupeByPlayer(arr.map(cleanTimeEntry).filter(Boolean), 'speedrun')"));
+
+  // filtre niveau : option « Tous niveaux » en tête + sélection visible
+  ok('main.js : option { id: \'all\', name: \'🌐 Tous niveaux\' } en tête du filtre niveau', mainSrc.includes("{ id: 'all', name: '🌐 Tous niveaux' }"));
+  ok('main.js : dedupe appliqué aussi aux onglets réaction et amis (2 branches)', (mainSrc.split('dedupeByPlayer(').length - 1) >= 2);
+
+  // libellés + statut + message vide filtré
+  ok('main.js : levelLabel (LEVEL_NAME_BY_ID[levelId] sinon e.level) utilisé dans les lignes', mainSrc.includes('levelLabel(e)') && mainSrc.includes('LEVEL_NAME_BY_ID'));
+  ok('main.js : statut affiche « N affiché(s) ici » quand filtre actif', mainSrc.includes('affiché(s) ici'));
+  ok('main.js : filtre niveau actif + vide -> message « Aucun ... pour « niveau » — joue ce niveau pour passer 1er ! »', mainSrc.includes('joue ce niveau pour passer 1er'));
+
+  // fonctionnel : getTop en ligne dédoublonne (2 entrées même uid -> 1 ligne, meilleur score)
+  const origF2 = globalThis.fetch;
+  globalThis.fetch = async () => ({
+    ok: true,
+    json: async () => ({
+      x: { pseudo: 'GigG', uid: 'u1', score: 50, levelId: 1, level: 'Premiers tours', mode: 'auto' },
+      y: { pseudo: 'GigG', uid: 'u1', score: 3910, levelId: 3, level: 'Double file', mode: 'auto' },
+      z: { pseudo: 'Test', uid: 'u2', score: 10, levelId: 1, level: 'L 1', mode: 'auto' },
+      w: { pseudo: 'Cheat', uid: 'u3', score: 5, wideWindows: true, levelId: 1, mode: 'auto' },
+    }),
+  });
+  const top = await lb.getTop('auto', 'all');
+  ok('getTop en ligne : dédoublonné (GigG 1x meilleur score 3910), wideWindows filtré, tri desc', top.length === 2 && top[0].pseudo === 'GigG' && top[0].score === 3910 && top[1].pseudo === 'Test');
+  if (origF2 === undefined) delete globalThis.fetch; else globalThis.fetch = origF2;
+}
+
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);

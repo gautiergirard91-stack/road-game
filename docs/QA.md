@@ -1,6 +1,6 @@
 # ✅ Assurance qualité
 
-> **Note (v1.3.66)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.66**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
+> **Note (v1.3.67)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.67**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
 
 ## Processus de test
 
@@ -556,3 +556,13 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] `node tests/break.test.mjs` : section AP (16 assertions, dont test fonctionnel de la file)
 - [ ] Test manuel : cartes boutique/garage sans texte parasite, plus rien du jeu sous le garage ; prix affichés x3 ; succès débloquables ; jouer hors ligne sans compte → revenir en ligne + connecté → toast « N résultat(s) envoyé(s) »
 - [ ] CI verte + CACHE sw bumpé (roadtap-v74) + VERSION 1.3.66 + version.json 1.3.66
+
+## Checklist v1.3.67 (classement : 1 entrée/joueur + filtre niveau visible + libellés — branche `vibe/classement-264a24`)
+
+- [ ] **1 entrée par joueur** : `dedupeByPlayer(arr, kind)` dans leaderboard.js (clé = `uid` sinon pseudo minuscule ; garde max score / min timeMs / min avgMs) — intégré à `sortDesc` et `sortAscTimeUnbounded`, + branches réaction/amis dans main.js
+- [ ] **Filtre niveau toujours sélectionné à l'ouverture** : option `🌐 Tous niveaux` (`id: 'all'`) en tête de la liste (les filtres mémorisés v1.3.65 restent restaurés)
+- [ ] **Libellés de niveau fiables** : `levelLabel(e)` = nom via `levelId`, sinon champ `level` brut (plus de « L 1 »)
+- [ ] **Statut** : « N chargé(s) — M affiché(s) ici » quand un filtre est actif ; liste vide + filtre niveau → « Aucun score pour « niveau » — joue ce niveau pour passer 1er ! » (plus l'indice règles trompeur)
+- [ ] `node tests/break.test.mjs` : section AQ (11 assertions, dont getTop en ligne dédoublonné + wideWindows filtré)
+- [ ] Test manuel : ouvrir le classement → « 🌐 Tous niveaux » surligné ; choisir un niveau → scores filtrés, 1 ligne par joueur (meilleur score) ; un joueur avec 2 scores n'apparaît qu'une fois
+- [ ] CI verte + CACHE sw bumpé (roadtap-v75) + VERSION 1.3.67 + version.json 1.3.67
