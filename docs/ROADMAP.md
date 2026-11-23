@@ -127,3 +127,11 @@ La sonde auth (v1.3.59) a prouvé que le 401 persistant venait d'**App Check Enf
 ## v1.3.63 — FIREBASE_APP_ID (cause racine du 401 sous Enforce)
 
 L'échange de jeton App Check exige l'**ID d'application** de l'app web (`1:…:web:…`, Firebase → Paramètres du projet → Vos applications) passé à `initializeApp`. Sans lui : `getToken` → 400 → throttled → 0 % de requêtes validées → RTDB Enforced renvoie 401 partout. `FIREBASE_APP_ID` est ajouté à `js/config.js` (à remplir), passé dans `appcheck.js` et `auth.js`, et le diagnostic ⚙️ Paramètres signale explicitement « FIREBASE_APP_ID manquant » si le placeholder est vide.
+
+## v1.3.65 — liste du joueur (partie 1 : gameplay/UX)
+
+- **Tutoriel raccourci** : 9 étapes (suppression du 2ᵉ dépassement) ; étape raté = texte court et **perte de ❤ réelle** (plus de game over en tuto) ; étape Permis A = **3 lignes réussies** avant d'avancer ; étape Pilote sans « 1er essai », précise que la voiture revient à droite seule.
+- **Ville** : maximum **1 passage piéton** par niveau.
+- **Classement** : filtres (mode/niveau/amis) **mémorisés** dans `roadtap_lb_filters_v1` et restaurés à la réouverture.
+- **Musique** : démarre dès le lancement de la partie (`musicKick()` au clic « Jouer » — reprend l'AudioContext dans le geste utilisateur).
+- **Perf** : suppression des `shadowBlur` sur les lignes/voiture en jeu (halos en alpha) → plus de freeze au tap sur mobile.

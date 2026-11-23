@@ -204,6 +204,16 @@ function startMusic() {
   musicTimer = setInterval(schedule, 25);
 }
 
+// v1.3.65 : à appeler au LANCEMENT d'une partie (clic « Jouer » = geste utilisateur) — reprend le
+// contexte audio (autoplay) et resynchronise le séquenceur pour que la musique démarre tout de suite.
+export function musicKick() {
+  const c = ac(); // crée/reprend le contexte (autorisé car appelé depuis un geste)
+  if (!c) return;
+  musicStep = 0;
+  musicNext = c.currentTime + 0.06;
+  if (musicOn && enabled && !musicTimer) startMusic();
+}
+
 function stopMusic() {
   if (musicTimer) clearInterval(musicTimer);
   musicTimer = null;

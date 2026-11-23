@@ -1275,4 +1275,39 @@ console.log('AN. v1.3.63 : FIREBASE_APP_ID (ID d\'application de l\'app web) pas
   }
 }
 
+console.log('AO. v1.3.65 : liste du joueur — tuto raccourci (9 étapes, ❤ réel, 3 lignes en Permis A, 2ème dépassement supprimé), max 1 passage piéton/niveau, filtres LB mémorisés, musique au lancement, plus de shadowBlur sur les lignes (anti-freeze)');
+{
+  const fsM = await import('node:fs');
+  const coreSrc = fsM.readFileSync(new URL('../js/core.js', import.meta.url), 'utf8');
+  const gameSrc = fsM.readFileSync(new URL('../js/game.js', import.meta.url), 'utf8');
+  const mainSrc = fsM.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  const tutSrc = fsM.readFileSync(new URL('../js/tutorial.js', import.meta.url), 'utf8');
+  const audioSrc = fsM.readFileSync(new URL('../js/audio.js', import.meta.url), 'utf8');
+
+  // ville : max 1 passage piéton par niveau (déterministe, sur plusieurs seeds)
+  let maxCw = 0, anyCw = 0;
+  for (let seed = 1; seed <= 40; seed++) {
+    const pat = core.buildPattern(LEVELS[3], seed, 'auto'); // niveau 4 « En ville » (crosswalk: true)
+    const n = pat.filter((l) => l.type === 'crosswalk').length;
+    maxCw = Math.max(maxCw, n); anyCw += n;
+  }
+  ok('ville : max 1 passage piéton par niveau sur 40 seeds (niveau 4)', maxCw <= 1 && anyCw >= 1);
+  ok('core.js : cap crosswalk dans buildPattern (crosswalks < 1)', coreSrc.includes('crosswalks < 1'));
+
+  // tuto
+  ok('tutorial.js : 9 étapes, plus de « 2ème »/« 1er essai », okLines>=3, missStep −1 ❤️', tutSrc.includes('okLines >= 3') && !/2ème|1er essai/.test(tutSrc) && tutSrc.includes('missStep: true'));
+  ok('game.js : tutoriel -> raté compte VRAIMENT (misses++ + onMiss(misses) + popup −1 ❤) mais return avant le game over', gameSrc.includes('if (this.tutorial) {') && gameSrc.includes('this.stats.misses++;') && gameSrc.includes('this.onMiss(this.stats.misses);') && gameSrc.includes('RATÉ −1 ❤'));
+
+  // filtres LB persistés
+  ok('main.js : filtres LB persistés (roadtap_lb_filters_v1) + restaurés à l’ouverture', mainSrc.includes("const LB_FILTERS_KEY = 'roadtap_lb_filters_v1'") && mainSrc.includes('loadLbFilters();') && mainSrc.includes('if (!lbFiltersLoaded)') && (mainSrc.match(/saveLbFilters\(\)/g) || []).length >= 4);
+
+  // musique au lancement
+  ok('audio.js : musicKick() exporté (reprend le contexte + resync séquenceur)', audioSrc.includes('export function musicKick()'));
+  ok('main.js : startLevel -> unlockAudio + setMusicEnabled + musicKick (musique dès le début)', /function startLevel[\s\S]{0,300}unlockAudio\(\);[\s\S]{0,120}setMusicEnabled\(save\.music && save\.sound\);[\s\S]{0,80}musicKick\(\);/.test(mainSrc));
+
+  // anti-freeze : plus de shadowBlur dans le rendu des lignes en jeu (pulse/glow/néon remplacés par alpha)
+  const renderZone = gameSrc.slice(gameSrc.indexOf('drawLines'), gameSrc.indexOf('drawLineShape(type'));
+  ok('game.js : plus de shadowBlur=18/22 dans le rendu des lignes (pulse/glow en alpha)', !/shadowBlur = (18|22)/.test(renderZone));
+}
+
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);

@@ -1,7 +1,7 @@
 import { LEVELS, THEMES, SKINS, EFFECTS, DIFFICULTIES, CURRENCIES, WINDOWS, ACHIEVEMENTS, THEME_SHOP, ENDLESS_LEVEL, WEEKEND_LEVEL, PACKS, SOUND_PACKS } from './data.js';
 import { Game, CAR_STYLE_LABEL, renderCarPreview, renderEffectPreview, renderThemePreview, renderPackPreview, renderSoundPreview } from './game.js';
 import * as store from './store.js';
-import { sfx, setEnabled, setMusicEnabled, unlockAudio, applySoundPack, setMusicCombo, musicSting, musicVictory, scheduleLineBeat, clearLineBeats } from './audio.js';
+import { sfx, setEnabled, setMusicEnabled, unlockAudio, applySoundPack, setMusicCombo, musicSting, musicVictory, scheduleLineBeat, clearLineBeats, musicKick } from './audio.js';
 import { coinsForResult, accuracy, avgReaction, continueCost, maxMissesFor, firstClearBonus, isPerfectClear, perfectClearBonus, dailyChallenge, weeklyQuests, fmtTime, zoneFromPoint, keyToAction, isNewerVersion, starsFor, endlessMilestones, isWeekend, weekendCoinMultiplier, filterFriendsByPseudo, canSubmitToLeaderboard, keyLabel, reactionBonus } from './core.js';
 import { watchRewarded } from './ads.js';
 import { Tutorial } from './tutorial.js';
@@ -101,8 +101,32 @@ function renderModePicker() {
 
 let lbFilter = 'all';
 let lbLevelFilter = 'all';
+// v1.3.65 : les filtres du classement (difficulté/mode, niveau, onglet amis) sont MÉMORISÉS et
+// restaurés à la réouverture de la page — le joueur retrouve ses filtres.
 // v1.3.36 : portée du classement — 'all' (tous les joueurs) ou 'friends' (amis par pseudo)
 let lbScope = 'all';
+const LB_FILTERS_KEY = 'roadtap_lb_filters_v1';
+let lbFiltersLoaded = false;
+function loadLbFilters() {
+  try {
+    const raw = localStorage.getItem(LB_FILTERS_KEY);
+    if (!raw) return;
+    const o = JSON.parse(raw);
+    if (o && typeof o === 'object') {
+      if (typeof o.filter === 'string') lbFilter = o.filter;
+      if (typeof o.level === 'string') lbLevelFilter = o.level;
+      if (typeof o.scope === 'string') lbScope = o.scope;
+      lbFiltersLoaded = true;
+    }
+  } catch { /* ignore */ }
+}
+function saveLbFilters() {
+  try {
+    localStorage.setItem(LB_FILTERS_KEY, JSON.stringify({ filter: lbFilter, level: lbLevelFilter, scope: lbScope }));
+  } catch { /* ignore */ }
+}
+loadLbFilters();
+
 
 // v1.3.36 : onglets 🌍 Tous / 👥 Amis au-dessus des filtres
 function renderLbScope() {
@@ -119,6 +143,7 @@ function renderLbScope() {
     b.textContent = o.name;
     b.addEventListener('click', () => {
       lbScope = o.id;
+      saveLbFilters();
       sfx.click();
       renderLbScope();
       renderFriends();
@@ -196,6 +221,7 @@ function renderLbLevelFilter() {
     b.textContent = o.name;
     b.addEventListener('click', () => {
       lbLevelFilter = o.id;
+      saveLbFilters(); // v1.3.65
       sfx.click();
       renderLbLevelFilter();
       renderLeaderboard();
@@ -215,6 +241,7 @@ function renderLbFilter() {
     b.textContent = d.name;
     b.addEventListener('click', () => {
       lbFilter = d.id;
+      saveLbFilters(); // v1.3.65
       sfx.click();
       renderLbFilter();
       renderLeaderboard();
@@ -971,7 +998,10 @@ function renderGarage() {
 
 function startLevel(level) {
   currentLevel = level;
-  setMusicCombo(0); // v1.3.42 : nouvelle partie -> intensité musicale à 0
+  setMusicCombo(0); // v1.3.42 : nouvelle partie -> intensité musicale à 0  unlockAudio(); // v1.3.65 : contexte audio repris ici (geste « Jouer ») -> pas de freeze au 1er tap
+  setMusicEnabled(save.music && save.sound); // v1.3.65 : musique ON dès le début de la partie
+  musicKick(); // v1.3.65 : resynchronise le séquenceur -> la musique démarre immédiatement
+
   clearLineBeats(); // v1.3.46 : on annule les beats de ligne de la partie précédente
   show('screen-game');
   $('#pause-overlay').classList.remove('active');
@@ -1413,8 +1443,12 @@ for (const [btnId, action] of [['btn-key-front', 'front'], ['btn-key-rear', 'rea
 
 on('btn-leaderboard', 'click', () => {
   sfx.click();
-  lbFilter = save.difficulty; // v1.3.50 : filtre difficulté = difficulté courante (plus d'option « Tous »)
-  lbLevelFilter = 'all'; // v1.3.50 : aucun filtre de niveau à l'ouverture
+  // v1.3.65 : on RESTAURE les filtres mémorisés ; sinon (1re fois) défaut = difficulté courante
+  if (!lbFiltersLoaded) {
+    lbFilter = save.difficulty;
+    lbLevelFilter = 'all';
+    saveLbFilters();
+  }
   renderLbScope(); // v1.3.36 : onglets 🌍 Tous / 👥 Amis
   renderFriends();
   renderLbFilter();
