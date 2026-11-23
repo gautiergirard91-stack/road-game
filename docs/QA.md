@@ -1,6 +1,6 @@
 # ✅ Assurance qualité
 
-> **Note (v1.3.60)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.60**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
+> **Note (v1.3.61)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.61**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
 
 ## Processus de test
 
@@ -508,3 +508,10 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] Côté console (à faire) : Firebase → App Check → Apps : l'app web `realtime-database-5fd49.firebaseapp.com` doit utiliser le provider reCAPTCHA Enterprise avec **la même clé 6Lf7vCwu…** ; puis attendre « verified » avant de garder Enforce
 - [ ] Test manuel après déploiement : ⚙️ Paramètres → serveur 🟢 avec « App Check 🟢 token OK » ; Fraud Defense → la clé « roadtap ent » affiche des exécutions/scores (>0)
 - [ ] CI verte + CACHE sw bumpé (roadtap-v68) + VERSION 1.3.60 + version.json 1.3.60
+
+## Checklist v1.3.61 (doc : le bandeau « demander des scores » ne concerne pas App Check — branche `vibe/doc-scores-appcheck-264a24`)
+
+- [ ] `docs/FIREBASE.md` §8 : note v1.3.61 — « scores (évaluations) » = siteverify backend avec clé secrète, **pas utilisé** (Firebase App Check vérifie le jeton côté serveur) ; seule compte la présence d'**exécutions** de jetons
+- [ ] Vérifs post-déploiement v1.3.60 : Fraud Defense « roadtap ent » exécutions > 0 ; App Check → APIs RTDB « verified » ; site ⚙️ Paramètres 🟢 « App Check 🟢 token OK » ; classement en ligne
+- [ ] Aucun changement de code fonctionnel (docs uniquement) + triple bump v1.3.61/roadtap-v69
+- [ ] CI verte + 6 tests + audit ✅
