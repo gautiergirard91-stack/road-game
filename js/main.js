@@ -1164,9 +1164,11 @@ function onGameEnd(stats, level) {
   logEvent('game_over', { score: stats.score, level: level.id, mode: save.difficulty, completed: !!stats.completed, reason: stats.reason });
   // v1.3.37 : envoi UNIQUEMENT si compte Google lié (uid) — l'accès anonyme au classement est retiré
   // (règles RTDB v1.3.37 : auth != null requis ; leaderboard.submitScore refuse sinon et garde en local)
+  // v1.3.71 : promesse d'envoi conservée pour ATTENDRE la fin de l'écriture avant de lire le rang
+  let submitP = null;
   if (!sr && canSubmitToLeaderboard(save)) { // v1.3.45 : wideWindows -> hors classement en ligne
     // v1.3.19 : en speedrun le score est un temps -> pas de classement global (record local bestTime)
-    leaderboard
+    submitP = leaderboard
       // v1.3.32 : uid + jeton -> règles RTDB vérifient uid == auth.uid (anti-usurpation)
       .submitScore({ pseudo: save.pseudo, uid: save.uid || '', score: stats.score, level: level.name, levelId: level.id, mode: save.difficulty, date: Date.now(), avgMs: avgReaction(stats) ?? undefined }, getAuthToken()) // v1.3.48 : avgMs envoyé au classement
       .then(() => {
@@ -1181,9 +1183,10 @@ function onGameEnd(stats, level) {
     if (save.wideWindows) toast('♿ Fenêtres élargies actives : résultat gardé en local, hors classement en ligne');
     else if (!save.uid) toast('🔒 Connecte Google (« ✏️ Mon pseudo ») pour apparaître dans le classement en ligne — résultat gardé en local');
   }
+  let submitSrP = null;
   if (sr && stats.completed && canSubmitToLeaderboard(save)) { // v1.3.45 : idem speedrun
     // v1.3.31 : classement speedrun dédié (nœud /speedrun/<levelId>, temps en ms, tri croissant)
-    leaderboard
+    submitSrP = leaderboard
       .submitSpeedrun(level.id, { pseudo: save.pseudo, uid: save.uid || '', timeMs: stats.timeMs || 0, level: level.name, levelId: level.id, mode: runMode, date: Date.now() }, getAuthToken()) // v1.3.54 : mode réel (permisA en speedrun)
       .catch(() => {});
   }
@@ -1196,16 +1199,34 @@ function onGameEnd(stats, level) {
     try {
       const key = leaderboard.playerKey({ uid: save.uid, pseudo: save.pseudo });
       const modeName = (DIFFICULTIES.find((d) => d.id === runMode) || {}).name || runMode;
-      if (sr && stats.completed) {
-        const all = await leaderboard.getSpeedrunAll();
-        const arr = leaderboard.dedupeByPlayer(leaderboard.filterLevel(all, String(level.id)).filter((e) => !e.mode || e.mode === runMode), 'speedrun').sort((a, b) => a.timeMs - b.timeMs);
-        const i = arr.findIndex((e) => leaderboard.playerKey(e) === key);
-        el.textContent = i >= 0 ? `⏱ ${fmtTime((stats.timeMs || 0) / 1000)} → #${i + 1} au classement speedrun — ${level.name} (${modeName})` : '⏱ temps pas encore visible en ligne…';
-      } else {
+      // v1.3.71 : attendre la fin de l'envoi (POST + éventuel flush file) AVANT de lire, sinon lecture avant écriture
+      if (sr && stats.completed) { if (submitSrP) await submitSrP; } else if (submitP) await submitP;
+      const readRank = async () => {
+        if (sr && stats.completed) {
+          const all = await leaderboard.getSpeedrunAll();
+          const arr = leaderboard.dedupeByPlayer(leaderboard.filterLevel(all, String(level.id)).filter((e) => !e.mode || e.mode === runMode), 'speedrun').sort((a, b) => a.timeMs - b.timeMs);
+          return arr.findIndex((e) => leaderboard.playerKey(e) === key);
+        }
         const all = await leaderboard.getAll(runMode);
         const arr = leaderboard.dedupeByPlayer(leaderboard.filterLevel(all, String(level.id)), 'score').sort((a, b) => (b.score || 0) - (a.score || 0));
-        const i = arr.findIndex((e) => leaderboard.playerKey(e) === key);
-        el.textContent = i >= 0 ? `🏁 ${stats.score} pts → #${i + 1} au classement — ${level.name} (${modeName})` : '🏁 score pas encore visible en ligne (local ?) — ouvre le classement';
+        return arr.findIndex((e) => leaderboard.playerKey(e) === key);
+      };
+      let i = -1;
+      try { i = await readRank(); } catch { i = -1; }
+      if (i < 0) { // v1.3.71 : 2e lecture après 1,2 s (propagation) avant le message de repli
+        await new Promise((r) => setTimeout(r, 1200));
+        try { i = await readRank(); } catch { i = -1; }
+      }
+      const st2 = leaderboard.getLbStatus();
+      if (i >= 0) {
+        const rankTxt = sr && stats.completed
+          ? `⏱ ${fmtTime((stats.timeMs || 0) / 1000)} → #${i + 1} au classement speedrun — ${level.name} (${modeName})`
+          : `🏁 ${stats.score} pts → #${i + 1} au classement — ${level.name} (${modeName})`;
+        el.textContent = leaderboard.isOnline() ? rankTxt : `${rankTxt} — classement local (envoyé à la reconnexion)`;
+      } else if (st2 && st2.writeError) {
+        el.textContent = `⚠️ envoi refusé par le serveur — hors classement en ligne (${st2.writeError})`;
+      } else {
+        el.textContent = sr && stats.completed ? '⏱ temps pas encore visible en ligne…' : '🏁 score pas encore visible en ligne (local ?) — ouvre le classement';
       }
     } catch { /* lecture KO -> on laisse vide */ }
   })();
