@@ -26,3 +26,19 @@ Ce fichier est lu automatiquement par les outils d'IA (Claude Code, etc.). Le su
 - Répondre en **français**, concis, avec des options concrètes plutôt que des questions ouvertes.
 - **Après chaque push**, terminer le message par un bloc `🔔 BLOC DE TEST` : kill du serveur (`lsof -ti:8080 | xargs kill`), `git pull`, `python3 -m http.server 8080`, **Ctrl+Shift+R** obligatoire (bump CACHE), puis une checklist de vérification.
 - Signaler tout blocage avec la cause exacte (ex: CORS, règles RTDB) et 2–3 pistes concrètes.
+
+## Agents spécialisés (Mistral Vibe CLI)
+
+Agents configurés au niveau projet dans `.vibe/agents/` :
+
+**Sous-agents (délégation automatique par l'agent principal selon la description)** :
+- **gameplay** (`.vibe/agents/gameplay.toml`) : mécaniques, physique, boucle de jeu — outils : read_file, search_replace, write_file, bash.
+- **équilibrage** (`.vibe/agents/equilibrage.toml`) : valeurs numériques uniquement (js/data.js, bonus) — outils : read_file, search_replace, write_file.
+- **contrôles** (`.vibe/agents/controles.toml`) : inputs, réactivité, feel, timing — outils : read_file, search_replace, write_file, bash.
+
+**Agents sélectionnables (`vibe --agent <nom>` ou Shift+Tab)** :
+- **polish** (`.vibe/agents/polish.toml`) : juice, feedback, UI/UX, perfs — en dernier, sur une version déjà jouable.
+- **niveaux** (`.vibe/agents/niveaux.toml`) : design/génération des niveaux (js/data.js + js/core.js).
+- **assets** (`.vibe/agents/assets.toml`) : intégration assets (canvas procédural, icônes PWA, sons) + prompts outils externes.
+
+Pour rendre un agent sélectionnable en subagent (ou l'inverse) : changer `agent_type` dans son TOML.
