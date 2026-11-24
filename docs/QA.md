@@ -1,6 +1,6 @@
 # ✅ Assurance qualité
 
-> **Note (v1.3.75)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.75**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
+> **Note (v1.3.76)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.76**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
 
 ## Processus de test
 
@@ -648,4 +648,18 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] `node tests/break.test.mjs` : section AY (8 assertions : garde avant keyToAction, tombstone add/remove/merge/re-ajout, snapshot) — **425 assertions**
 - [ ] Test manuel : modale pseudo → taper vite « RMWXCVBN » lettre par lettre → tout s'affiche immédiatement ; supprimer un ami (✕) → quitter la page classement → revenir → l'ami n'est plus là ; le remettre → OK
 - [ ] CI verte + CACHE sw bumpé (roadtap-v83) + VERSION 1.3.75 + version.json 1.3.75
+
+## Checklist v1.3.76 (voies manuelles + musique calée sur les lignes + touches Z/S — branche `vibe/voies-manuelles-musique-264a24`)
+
+- [ ] **Voies manuelles** : plus de retour auto (`lastOvertaken` ne remet plus `laneTarget=CAR_LANE`) ; `swipeRight()` (swipe → / ➡) pour revenir à droite ; au dépassement, `tOncoming ≥ 1,4 s` + entre-sens vidé
+- [ ] **Danger sens inverse** : spawn oncoming même quand le joueur est à gauche, avec lead ≥ 1050 px (~1,5-2,5 s = fenêtre d'action) ; collision `finish('oncoming')` si joueur à gauche et |distance - c.p| < 58 ; alerte `danger` 0..1 + texte ⚠ clignotant « VOITURE DE FACE — SWIPE → / ➡ » ; pas de mort en tutoriel
+- [ ] **Spawn** : jamais 2 voitures même file à < 520 px (`c.p > distance-400 && c.p < distance+520` bloque le spawn)
+- [ ] **Touches** : `DEFAULT_KEYS = Z/S/←/R` ; `keyToAction` : Z/↑=front, S/Space/↓/Enter=rear, ←=swipe, →=swipeRight (toutes orientations) ; `trySwipe` gère dx<-40 (gauche) et dx>+40 (droite) ; branches swipeRight clavier+souris
+- [ ] **Zones tactiles** : défaut = gauche/droite (gauche=AV, droite=AR) via `verticalZones=false` ; migration `horizontalZones` dans `load()` ; option accessibilité = « zones haut/bas » ; `keyToAction(..., !save.verticalZones, ...)`
+- [ ] **Musique** : `musicLineAnchor()` (pas séquenceur + kick pile sur la ligne, re-ancrage lookahead) appelé par le jeu quand une ligne atteint les roues (rear, `line.anchored`, une fois/ligne)
+- [ ] **Tutoriel** : textes MAJ (Z/S, SWIPE ← puis →, alerte ⚠, plus de « revient toute seule »), `zonesTxt` via verticalZones
+- [ ] Écran de fin : raison `oncoming` → « 💥 Voiture de face ! Reviens à droite avec → »
+- [ ] `node tests/break.test.mjs` : section AZ (13 assertions) + MAJ keyToAction/DEFAULT_KEYS/bindKey/zones ; `game.smoke` : 4 nouveaux scénarios (collision de face, danger, garde spawn, swipeRight) — **438 assertions**, 9 scénarios smoke
+- [ ] Test manuel : Pilote → doubler (swipe ←/⬅), la voiture RESTE à gauche ; ⚠ clignote si une voiture de face approche ; swipe →/➡ pour revenir ; rester à gauche jusqu'à la collision = 💥 écran de fin ; PC : Z=AV, S=AR, ⬅/➡ = voies ; musique : chaque ligne = un beat audible
+- [ ] CI verte + CACHE sw bumpé (roadtap-v84) + VERSION 1.3.76 + version.json 1.3.76
 

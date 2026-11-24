@@ -115,7 +115,7 @@ console.log('A. localStorage corrompu');
     store.spend('pilote', 10); // fonds insuffisants -> false
     store.setBestTime('auto', 3, 12345); // v1.3.44 : (mode, levelId, ms)
     store.setSpeedrun(true);
-    store.setHorizontalZones(true);
+    store.setVerticalZones(true);
     store.setPseudo(98765);
   });
   ok('setters sûrs après save corrompue', store.getWallet('auto') === 50 && Number.isFinite(store.getWallet('auto')));
@@ -268,15 +268,12 @@ console.log('G. v1.3.28 : zones gauche/droite (mapping pur) + effets jamais auto
   ok('zone bas -> rear (horizontal OFF)', core.zoneFromPoint(200, 700, 390, 844, false) === 'rear');
   ok('zoneFromPoint NaN -> rear (pas de crash)', core.zoneFromPoint(NaN, NaN, 390, 844, true) === 'rear');
 
-  // --- keyToAction : UNE SEULE action par touche (fix double-binding ArrowLeft) ---
-  ok('horizontal ON: ArrowLeft -> front (PAS swipe)', core.keyToAction('ArrowLeft', true) === 'front');
-  ok('horizontal ON: ArrowRight -> rear', core.keyToAction('ArrowRight', true) === 'rear');
-  ok('horizontal ON: ArrowDown -> swipe', core.keyToAction('ArrowDown', true) === 'swipe');
-  ok('horizontal ON: KeyS -> swipe', core.keyToAction('KeyS', true) === 'swipe');
-  ok('horizontal OFF: ArrowLeft -> swipe (hérité)', core.keyToAction('ArrowLeft', false) === 'swipe');
-  ok('horizontal OFF: ArrowUp -> front', core.keyToAction('ArrowUp', false) === 'front');
-  ok('horizontal OFF: Space -> rear', core.keyToAction('Space', false) === 'rear');
-  ok('touche inconnue -> null', core.keyToAction('KeyZ', true) === null);
+  // --- keyToAction v1.3.76 : Z=AV, S=AR, flèches G/D = changements de voie (toutes orientations) ---
+  ok('DEFAULT_KEYS v1.3.76 = Z/S/ArrowLeft/R', core.DEFAULT_KEYS.front === 'KeyZ' && core.DEFAULT_KEYS.rear === 'KeyS' && core.DEFAULT_KEYS.swipe === 'ArrowLeft' && core.DEFAULT_KEYS.retry === 'KeyR');
+  ok('KeyZ -> front, KeyS -> rear', core.keyToAction('KeyZ', true) === 'front' && core.keyToAction('KeyS', false) === 'rear');
+  ok('ArrowLeft -> swipe et ArrowRight -> swipeRight (horiz ON et OFF)', core.keyToAction('ArrowLeft', true) === 'swipe' && core.keyToAction('ArrowLeft', false) === 'swipe' && core.keyToAction('ArrowRight', true) === 'swipeRight' && core.keyToAction('ArrowRight', false) === 'swipeRight');
+  ok('fallbacks : ArrowUp -> front, Space/ArrowDown/Enter -> rear, KeyR -> retry', core.keyToAction('ArrowUp', false) === 'front' && core.keyToAction('Space', false) === 'rear' && core.keyToAction('ArrowDown', true) === 'rear' && core.keyToAction('Enter', false) === 'rear' && core.keyToAction('KeyR', false) === 'retry');
+  ok('touche inconnue -> null', core.keyToAction('KeyQ', true) === null);
 
   // --- effets : JAMAIS activés automatiquement ---
   mem['roadtap_save_v1'] = JSON.stringify({});
@@ -588,14 +585,14 @@ console.log('Q. v1.3.39 : options d\'accessibilité aussi dans le menu pause (pr
   store.load();
   store.setWideWindows(true);
   store.setColorblind(true);
-  store.setHorizontalZones(true);
-  ok('setters accessibilité persistés (wideWindows/colorblind/horizontalZones)', store.get().wideWindows === true && store.get().colorblind === true && store.get().horizontalZones === true);
-  ok('horizontalZones part dans le snapshot cloud (synchro multi-appareils)', store.snapshot().horizontalZones === true);
+  store.setVerticalZones(true);
+  ok('setters accessibilité persistés (wideWindows/colorblind/verticalZones)', store.get().wideWindows === true && store.get().colorblind === true && store.get().verticalZones === true);
+  ok('verticalZones part dans le snapshot cloud (synchro multi-appareils)', store.snapshot().verticalZones === true);
   ok('wideWindows/colorblind restent des préférences d\'appareil locales (par design, pas dans le snapshot)', !('wideWindows' in store.snapshot()) && !('colorblind' in store.snapshot()));
   store.setWideWindows(false);
   store.setColorblind(false);
-  store.setHorizontalZones(false);
-  ok('désactivation persistée', store.get().wideWindows === false && store.get().colorblind === false && store.get().horizontalZones === false);
+  store.setVerticalZones(false);
+  ok('désactivation persistée', store.get().wideWindows === false && store.get().colorblind === false && store.get().verticalZones === false);
 }
 
 console.log('R. v1.3.40 : jouer SANS compte (local), Google requis seulement pour cloud+classement, reset à 0 à la déconnexion, fusion à la reconnexion');
@@ -864,23 +861,23 @@ console.log('X. v1.3.46 : beat GD calé sur chaque ligne (lineBeat) + niveau wee
 console.log('Y. v1.3.47 : menu Paramètres (accessibilité/audio/version/serveur) + touches personnalisables (save.keys)');
 {
   const core = await import('../js/core.js');
-  ok('DEFAULT_KEYS = front ↑ / rear Espace / swipe ←', core.DEFAULT_KEYS.front === 'ArrowUp' && core.DEFAULT_KEYS.rear === 'Space' && core.DEFAULT_KEYS.swipe === 'ArrowLeft');
-  ok('sanitizeKeys : corrompu -> défauts, partiel -> complété', core.sanitizeKeys(null).front === 'ArrowUp' && core.sanitizeKeys({ front: 'KeyA', rear: 42 }).front === 'KeyA' && core.sanitizeKeys({ front: 'KeyA' }).rear === 'Space');
+  ok('DEFAULT_KEYS v1.3.76 = front Z / rear S / swipe ← / retry R', core.DEFAULT_KEYS.front === 'KeyZ' && core.DEFAULT_KEYS.rear === 'KeyS' && core.DEFAULT_KEYS.swipe === 'ArrowLeft' && core.DEFAULT_KEYS.retry === 'KeyR');
+  ok('sanitizeKeys : corrompu -> défauts, partiel -> complété', core.sanitizeKeys(null).front === 'KeyZ' && core.sanitizeKeys({ front: 'KeyA', rear: 42 }).front === 'KeyA' && core.sanitizeKeys({ front: 'KeyA' }).rear === 'KeyS');
   ok('keyLabel lisible', core.keyLabel('ArrowUp') === '↑ Haut' && core.keyLabel('Space') === 'Espace' && core.keyLabel('KeyZ') === 'Z' && core.keyLabel('Digit5') === '5');
   ok('bindKey : rebind OK', core.bindKey(core.DEFAULT_KEYS, 'front', 'KeyA').front === 'KeyA');
-  ok('bindKey : doublon refusé (null)', core.bindKey(core.DEFAULT_KEYS, 'front', 'Space') === null && core.bindKey(core.DEFAULT_KEYS, 'front', 'ArrowLeft') === null);
+  ok('bindKey : doublon refusé (null)', core.bindKey(core.DEFAULT_KEYS, 'front', 'KeyS') === null && core.bindKey(core.DEFAULT_KEYS, 'front', 'ArrowLeft') === null && core.bindKey(core.DEFAULT_KEYS, 'front', 'KeyR') === null);
   ok('keyToAction : touches perso priment', core.keyToAction('KeyA', false, { front: 'KeyA', rear: 'Space', swipe: 'ArrowLeft' }) === 'front');
-  ok('keyToAction : repli mapping intégré si touche non perso', core.keyToAction('ArrowUp', false, { front: 'KeyA', rear: 'Space', swipe: 'ArrowLeft' }) === 'front' && core.keyToAction('ArrowRight', true, undefined) === 'rear');
+  ok('keyToAction : repli mapping intégré si touche non perso', core.keyToAction('ArrowUp', false, { front: 'KeyA', rear: 'Space', swipe: 'ArrowLeft' }) === 'front' && core.keyToAction('ArrowRight', true, undefined) === 'swipeRight');
 
   mem['roadtap_save_v1'] = '{}';
   store.load();
-  ok('save.keys défauts après load vide', store.get().keys.front === 'ArrowUp' && store.get().keys.rear === 'Space');
+  ok('save.keys défauts après load vide', store.get().keys.front === 'KeyZ' && store.get().keys.rear === 'KeyS');
   ok('setKey persiste (save + localStorage)', store.setKey('front', 'KeyZ') === true && store.get().keys.front === 'KeyZ' && JSON.parse(mem['roadtap_save_v1']).keys.front === 'KeyZ');
-  ok('setKey doublon -> false, inchangé', store.setKey('rear', 'KeyZ') === false && store.get().keys.rear === 'Space');
+  ok('setKey doublon -> false, inchangé', store.setKey('rear', 'KeyZ') === false && store.get().keys.rear === 'KeyS');
   ok('snapshot inclut keys (cloud)', store.snapshot().keys.front === 'KeyZ');
   mem['roadtap_save_v1'] = JSON.stringify({ keys: { front: 'KeyP', rear: 'bogus' } });
   store.load();
-  ok('sanitize keys : invalide -> défaut', store.get().keys.front === 'KeyP' && store.get().keys.rear === 'Space' && store.get().keys.swipe === 'ArrowLeft');
+  ok('sanitize keys : invalide -> défaut', store.get().keys.front === 'KeyP' && store.get().keys.rear === 'KeyS' && store.get().keys.swipe === 'ArrowLeft');
   store.mergeRemote({ keys: { front: 'KeyQ', rear: 'Enter', swipe: 'KeyX' } });
   ok('mergeRemote applique les touches du cloud', store.get().keys.front === 'KeyQ' && store.get().keys.swipe === 'KeyX');
 
@@ -894,7 +891,7 @@ console.log('Y. v1.3.47 : menu Paramètres (accessibilité/audio/version/serveur
   ok('index.html : les 15 IDs du menu Paramètres présents une fois', allIds);
   ok('main.js : btn-settings ouvre screen-settings', mainSrc.includes("on('btn-settings'") && mainSrc.includes("show('screen-settings')"));
   ok('main.js : 3e panneau accessibilité câblé (s-)', mainSrc.includes("wireAccessCheckboxes('s-')") && mainSrc.includes("syncAccessCheckboxes('s-')"));
-  ok('main.js : capture de touche dans keydown + keyToAction(save.keys)', mainSrc.includes('keyCapture') && mainSrc.includes('keyToAction(e.code, save.horizontalZones, save.keys)'));
+  ok('main.js : capture de touche dans keydown + keyToAction(save.keys)', mainSrc.includes('keyCapture') && mainSrc.includes('keyToAction(e.code, !save.verticalZones, save.keys)'));
   ok('main.js : 3 boutons de rebinding câblés', mainSrc.includes("'btn-key-front'") && mainSrc.includes("'btn-key-rear'") && mainSrc.includes("'btn-key-swipe'"));
   ok('main.js : version + état serveur (ping avec jeton, v1.3.59) dans les paramètres', mainSrc.includes("$('#set-version')") && mainSrc.includes("$('#set-server')") && mainSrc.includes('leaderboard.ping(getAuthToken())'));
 }
@@ -947,7 +944,7 @@ console.log('AA. v1.3.49 : touche « recommencer » bindable + boutons de souris
   ok('keyLabel souris', core.keyLabel('MouseLeft') === '🖱️ Clic gauche' && core.keyLabel('MouseMiddle') === '🖱️ Clic milieu');
   ok('keyToAction : KeyR -> retry (vertical + horizontal)', core.keyToAction('KeyR', false) === 'retry' && core.keyToAction('KeyR', true) === 'retry');
   ok('keyToAction : MouseLeft bindé -> front', core.keyToAction('MouseLeft', false, { front: 'MouseLeft', rear: 'Space', swipe: 'ArrowLeft', retry: 'KeyR' }) === 'front');
-  ok('bindKey : retry sur MouseRight OK, doublon refusé', core.bindKey(core.DEFAULT_KEYS, 'retry', 'MouseRight').retry === 'MouseRight' && core.bindKey(core.DEFAULT_KEYS, 'retry', 'Space') === null);
+  ok('bindKey : retry sur MouseRight OK, doublon refusé', core.bindKey(core.DEFAULT_KEYS, 'retry', 'MouseRight').retry === 'MouseRight' && core.bindKey(core.DEFAULT_KEYS, 'retry', 'KeyS') === null);
 
   mem['roadtap_save_v1'] = '{}';
   store.load();
@@ -1121,11 +1118,11 @@ console.log('AI. v1.3.57 : touches sauvegardées AVEC LE COMPTE (backup local ro
 
   // 3) déconnexion (resetProgress) : progression remise à 0 MAIS config (touches, zones) conservée
   store.setKey('rear', 'KeyM');
-  store.setHorizontalZones(true);
+  store.setVerticalZones(true);
   store.addCoins('auto', 500);
   store.setBest('auto', 2, 999);
   store.resetProgress();
-  ok('resetProgress : wallets/best remis à 0 MAIS keys + horizontalZones conservés', store.get().wallets.auto === 0 && store.getBest('auto', 2) === 0 && store.get().keys.front === 'KeyZ' && store.get().keys.rear === 'KeyM' && store.get().horizontalZones === true);
+  ok('resetProgress : wallets/best remis à 0 MAIS keys + verticalZones conservés', store.get().wallets.auto === 0 && store.getBest('auto', 2) === 0 && store.get().keys.front === 'KeyZ' && store.get().keys.rear === 'KeyM' && store.get().verticalZones === true);
 
   // 4) le cloud continue de porter les touches (players/<uid>.keys)
   store.setKey('front', 'KeyP');
@@ -1616,6 +1613,50 @@ console.log('AY. v1.3.75 : saisie clavier dans les champs (pseudo/ami) non bloqu
   store.removeFriend('AmiRestant');
   ok('snapshot cloud inclut deletedFriends', JSON.stringify(store.snapshot()).includes('deletedFriends'));
   ok('store.js : defaults + sanitize + merge filtrent par tombstones', storeSrc.includes('deletedFriends: [],') && storeSrc.includes('!tomb.has(k)') && storeSrc.includes('save.deletedFriends.push(dk)'));
+}
+
+
+console.log('AZ. v1.3.76 : voies manuelles (swipe → / ➡ pour revenir, plus de retour auto) + alerte voiture de face + Z/S/flèches + zones gauche/droite par défaut + musique ancrée sur les lignes');
+{
+  const fsZ = await import('node:fs');
+  const mainSrc = fsZ.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  const gameSrc = fsZ.readFileSync(new URL('../js/game.js', import.meta.url), 'utf8');
+  const audioSrc = fsZ.readFileSync(new URL('../js/audio.js', import.meta.url), 'utf8');
+  const tutSrc = fsZ.readFileSync(new URL('../js/tutorial.js', import.meta.url), 'utf8');
+  const storeSrc = fsZ.readFileSync(new URL('../js/store.js', import.meta.url), 'utf8');
+  const html = fsZ.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+
+  // voies manuelles
+  ok('game.js : plus de retour auto (bloc lastOvertaken supprimé) + swipeRight() présent', !gameSrc.includes('if (sy > this.wheelY + 180)') && gameSrc.includes('swipeRight()') && gameSrc.includes("this.laneTarget = CAR_LANE;\n    this.lastOvertaken = null;"));
+  ok('game.js : collision frontale finish(\'oncoming\') si joueur à gauche + voiture de face au même niveau', gameSrc.includes("this.finish('oncoming')") && gameSrc.includes('Math.abs(this.distance - c.p) < 58'));
+  ok('game.js : indicateur danger (0..1) + spawn sens inverse avec lead ≥1050 px si joueur à gauche (fenêtre d\'action)', gameSrc.includes('this.danger = 0;') && gameSrc.includes('const lead = playerLeft ? 1050 + this.rand() * 800') && gameSrc.includes('tOncoming, 1.4'));
+  ok('game.js : alerte visuelle ⚠ dessinée + jamais 2 voitures d\'affilée < 520 px même file', gameSrc.includes('⚠ VOITURE DE FACE') && gameSrc.includes('c.p < this.distance + 520'));
+  ok('main.js : trySwipe gère GAUCHE (swipeLeft) et DROITE (swipeRight) + branches swipeRight clavier/souris', mainSrc.includes('dx > 40') && mainSrc.includes('game.swipeRight()') && (mainSrc.match(/swipeRight\(\)/g) || []).length >= 3);
+  ok('main.js : raison oncoming affichée à l\'écran de fin', mainSrc.includes("reason === 'oncoming'") && mainSrc.includes('Voiture de face'));
+
+  // zones tactiles : défaut gauche/droite, option = haut/bas
+  ok('store.js : verticalZones (défaut false = gauche/droite) + migration depuis horizontalZones + snapshot', storeSrc.includes('verticalZones: false,') && storeSrc.includes("!(parsed.horizontalZones === true)") && storeSrc.includes('verticalZones: save.verticalZones,'));
+  ok('main.js : toutes les lectures passent par !save.verticalZones + option settings = haut/bas', !mainSrc.includes('save.horizontalZones') && mainSrc.includes("key: 'verticalZones'"));
+  ok('index.html : label option = zones haut/bas (défaut gauche/droite)', html.includes('Zones <b>haut/bas</b>') && html.includes('gauche = AV'));
+
+  // migration save
+  mem['roadtap_save_v1'] = JSON.stringify({ horizontalZones: true });
+  store.load();
+  ok('migration : ancien horizontalZones=true -> verticalZones=false (gauche/droite)', store.get().verticalZones === false);
+  mem['roadtap_save_v1'] = JSON.stringify({ horizontalZones: false });
+  store.load();
+  ok('migration : ancien horizontalZones=false -> verticalZones=true (haut/bas conservé)', store.get().verticalZones === true);
+  mem['roadtap_save_v1'] = '{}';
+  store.load();
+  ok('défaut (save neuve) : verticalZones=false = zones gauche/droite', store.get().verticalZones === false);
+
+  // musique ancrée sur les lignes
+  ok('audio.js : musicLineAnchor exporté (pas du séquenceur + kick accent pile sur la ligne, re-ancrage lookahead)', audioSrc.includes('export function musicLineAnchor()') && audioSrc.includes('musicNext = t0 + 60 / musicTempo'));
+  ok('game.js : musicAnchor appelé quand une ligne atteint les roues (rear, une fois par ligne)', gameSrc.includes('line.anchored = true') && gameSrc.includes('this.audio.musicAnchor()'));
+  ok('main.js : musicAnchor passé au jeu (audio.musicAnchor)', mainSrc.includes('musicAnchor: musicLineAnchor'));
+
+  // tutoriel MAJ
+  ok('tutorial.js : plus de « revient toute seule » + nouveau texte SWIPE → + alerte ⚠ + zones par défaut G/D + Z/S', !tutSrc.includes('revient à droite toute seule') && tutSrc.includes('SWIPE →') && tutSrc.includes('voiture de face') && tutSrc.includes("verticalZones ? 'Haut") && tutSrc.includes('Z = roues AV'));
 }
 
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);

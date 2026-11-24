@@ -186,3 +186,10 @@ Bug : `getSpeedrunAll()` dédoubonnait **par joueur globalement** (meilleur temp
 - **Clavier** : le handler `keydown` faisait `preventDefault()` dès qu'une touche correspondait à une action de jeu (flèches/Space/Entrée/KeyS/KeyR + touches custom), même dans un champ texte — et comme `e.repeat` court-circuitait, seules les **répétitions** (appui long) inséraient la lettre. Fix : garde « target = INPUT/TEXTAREA/SELECT/contentEditable → return » posée avant `keyToAction`, donc toutes les lettres s'inscrivent dès le 1er appui (modale pseudo, champ ami).
 - **Amis** : `mergeRemote` faisait l'union local+remote des amis et `pushCloud` est en pull-merge-push → un ami supprimé revenait dès qu'on quittait/revenait. Fix : tombstones `deletedFriends` (persistés local + cloud) — `removeFriend` en pose un, `mergeRemote` exclut tout ami tombstoné, `addFriend` lève le tombstone.
 
+## v1.3.76 — voies manuelles, musique calée sur les lignes, nouvelles touches par défaut
+
+- **Dépassement manuel** : la voiture ne revient plus à droite toute seule. Swipe ← / ⬅ = doubler (reste à gauche), swipe → / ➡ = revenir à droite. Fenêtre d'action : au dépassement, ≥1,4 s avant la prochaine voiture de face et spawn avec lead ≥1050 px quand on est à gauche (~1,5-2,5 s). **Alerte ⚠** clignotante + `danger` 0..1 quand une voiture de face approche ; collision = fin de partie « 💥 Voiture de face ! ». Plus jamais 2 voitures d'affilée à <520 px dans la file de droite (garde de spawn).
+- **Touches par défaut** : Z = roues AV, S = roues AR, flèches ←/→ = changements de voie (toutes orientations). Tactile : défaut = gauche/droite (gauche=AV, droite=AR) ; l'option d'accessibilité devient « zones haut/bas » (`verticalZones`, migration depuis `horizontalZones`).
+- **Musique calée sur les lignes** : `musicLineAnchor()` — à chaque ligne qui atteint les roues, un pas du séquenceur + un kick sont joués pile à ce moment et le scheduler lookahead est re-ancré.
+- Tutoriel mis à jour (Z/S, swipe ← puis →, alerte ⚠).
+

@@ -191,6 +191,22 @@ function schedule() {
   }
 }
 
+// v1.3.76 : ancre la musique sur le rythme des LIGNES — appelé quand une ligne atteint les
+// roues : un pas du séquenceur + un kick accent sont joués EXACTEMENT à ce moment, et le
+// scheduler lookahead est re-calé dessus (la musique ne dérive plus par rapport aux lignes).
+export function musicLineAnchor() {
+  if (!musicOn || !enabled) return;
+  const c = ac();
+  if (!c) return;
+  const t0 = c.currentTime + 0.005;
+  scheduleStep(musicStep, t0);
+  try {
+    oscNote(c, getBus(c).g, t0, 150, 0.12, 'sine', 0.35, 45); // kick accent pile sur la ligne
+  } catch { /* ignore */ }
+  musicStep++;
+  if (musicNext < t0) musicNext = t0 + 60 / musicTempo(musicCombo) / 4; // re-ancrage sans écraser le scheduling déjà devant
+}
+
 export function setMusicEnabled(on) {
   musicOn = !!on;
   if (musicOn) startMusic();

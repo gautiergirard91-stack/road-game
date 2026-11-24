@@ -115,6 +115,7 @@ function step(game, seconds, tapper) {
   const { game, events } = makeGame(LEVELS[0], 'pilote');
   game.start();
   game.forceBlocker();
+  game.tOncoming = 9999; // v1.3.76 : pas de voiture de face pendant ce test (on teste le retour manuel)
   let swiped = false;
   const dt = 1 / 60;
   for (let t = 0; t < 20 && game.running; t += dt) {
@@ -130,7 +131,11 @@ function step(game, seconds, tapper) {
   assert.equal(game.stats.overtakes, 1, '1 dépassement comptabilisé');
   assert.ok(events.judge.some((e) => e.overtake), 'événement overtake émis');
   for (let t = 0; t < 10 && game.running; t += dt) game.update(dt);
-  assert.ok(game.laneTarget === 0.72 && game.carXFrac > 0.68, 'voiture revenue dans la voie de droite après dépassement');
+  assert.equal(game.laneTarget, 0.28, 'v1.3.76 : PLUS de retour auto — la voiture RESTE à gauche après le dépassement');
+  game.paused = false; game.pendingContinue = false; // pas de bouton Continuer dans le test
+  game.swipeRight(); // v1.3.76 : retour manuel (swipe → / flèche droite)
+  for (let t = 0; t < 2 && game.running; t += dt) game.update(dt);
+  assert.ok(game.laneTarget === 0.72 && game.carXFrac > 0.68, 'retour manuel à droite via swipeRight');
 }
 
 {
@@ -198,12 +203,15 @@ function step(game, seconds, tapper) {
   const n = game.oncoming.length;
   game.tOncoming = 0.01;
   for (let i = 0; i < 10; i++) game.updateTraffic(1 / 60);
-  assert.equal(game.oncoming.length, n, 'aucun spawn en sens inverse tant que carXFrac < 0.6');
+  // v1.3.76 : spawn autorisé même à gauche, MAIS avec un lead ≥ ~1000 px (fenêtre d'action)
+  const spawnedLeft = game.oncoming.filter((c) => c.p - game.distance > game.h + 500);
+  assert.ok(game.oncoming.length >= n, 'v1.3.76 : le sens inverse continue de spawn même quand on est à gauche');
+  assert.ok(spawnedLeft.every((c) => c.p - game.distance >= game.h + 900), 'les nouvelles voitures de face spawnent loin (lead ≥ ~1050 px = ~1,5-2,5 s)');
   game.carXFrac = 0.72;
   game.laneTarget = 0.72;
   game.tOncoming = 0.01;
   game.updateTraffic(1 / 60);
-  assert.ok(game.oncoming.length > n, 'spawn en sens inverse repris une fois la voiture revenue à droite');
+  assert.ok(game.oncoming.length > n, 'spawn en sens inverse aussi quand on est à droite');
 }
 
 {
@@ -290,6 +298,62 @@ for (const l of [...LEVELS, ENDLESS_LEVEL]) renderThemePreview(fakeCanvas(), l.t
   gV.start();
   gV.update(1 / 60);
   gV.render(); // ligne horizontale haut/bas
+}
+
+
+{
+  // v1.3.76 : collision frontale — rester à gauche avec une voiture de face au même niveau = fin
+  const { game, events } = makeGame(LEVELS[0], 'pilote');
+  game.start();
+  game.tSame = 9999;
+  game.tOncoming = 9999;
+  game.carXFrac = 0.28;
+  game.laneTarget = 0.28;
+  game.oncoming.push({ p: game.distance + 5, v: -300, color: '#fff', w: 60 });
+  game.updateTraffic(1 / 60);
+  assert.ok(!game.running && events.end && events.end.reason === 'oncoming', "collision de face = fin de partie (raison 'oncoming')");
+}
+
+{
+  // v1.3.76 : indicateur d'alerte danger quand une voiture de face approche (joueur à gauche)
+  const { game } = makeGame(LEVELS[0], 'pilote');
+  game.start();
+  game.tSame = 9999;
+  game.tOncoming = 9999;
+  game.carXFrac = 0.28;
+  game.laneTarget = 0.28;
+  game.oncoming.push({ p: game.distance + 300, v: -300, color: '#fff', w: 60 });
+  game.updateTraffic(1 / 60);
+  assert.ok(game.danger > 0.3 && game.danger < 1, `alerte danger active (danger=${game.danger.toFixed(2)}) quand une voiture de face est à 300 px`);
+  game.carXFrac = 0.72; // revenu à droite -> plus d'alerte
+  game.updateTraffic(1 / 60);
+  assert.equal(game.danger, 0, 'plus d’alerte une fois revenu à droite');
+}
+
+{
+  // v1.3.76 : jamais 2 voitures d'affilée < 520 px dans la file de droite
+  const { game } = makeGame(LEVELS[0], 'pilote');
+  game.start();
+  game.tOncoming = 9999;
+  game.tSame = 0.01;
+  game.sameDir.push({ p: game.distance + 200, v: game.level.speed * 0.5, color: '#fff', w: 60, overtaken: true, grace: 0 });
+  game.updateTraffic(1 / 60);
+  assert.equal(game.sameDir.length, 1, 'pas de 2e voiture tant qu’une est à moins de 520 px devant (même doublée)');
+  game.sameDir[0].p = game.distance - 600; // la voiture est passée derrière
+  game.tSame = 0.01;
+  game.updateTraffic(1 / 60);
+  assert.ok(game.sameDir.some((c) => c.p > game.distance + 400), 'spawn repris quand la file est libre (nouvelle voiture devant, l’ancienne est filtrée derrière)');
+}
+
+{
+  // v1.3.76 : swipeRight no-op si déjà à droite ; swipeLeft nécessite une cible
+  const { game } = makeGame(LEVELS[0], 'pilote');
+  game.start();
+  game.tSame = 9999;
+  game.swipeRight();
+  assert.equal(game.laneTarget, 0.72, 'swipeRight à droite = no-op');
+  game.swipeLeft();
+  assert.equal(game.stats.overtakes, 0, 'swipeLeft sans cible = pas de dépassement');
 }
 
 console.log('OK - smoke test moteur : 9 scénarios sans crash, mécaniques vérifiées');

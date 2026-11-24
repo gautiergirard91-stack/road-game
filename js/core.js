@@ -152,7 +152,7 @@ export function isNewerVersion(a, b) {
 // En mode horizontal, le swipe passe sur ArrowDown / KeyS (le swipe tactile reste sur le geste).
 // --- v1.3.47 : touches personnalisables (menu Paramètres) ---
 export const KEY_ACTIONS = ['front', 'rear', 'swipe', 'retry']; // v1.3.49 : retry = recommencer le niveau
-export const DEFAULT_KEYS = { front: 'ArrowUp', rear: 'Space', swipe: 'ArrowLeft', retry: 'KeyR' };
+export const DEFAULT_KEYS = { front: 'KeyZ', rear: 'KeyS', swipe: 'ArrowLeft', retry: 'KeyR' }; // v1.3.76 : Z=AV, S=AR, flèches G/D = voies
 
 // codes clavier plausibles (KeyboardEvent.code) — évite de garder une chaîne invalide
 const KEY_CODE_RE = /^(Key[A-Z]|Digit\d|Numpad\d|Numpad(Add|Subtract|Multiply|Divide|Decimal|Enter)|Arrow(Up|Down|Left|Right)|F([1-9]|1[0-2])|Mouse(Left|Middle|Right)|Space|Enter|Escape|Tab|Backspace|Delete|Insert|Home|End|PageUp|PageDown|Shift(Left|Right)|Control(Left|Right)|Alt(Left|Right)|Meta(Left|Right)|CapsLock|[A-Za-z0-9;=,./'\\[\\]\\-`])$/;
@@ -188,25 +188,18 @@ export function bindKey(keys, action, code) {
 
 export function keyToAction(code, horizontal, keys) {
   // v1.3.47 : les touches choisies par le joueur priment, puis repli sur le mapping intégré.
-  // Une touche laissée AU DÉFAUT ne masque pas le mapping intégré selon l'orientation
-  // (ex. ArrowLeft = front en horizontal, swipe en vertical — comportement v1.3.28 conservé).
+  // v1.3.76 : Z = roues AV, S = roues AR, flèches GAUCHE/DROITE = changements de voie
+  // (dans toutes les orientations — le paramètre horizontal ne gouverne plus les flèches).
   const k = sanitizeKeys(keys);
   const isCustom = (a) => code === k[a] && k[a] !== DEFAULT_KEYS[a];
   if (isCustom('front')) return 'front';
   if (isCustom('rear')) return 'rear';
   if (isCustom('swipe')) return 'swipe';
   if (isCustom('retry')) return 'retry'; // v1.3.49
-  if (horizontal) {
-    if (code === 'ArrowLeft') return 'front';
-    if (code === 'ArrowRight') return 'rear';
-    if (code === 'ArrowDown' || code === 'KeyS') return 'swipe';
-    if (code === 'Space' || code === 'Enter') return 'rear';
-    if (code === 'KeyR') return 'retry'; // v1.3.49
-    return null;
-  }
-  if (code === 'ArrowUp') return 'front';
-  if (code === 'Space' || code === 'ArrowDown' || code === 'Enter') return 'rear';
+  if (code === 'KeyZ' || code === 'ArrowUp') return 'front';
+  if (code === 'KeyS' || code === 'Space' || code === 'ArrowDown' || code === 'Enter') return 'rear';
   if (code === 'ArrowLeft') return 'swipe';
+  if (code === 'ArrowRight') return 'swipeRight'; // v1.3.76 : revenir dans la voie de droite
   if (code === 'KeyR') return 'retry'; // v1.3.49
   return null;
 }
