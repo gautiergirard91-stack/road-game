@@ -1506,4 +1506,24 @@ console.log('AU. v1.3.71 : rang écran de fin fiable — attendre la fin de l\'e
   ok('main.js : writeError -> ligne « hors classement en ligne » ; sinon repli « pas encore visible » inchangé', mainSrc.includes('hors classement en ligne') && mainSrc.includes('pas encore visible en ligne (local ?)') && mainSrc.includes('pas encore visible en ligne…'));
 }
 
+
+console.log('AV. v1.3.72 : le service worker ne touche plus aux requêtes cross-origin (Firebase) + cache HTTP désactivé (no-store) sur tous les GET RTDB -> classement toujours frais');
+{
+  const fsV = await import('node:fs');
+  const swSrc = fsV.readFileSync(new URL('../sw.js', import.meta.url), 'utf8');
+  const lbSrc = fsV.readFileSync(new URL('../js/leaderboard.js', import.meta.url), 'utf8');
+  const csSrc = fsV.readFileSync(new URL('../js/cloudsave.js', import.meta.url), 'utf8');
+
+  // SW : cross-origin ignoré AVANT toute interception (navigate comprise)
+  ok('sw.js : early return cross-origin (if (!sameOrigin) return;) placé avant le handler navigate', swSrc.includes('if (!sameOrigin) return;') && swSrc.indexOf('if (!sameOrigin) return;') < swSrc.indexOf("e.request.mode === 'navigate'"));
+  ok('sw.js : un seul calcul de url/sameOrigin (pas de doublon après le bloc navigate)', (swSrc.match(/const sameOrigin =/g) || []).length === 1);
+  ok('sw.js : version.json toujours non intercepté + code toujours network-first (régressions v1.3.30/v1.3.24 intactes)', swSrc.includes("url.pathname.endsWith('/version.json')") && swSrc.includes('isCode'));
+
+  // GET RTDB en no-store
+  const n = (lbSrc.match(/cache: 'no-store'/g) || []).length;
+  ok('leaderboard.js : cache: \'no-store\' sur les 7 GET RTDB (ping x2, scores x2, challenges, speedrun x2)', n === 7);
+  ok('leaderboard.js : les POST (submitScore/submitSpeedrun) restent des POST (non concernés par le cache)', (lbSrc.match(/method: 'POST'/g) || []).length >= 3);
+  ok('cloudsave.js : GET players/<uid> en no-store (sauvegarde cloud fraîche)', csSrc.includes("fetch(url(`/players/${key(account)}`, idToken), { cache: 'no-store' })"));
+}
+
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);

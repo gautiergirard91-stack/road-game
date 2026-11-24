@@ -1,4 +1,4 @@
-const CACHE = 'roadtap-v79';
+const CACHE = 'roadtap-v80';
 
 const ASSETS = [
   './',
@@ -46,6 +46,11 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
+  const url = new URL(e.request.url);
+  const sameOrigin = url.origin === self.location.origin;
+  // v1.3.72 : toute requête cross-origin (Firebase RTDB, gstatic…) ne passe PAS par le SW :
+  // aucune réponse Firebase n'est lue/écrite dans le cache du SW -> classement toujours frais
+  if (!sameOrigin) return;
   if (e.request.mode === 'navigate') {
     e.respondWith(
       fetch(e.request)
@@ -60,8 +65,6 @@ self.addEventListener('fetch', (e) => {
     );
     return;
   }
-  const url = new URL(e.request.url);
-  const sameOrigin = url.origin === self.location.origin;
   // v1.3.30 : version.json n'est JAMAIS intercepté ni caché -> la sonde de version
   // (main.js) voit toujours la version réelle du serveur, même avec un vieux SW
   if (url.pathname.endsWith('/version.json')) return;
