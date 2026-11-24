@@ -225,6 +225,13 @@ export function avgReaction(stats) {
   return Math.round(stats.reactions.reduce((a, b) => a + b, 0) / stats.reactions.length);
 }
 
+// v1.3.78 : biais signé moyen des dtMs (négatif = taps en moyenne trop TÔT) — indicateur ±ms à l'écran de fin
+export function biasReaction(stats) {
+  const arr = stats && stats.reactionsSigned;
+  if (!arr || !arr.length) return null;
+  return Math.round(arr.reduce((a, b) => a + b, 0) / arr.length);
+}
+
 // --- Défis & quêtes (rétention) ---
 
 // v1.3.19 : formatage du chrono speedrun -> "m:ss.cc" (v1.3.27 : garde NaN/infini/négatif)

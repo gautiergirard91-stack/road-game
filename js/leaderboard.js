@@ -120,29 +120,65 @@ export function buildTimeLevelMap(srArr, mode, levelFilter = 'all') {
   return map;
 }
 
-// v1.3.70 : tri des lignes — 'score' (défaut, desc) ou 'time' (joueurs avec un temps d'abord, temps asc)
+// v1.3.78 : comparateur officiel AVEC départage des égalités (rapport #28) :
+//   score      : score desc -> avgMs asc -> timeMs asc -> misses asc -> date asc (premier arrivé gagne)
+//   time/speed : timeMs asc -> avgMs asc -> score desc -> misses asc -> date asc
+//   reaction   : avgMs asc -> score desc -> date asc
+export function compareEntries(a, b, kind = 'score') {
+  const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+  const avgA = num(a && a.avgMs);
+  const avgB = num(b && b.avgMs);
+  const tA = num(a && a.timeMs);
+  const tB = num(b && b.timeMs);
+  const sA = num(a && a.score) ?? 0;
+  const sB = num(b && b.score) ?? 0;
+  const mA = num(a && a.misses) ?? Infinity;
+  const mB = num(b && b.misses) ?? Infinity;
+  const dA = num(a && a.date) ?? Infinity;
+  const dB = num(b && b.date) ?? Infinity;
+  const cmpOpt = (x, y) => { // null (champ absent) toujours APRÈS
+    if (x === null && y === null) return 0;
+    if (x === null) return 1;
+    if (y === null) return -1;
+    return x - y;
+  };
+  if (kind === 'time' || kind === 'speedrun') {
+    let c = cmpOpt(tA, tB);
+    if (c) return c;
+    c = cmpOpt(avgA, avgB);
+    if (c) return c;
+    if (sA !== sB) return sB - sA;
+    if (mA !== mB) return mA - mB;
+    return dA - dB;
+  }
+  if (kind === 'reaction') {
+    let c = cmpOpt(avgA, avgB);
+    if (c) return c;
+    if (sA !== sB) return sB - sA;
+    return dA - dB;
+  }
+  if (sA !== sB) return sB - sA;
+  let c = cmpOpt(avgA, avgB);
+  if (c) return c;
+  c = cmpOpt(tA, tB);
+  if (c) return c;
+  if (mA !== mB) return mA - mB;
+  return dA - dB;
+}
+
+// v1.3.70 : tri des lignes — 'score' (défaut, desc) ou 'time' (joueurs avec un temps d'abord, temps asc) ; v1.3.78 : départage via compareEntries
 export function sortLbRows(arr, sort = 'score', timeByPlayer = null) {
   const rows = [...(arr || [])];
   if (sort === 'time' && timeByPlayer) {
     return rows.sort((a, b) => {
       const ta = timeByPlayer.get(playerKey(a));
       const tb = timeByPlayer.get(playerKey(b));
-      if (typeof ta === 'number' && typeof tb === 'number') return ta - tb;
-      if (typeof ta === 'number') return -1;
-      if (typeof tb === 'number') return 1;
-      return (b.score || 0) - (a.score || 0);
+      const ea = typeof ta === 'number' ? { ...a, timeMs: ta } : a;
+      const eb = typeof tb === 'number' ? { ...b, timeMs: tb } : b;
+      return compareEntries(ea, eb, 'time');
     });
   }
-  if (sort === 'reaction') {
-    // v1.3.73 : tri par temps de réaction moyen (ms) croissant ; sans avgMs -> score décroissant
-    return rows.sort((a, b) => {
-      const ra = typeof a.avgMs === 'number' && Number.isFinite(a.avgMs) ? a.avgMs : Infinity;
-      const rb = typeof b.avgMs === 'number' && Number.isFinite(b.avgMs) ? b.avgMs : Infinity;
-      if (ra !== rb) return ra - rb;
-      return (b.score || 0) - (a.score || 0);
-    });
-  }
-  return rows.sort((a, b) => (b.score || 0) - (a.score || 0));
+  return rows.sort((a, b) => compareEntries(a, b, sort === 'reaction' ? 'reaction' : sort === 'time' ? 'time' : 'score'));
 }
 
 export function dedupeByPlayer(arr, kind = 'score') {
@@ -202,7 +238,12 @@ export async function flushQueue(idToken, uid) {
   let arr = readQueue();
   if (!arr.length) return 0;
   let sent = 0;
-  for (const item of arr) {
+  const kept = [];
+  let idx = 0;
+  while (idx < arr.length) {
+    const item = arr[idx];
+    let drop = false;
+    let stop = false;
     try {
       const pl = item.payload;
       if (uid && pl && typeof pl === 'object' && !pl.uid) pl.uid = uid; // rattache au compte connecté
@@ -210,15 +251,21 @@ export async function flushQueue(idToken, uid) {
       if (item.kind === 'speedrun') await submitSpeedrun(pl.levelId, pl.entry, idToken);
       else if (item.kind === 'challenge') await submitChallengeScore(pl.dayId, pl.entry, idToken);
       else await submitScore(pl, idToken);
-      if (lastLbWriteError) break; // refus serveur (règles/401) -> on garde en local, réessai à la prochaine connexion
-      sent++;
+      if (lastLbWriteError) {
+        // v1.3.78 : refus DÉFINITIF des règles (HTTP 401/403, ex. entrée pré-MAJ sans 'lines') -> entrée abandonnée pour ne pas bloquer la file
+        if (/HTTP 40[13]/.test(lastLbWriteError)) drop = true;
+        else stop = true; // refus temporaire -> on garde, réessai à la prochaine connexion
+      }
     } catch {
-      break; // réseau HS -> on arrête, on réessaiera plus tard
+      stop = true; // réseau HS -> on arrête, on réessaiera plus tard
     }
+    if (drop) { sent++; idx++; continue; }
+    if (stop) { kept.push(...arr.slice(idx)); break; }
+    sent++;
+    idx++;
   }
   if (sent > 0) {
-    arr = arr.slice(sent);
-    try { localStorage.setItem(QUEUE_KEY, JSON.stringify(arr)); } catch { /* ignore */ }
+    try { localStorage.setItem(QUEUE_KEY, JSON.stringify(kept)); } catch { /* ignore */ }
   }
   return sent;
 }
@@ -450,6 +497,8 @@ export function submitSpeedrunLocal(entry) {
 export async function submitSpeedrun(levelId, entry, idToken) {
   // v1.3.68 : speedrun dispo dans toutes les difficultés -> fallback 'auto' (main.js transmet de toute façon le mode réellement joué)
   const body = { pseudo: entry.pseudo, uid: entry.uid || '', timeMs: entry.timeMs, level: entry.level, levelId, mode: entry.mode || 'auto', date: entry.date };
+  // v1.3.78 : champs de départage/anti-triche transmis si présents (lines, avgMs, misses, score, biasMs) + hash du replay (v1.3.79)
+  for (const k of ['lines', 'avgMs', 'misses', 'score', 'biasMs', 'hash']) if (entry[k] != null) body[k] = entry[k];
   if (!isOnline()) { enqueue('speedrun', { levelId, entry: body }); return submitSpeedrunLocal(body); } // v1.3.66
   if (!hasAuth(idToken)) {
     lastLbWriteError = ANON_WRITE_MSG;

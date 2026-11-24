@@ -2,7 +2,7 @@ import { LEVELS, THEMES, SKINS, EFFECTS, DIFFICULTIES, CURRENCIES, WINDOWS, ACHI
 import { Game, CAR_STYLE_LABEL, renderCarPreview, renderEffectPreview, renderThemePreview, renderPackPreview, renderSoundPreview } from './game.js';
 import * as store from './store.js';
 import { sfx, setEnabled, setMusicEnabled, unlockAudio, applySoundPack, setMusicCombo, musicSting, musicVictory, scheduleLineBeat, clearLineBeats, musicKick, musicLineAnchor } from './audio.js';
-import { coinsForResult, accuracy, avgReaction, maxMissesFor, firstClearBonus, isPerfectClear, perfectClearBonus, dailyChallenge, weeklyQuests, fmtTime, zoneFromPoint, keyToAction, isNewerVersion, starsFor, endlessMilestones, isWeekend, weekendCoinMultiplier, filterFriendsByPseudo, canSubmitToLeaderboard, keyLabel, reactionBonus } from './core.js';
+import { coinsForResult, accuracy, avgReaction, biasReaction, maxMissesFor, firstClearBonus, isPerfectClear, perfectClearBonus, dailyChallenge, weeklyQuests, fmtTime, zoneFromPoint, keyToAction, isNewerVersion, starsFor, endlessMilestones, isWeekend, weekendCoinMultiplier, filterFriendsByPseudo, canSubmitToLeaderboard, keyLabel, reactionBonus } from './core.js';
 import { watchRewarded } from './ads.js';
 import { Tutorial } from './tutorial.js';
 import * as leaderboard from './leaderboard.js';
@@ -268,7 +268,7 @@ async function renderLeaderboard() {
       let arr = all.filter((e) => typeof e.avgMs === 'number' && Number.isFinite(e.avgMs));
       arr = leaderboard.filterLevel(arr, lbLevelFilter);
       if (lbScope === 'friends') arr = filterFriendsByPseudo(arr, save.friends);
-      top = leaderboard.dedupeByPlayer(arr, 'reaction').sort((a, b) => a.avgMs - b.avgMs); // v1.3.67
+      top = leaderboard.dedupeByPlayer(arr, 'reaction').sort((a, b) => leaderboard.compareEntries(a, b, 'reaction')); // v1.3.67/v1.3.78 : départage égalités (score, date)
     } else if (lbScope === 'friends') {
       // v1.3.36 : on récupère TOUT le classement (sans limite) puis on filtre par pseudos d'amis côté client
       const all = await leaderboard.getAll(lbFilter); // v1.3.70 : mode = onglet actif
@@ -1136,6 +1136,7 @@ function onGameEnd(stats, level) {
   const sr = Boolean(game && game.speedrun); // v1.3.19 : mode speedrun actif sur cette partie
   // v1.3.44/v1.3.54 : records isolés par difficulté — clé "mode:levelId" avec le mode RÉELLEMENT joué
   const runMode = (game && game.mode) || save.difficulty;
+  const linesCount = Math.max(1, Math.min(Math.floor(level.lines) || 1, 10000)); // v1.3.78 : nb de lignes du niveau, borné (anti-triche par niveau côté règles)
   const firstClear = !!stats.completed && !store.getBest(runMode, level.id);
   const isRecord = store.setBest(runMode, level.id, stats.score);
   const isTimeRecord = stats.completed ? store.setBestTime(runMode, level.id, stats.timeMs || 0) : false; // v1.3.77 : record de temps à chaque niveau terminé
@@ -1173,7 +1174,7 @@ function onGameEnd(stats, level) {
     // v1.3.19 : en speedrun le score est un temps -> pas de classement global (record local bestTime)
     submitP = leaderboard
       // v1.3.32 : uid + jeton -> règles RTDB vérifient uid == auth.uid (anti-usurpation)
-      .submitScore({ pseudo: save.pseudo, uid: save.uid || '', score: stats.score, level: level.name, levelId: level.id, mode: save.difficulty, date: Date.now(), avgMs: avgReaction(stats) ?? undefined }, getAuthToken()) // v1.3.48 : avgMs envoyé au classement
+      .submitScore({ pseudo: save.pseudo, uid: save.uid || '', score: stats.score, level: level.name, levelId: level.id, mode: save.difficulty, date: Date.now(), avgMs: avgReaction(stats) ?? undefined, lines: linesCount, misses: stats.misses || 0, biasMs: biasReaction(stats) ?? undefined }, getAuthToken()) // v1.3.48 : avgMs ; v1.3.78 : lines (anti-triche par niveau) + misses + biasMs (±ms)
       .then(() => {
         // v1.3.70 : si le serveur refuse l'écriture (403…), on le dit tout de suite
         const st2 = leaderboard.getLbStatus();
@@ -1190,7 +1191,7 @@ function onGameEnd(stats, level) {
   if (stats.completed && canSubmitToLeaderboard(save)) { // v1.3.77 : le temps aussi, dès que le niveau est terminé
     // v1.3.31 : classement speedrun dédié (nœud /speedrun/<levelId>, temps en ms, tri croissant)
     submitSrP = leaderboard
-      .submitSpeedrun(level.id, { pseudo: save.pseudo, uid: save.uid || '', timeMs: stats.timeMs || 0, level: level.name, levelId: level.id, mode: runMode, date: Date.now() }, getAuthToken()) // v1.3.54 : mode réel (permisA en speedrun)
+      .submitSpeedrun(level.id, { pseudo: save.pseudo, uid: save.uid || '', timeMs: stats.timeMs || 0, level: level.name, levelId: level.id, mode: runMode, date: Date.now(), lines: linesCount, avgMs: avgReaction(stats) ?? undefined, misses: stats.misses || 0, score: stats.score, biasMs: biasReaction(stats) ?? undefined }, getAuthToken()) // v1.3.54 : mode réel ; v1.3.78 : champs de départage (lines/avgMs/misses/score/biasMs)
       .catch(() => {});
   }
   // v1.3.70/77 : place du joueur au classement avec le score ET le temps du run (mode unique)
@@ -1207,12 +1208,12 @@ function onGameEnd(stats, level) {
       if (submitSrP) await submitSrP;
       const readRank = async () => {
         const all = await leaderboard.getAll(runMode);
-        const arr = leaderboard.dedupeByPlayer(leaderboard.filterLevel(all, String(level.id)), 'score').sort((a, b) => (b.score || 0) - (a.score || 0));
+        const arr = leaderboard.dedupeByPlayer(leaderboard.filterLevel(all, String(level.id)), 'score').sort((a, b) => leaderboard.compareEntries(a, b, 'score')); // v1.3.78 : départage des égalités (avgMs, timeMs, misses, date)
         return arr.findIndex((e) => leaderboard.playerKey(e) === key);
       };
       const readTimeRank = async () => {
         const srAll = await leaderboard.getSpeedrunAll();
-        const sarr = leaderboard.dedupeByPlayer(leaderboard.filterLevel(srAll, String(level.id)).filter((e) => !e.mode || e.mode === runMode), 'speedrun').sort((a, b) => a.timeMs - b.timeMs);
+        const sarr = leaderboard.dedupeByPlayer(leaderboard.filterLevel(srAll, String(level.id)).filter((e) => !e.mode || e.mode === runMode), 'speedrun').sort((a, b) => leaderboard.compareEntries(a, b, 'time')); // v1.3.78 : départage égalités de temps (avgMs -> score -> misses -> date)
         return sarr.findIndex((e) => leaderboard.playerKey(e) === key);
       };
       let i = -1;
@@ -1304,13 +1305,14 @@ function onGameEnd(stats, level) {
   const ot = $('#over-time'); // v1.3.77 : mode unique — score + chrono affichés tous les deux
   if (ot) ot.textContent = `⏱ ${fmtTime((stats.timeMs || 0) / 1000)}${isTimeRecord ? ' — 🏆 nouveau record !' : ''}`;
   const avg = avgReaction(stats);
+  const bias = biasReaction(stats); // v1.3.78 : indicateur signé ±ms (trop tôt / trop tard)
   $('#over-stats').innerHTML = `
     <div><b>${stats.perfects}</b><span>Parfaits</span></div>
     <div><b>${stats.goods}</b><span>Bien</span></div>
     <div><b>${stats.passables}</b><span>OK</span></div>
     <div><b>${stats.misses}/${maxMissesFor(save.difficulty)}</b><span>Manquées</span></div>
     <div><b>${stats.overtakes || 0}</b><span>Dépassements</span></div>
-    <div><b>${avg !== null ? avg + ' ms' : '—'}</b><span>Réaction moy.</span></div>
+    <div><b>${avg !== null ? avg + ' ms' : '—'}${bias !== null && avg !== null ? ` <small>(${bias < 0 ? '−' : '+'}${Math.abs(bias)} ms ${bias < 0 ? 'trop tôt' : 'trop tard'})</small>` : ''}</b><span>Réaction moy.</span></div>
     <div><b>${accuracy(stats)} %</b><span>Précision</span></div>
     ${level.endless
       ? `<div><b>${stats.lines || 0}</b><span>Lignes (record ${Math.max(save.endlessBest || 0, stats.lines || 0)})</span></div>`

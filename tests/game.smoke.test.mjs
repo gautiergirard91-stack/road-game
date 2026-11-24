@@ -369,4 +369,22 @@ for (const l of [...LEVELS, ENDLESS_LEVEL]) renderThemePreview(fakeCanvas(), l.t
   assert.ok(events.end.timeMs >= Math.round(game.elapsed * 1000) + 1000, 'timeMs final = chrono + pénalités');
 }
 
-console.log('OK - smoke test moteur : 9 scénarios sans crash, mécaniques vérifiées');
+
+{
+  // v1.3.78 : timeMs figé au DERNIER TAP (résolution de la dernière ligne), pas à la frame de fin (+80 px)
+  const { game, events } = makeGame(LEVELS[0], 'auto', { speedrun: true });
+  game.start();
+  game.remaining = 1;
+  const line = game.lines.find((l) => l.state === 'pending');
+  line.dist = game.distance; // dy = 0 pour l'essieu arrière -> PARFAIT pile au 0 ms
+  game.tap('rear');
+  assert.equal(game.remaining, 0, 'dernière ligne résolue par le tap');
+  assert.ok(game.lastResolveMs !== null, 'lastResolveMs figé au dernier tap');
+  const tResolve = game.elapsed;
+  game.elapsed += 0.5; // la voiture roule encore visuellement avant finish()
+  game.finish(true);
+  assert.equal(events.end.timeMs, Math.round(tResolve * 1000), 'timeMs = instant du dernier tap, pas de la frame de fin (+80 px)');
+  assert.ok(Array.isArray(game.stats.reactionsSigned) && game.stats.reactionsSigned.length === 1 && game.stats.reactionsSigned[0] === 0, 'dtMs signé enregistré (0 = pile au 0 ms)');
+}
+
+console.log('OK - smoke test moteur : 10 scénarios sans crash, mécaniques vérifiées');

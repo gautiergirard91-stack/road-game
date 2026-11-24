@@ -932,7 +932,7 @@ console.log('Z. v1.3.48 : « Meilleur combo » retiré de l\'écran de fin + ré
   delete globalThis.fetch;
 
   // onglet ⚡ Réaction
-  ok('main.js : onglet « reaction » dans le filtre + branche isReact (tri croissant avgMs)', mainSrc.includes("{ id: 'reaction', name: '⚡ Réaction' }") && mainSrc.includes('isReact') && mainSrc.includes('a.avgMs - b.avgMs'));
+  ok('main.js : onglet « reaction » dans le filtre + branche isReact (tri croissant avgMs)', mainSrc.includes("{ id: 'reaction', name: '⚡ Réaction' }") && mainSrc.includes('isReact') && mainSrc.includes("compareEntries(a, b, 'reaction')"));
   ok('main.js : lignes LB affichent ⚡ avgMs quand présent', mainSrc.includes('⚡${e.avgMs}ms'));
 }
 
@@ -1538,7 +1538,7 @@ console.log('AW. v1.3.73 : speedrun d\'un niveau verrouillé tant qu\'il n\'a pa
   ];
   const byReac = lb.sortLbRows(rowsR, 'reaction', null);
   ok('sortLbRows reaction : avgMs croissant d\'abord (B 23ms, A 40ms), puis sans avgMs par score desc (C)', byReac.map((r) => r.pseudo).join(',') === 'B,A,C');
-  ok('leaderboard.js : branche sort === \'reaction\' (avgMs asc, repli score desc)', lbSrc.includes("sort === 'reaction'") && lbSrc.includes('Number.isFinite(a.avgMs)'));
+  ok('leaderboard.js : branche sort === \'reaction\' via compareEntries (v1.3.78 : avgMs asc, repli score desc, date)', lbSrc.includes("sort === 'reaction' ? 'reaction'") && lbSrc.includes('export function compareEntries'));
 
   // cycle de tri à 3 + persistance
   ok('main.js : cycle lbSort score→time→reaction→score + lbSortLabel() avec ⚡ Réaction', mainSrc.includes("lbSort === 'score' ? 'time' : lbSort === 'time' ? 'reaction' : 'score'") && mainSrc.includes('function lbSortLabel()') && mainSrc.includes('Trier : ⚡ Réaction'));
@@ -1671,6 +1671,80 @@ console.log('BA. v1.3.77 : MODE UNIQUE (standard+speedrun fusionnés) — chrono
   ok('main.js : over-rank = rang score + rang temps (readRank + readTimeRank, join « · »), écran fin score + #over-time avec record', mainSrc.includes('readTimeRank') && mainSrc.includes("parts.join(' · ')") && mainSrc.includes("$('#over-time')") && mainSrc.includes('nouveau record'));
   ok('main.js : continuer = +2 s au chrono (penaltyMs += 2000, label « +2 s », plus de store.spend)', mainSrc.includes('game.penaltyMs = (game.penaltyMs || 0) + 2000') && mainSrc.includes('+2 s') && !mainSrc.includes('store.spend(save.difficulty, cost)'));
   ok('game.js : raté = +0,5 s (penaltyMs += 500, popup « RATÉ +0,5 s ») + timeMs final = elapsed + pénalités', gameSrc.includes('this.penaltyMs += 500;') && gameSrc.includes('RATÉ +0,5 s') && gameSrc.includes('(this.elapsed + this.penaltyMs / 1000)'));
+}
+
+
+console.log('BB. v1.3.78 : mesure au dernier tap + départage des égalités + anti-triche par niveau + indicateur ±ms (#28/#31/#4/#26)');
+{
+  const fsB2 = await import('node:fs');
+
+  // --- core.biasReaction (pur, signé) ---
+  assert.equal(core.biasReaction({ reactionsSigned: [10, -30, 20] }), 0);
+  assert.equal(core.biasReaction({ reactionsSigned: [-40, -20] }), -30);
+  assert.equal(core.biasReaction({ reactionsSigned: [] }), null);
+  assert.equal(core.biasReaction({}), null);
+  ok('biasReaction : moyenne signée arrondie (négatif = trop tôt), null si vide', true);
+
+  // --- compareEntries : chaîne de départage officielle (#28) ---
+  ok('compareEntries score : égalité de score -> avgMs croissant gagne',
+    lb.compareEntries({ score: 100, avgMs: 40, date: 5 }, { score: 100, avgMs: 30, date: 9 }, 'score') > 0);
+  ok('compareEntries score : égalité avgMs -> moins de misses gagne',
+    lb.compareEntries({ score: 100, avgMs: 30, misses: 2, date: 9 }, { score: 100, avgMs: 30, misses: 1, date: 5 }, 'score') > 0);
+  ok('compareEntries score : tout égal -> date la plus ancienne gagne (premier arrivé)',
+    lb.compareEntries({ score: 100, avgMs: 30, misses: 1, date: 9 }, { score: 100, avgMs: 30, misses: 1, date: 5 }, 'score') > 0);
+  ok('compareEntries time : égalité de timeMs -> avgMs croissant gagne (départage égalités de temps)',
+    lb.compareEntries({ timeMs: 5000, avgMs: 50 }, { timeMs: 5000, avgMs: 20 }, 'time') > 0);
+  ok('compareEntries time : égalité avgMs -> score desc ; joueur avec temps avant joueur sans temps',
+    lb.compareEntries({ timeMs: 5000, avgMs: 20, score: 900 }, { timeMs: 5000, avgMs: 20, score: 100 }, 'time') < 0 &&
+    lb.compareEntries({ timeMs: 5000 }, { score: 99999 }, 'time') < 0);
+  {
+    const m = new Map([['u:a', 5000], ['u:b', 5000]]);
+    const rows = [{ pseudo: 'A', uid: 'a', score: 10, avgMs: 40 }, { pseudo: 'B', uid: 'b', score: 10, avgMs: 20 }];
+    ok('sortLbRows time avec map : égalité de temps départagée à avgMs (B avant A)', lb.sortLbRows(rows, 'time', m).map((r) => r.pseudo).join(',') === 'B,A');
+  }
+
+  // --- game.js : lastResolveMs figé au dernier tap (3 sites de résolution) + dtMs signés ---
+  const gameSrc = fsB2.readFileSync(new URL('../js/game.js', import.meta.url), 'utf8');
+  ok('game.js : lastResolveMs init + figé aux 3 sites (remaining === 0)', gameSrc.includes('this.lastResolveMs = null;') && (gameSrc.match(/if \(this\.remaining === 0\) this\.lastResolveMs/g) || []).length === 3);
+  ok('game.js : reactionsSigned.push(dtMs) + finish() priorise lastResolveMs', gameSrc.includes('this.stats.reactionsSigned.push(dtMs)') && gameSrc.includes('this.lastResolveMs != null ? this.lastResolveMs'));
+
+  // --- submitSpeedrun transmet les nouveaux champs (départage + anti-triche + hash replay) ---
+  {
+    const posts = [];
+    globalThis.fetch = async (url, opts) => { posts.push({ url: String(url), body: opts && opts.body ? JSON.parse(opts.body) : null }); return { ok: true, json: async () => null }; };
+    await lb.submitSpeedrun(2, { pseudo: 'T', uid: 'u1', timeMs: 12000, level: 'L', date: 1, mode: 'auto', lines: 20, avgMs: 33, misses: 1, score: 800, biasMs: -12, hash: 'a'.repeat(64) }, 'TOK');
+    const post = posts.find((p) => p.body);
+    ok('submitSpeedrun transmet lines/avgMs/misses/score/biasMs/hash dans le POST', !!post && post.body.lines === 20 && post.body.avgMs === 33 && post.body.misses === 1 && post.body.score === 800 && post.body.biasMs === -12 && /^[0-9a-f]{64}$/.test(post.body.hash));
+    delete globalThis.fetch;
+  }
+
+  // --- flushQueue : entrée refusée définitivement (HTTP 401/403, ex. pré-MAJ sans lines) -> abandonnée, file non bloquée ---
+  {
+    globalThis.fetch = async () => ({ ok: false, status: 403, json: async () => null });
+    localStorage.setItem('roadtap_lb_queue_v1', JSON.stringify([{ kind: 'score', payload: { pseudo: 'Old', score: 10, level: 'L', levelId: 1, mode: 'auto', date: 1 }, at: 1 }]));
+    const sent = await lb.flushQueue('TOK403X', 'u9');
+    ok('flushQueue : refus définitif règles (HTTP 403) -> entrée abandonnée, file vidée (anti-blocage)', sent === 1 && lb.queueSize() === 0);
+    delete globalThis.fetch;
+  }
+
+  // --- règles RTDB : anti-triche par niveau + hash optionnel + garde-fous audit ---
+  {
+    const rules = JSON.parse(fsB2.readFileSync(new URL('../database.rules.json', import.meta.url), 'utf8')).rules;
+    const wS = rules.scores['$mode']['$id']['.write'];
+    const wR = rules.speedrun['$level']['$id']['.write'];
+    ok("rules scores : hasChildren exige 'lines' + score <= lines*250 + hash 64 hex optionnel + avgMs/biasMs/misses bornés",
+      wS.includes("'lines'") && wS.includes("newData.child('score').val() <= newData.child('lines').val() * 250") && wS.includes("matches(/^[0-9a-f]{64}$/)") && wS.includes("'biasMs'"));
+    ok("rules speedrun : hasChildren exige 'lines' + timeMs >= lines*400 (borne basse anti-bot) + score <= lines*250 si présent",
+      wR.includes("'lines'") && wR.includes("newData.child('timeMs').val() >= newData.child('lines').val() * 400") && wR.includes("newData.child('score').val() <= newData.child('lines').val() * 250"));
+    ok("rules : !data.exists() + auth.uid conservés (audit §12) sur scores et speedrun", wS.includes('!data.exists()') && wS.includes('auth.uid') && wR.includes('!data.exists()') && wR.includes('auth.uid'));
+  }
+
+  // --- main.js : envois enrichis + départage écran de fin + indicateur ±ms ---
+  const mainSrc2 = fsB2.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  ok('main.js : submitScore/submitSpeedrun envoient lines: linesCount + misses + biasMs (+ avgMs/score côté speedrun)',
+    (mainSrc2.match(/lines: linesCount/g) || []).length === 2 && (mainSrc2.match(/biasMs: biasReaction\(stats\)/g) || []).length === 2 && mainSrc2.includes('misses: stats.misses || 0'));
+  ok('main.js : over-rank + branche reaction utilisent compareEntries (≥3 appels)', (mainSrc2.match(/compareEntries\(a, b, '(score|time|reaction)'\)/g) || []).length >= 3);
+  ok('main.js : écran de fin affiche le biais signé ±ms (trop tôt / trop tard) #31', mainSrc2.includes("bias < 0 ? '−' : '+'") && mainSrc2.includes('trop tôt') && mainSrc2.includes('trop tard'));
 }
 
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);

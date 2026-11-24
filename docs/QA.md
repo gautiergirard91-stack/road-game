@@ -1,6 +1,6 @@
 # ✅ Assurance qualité
 
-> **Note (v1.3.77)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.77**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
+> **Note (v1.3.77)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.78**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
 
 ## Processus de test
 
@@ -673,3 +673,11 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] Test manuel : une seule partie = score + chrono live ; rater une ligne → « RATÉ +0,5 s » et chrono +0,5 s ; 3 ratés → « Continuer — +2 s ⏱ » (gratuit en temps, plus de pièces) ; écran de fin : score + ⏱ temps + 2 rangs ; classement : colonnes 🏁 et ⏱ remplies par la même partie
 - [ ] CI verte + CACHE sw bumpé (roadtap-v85) + VERSION 1.3.77 + version.json 1.3.77
 
+
+## v1.3.78 — fondations esport : mesure au dernier tap, départage des égalités, anti-triche par niveau, ±ms
+
+- **Mesure (#28a)** : `timeMs` figé au moment de la résolution de la dernière ligne (`lastResolveMs`), plus à la frame du +80 px — les égalités exactes au minimum théorique deviennent quasi impossibles ; le repli = ancien comportement.
+- **Départage (#28b/c)** : `compareEntries` (score/time/réaction) avec chaîne officielle : score desc → avgMs asc → timeMs asc → misses asc → date asc (et symétrique pour le temps). Appliqué au classement (tri Score/Temps/Réaction) ET au rang affiché écran de fin. Entrées speedrun enrichies : `lines`, `avgMs`, `misses`, `score`, `biasMs`.
+- **Anti-triche par niveau (#4/#26)** : champ `lines` obligatoire + bornes serveur : `score <= lines*250`, `timeMs >= lines*400`, `avgMs` 0–2000, `biasMs` ±1000, `misses` 0–1000, `hash` 64 hex optionnel (replay). **ACTION REQUISE : déployer `database.rules.json` dans la console Firebase** (les anciennes entrées en file sans `lines` seront abandonnées automatiquement — `flushQueue` ne bloque plus).
+- **Indicateur ±ms (#31)** : `biasReaction` (moyenne signée des dtMs) affiché à l'écran de fin : « 38 ms (−6 ms trop tôt) ».
+- Tests : core (biasReaction), smoke (timeMs au dernier tap), break section BB (461 assertions au total) ; audit §12 OK.
