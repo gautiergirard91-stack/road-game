@@ -84,7 +84,7 @@ Priorités : **P0** = faisable vite, fort impact accessibilité ou intégrité c
 
 | Priorité | Propositions | Impact |
 |---|---|---|
-| **P0** (rapide, fort impact) | #4 anti-triche par niveau (règles RTDB), #22 médailles, #6 gros doigts/swipe réglable, #15 animations réduites, #16 contraste élevé, #17 taille de texte | accessibilité immédiate + intégrité compétitive |
+| **P0** (rapide, fort impact) | #4 anti-triche par niveau (règles RTDB), #22 médailles, #6 gros doigts/swipe réglable, #15 animations réduites, #16 contraste élevé, #17 taille de texte, #27 marqueur visuel du « 0 ms » (option, hors LB) | accessibilité immédiate + intégrité compétitive |
 | **P1** (structurant) | #1 mode entraînement, #2 buffer d'input, #3 fantôme de record, #5 calibration latence, #7 vibration, #9 courbe lissée, #14 défis variés, #18 écran de fin + partage, #19 ARIA, #23 tiers, #24 duels amis | profondeur compétitive + accessibilité avancée |
 | **P2** (chantiers) | #8 mode gaucher, #10 récompenses visibles, #11 fenêtres adaptatives, #12 boss tous les 5 niveaux, #13 niveau hebdo, #20 saisons cosmétiques, #21 icônes saisonnières, #25 saison hebdo | rétention long terme |
 
@@ -92,4 +92,20 @@ Priorités : **P0** = faisable vite, fort impact accessibilité ou intégrité c
 
 ---
 
-*Rapport produit le 2026-11-24 à partir de l'état v1.3.77 (main = v1.3.75 + PR #59 v1.3.76 et #60 v1.3.77 en attente de merge), par les agents gameplay / contrôles / équilibrage / niveaux / polish / assets (`.vibe/agents/`).*
+---
+
+## 5. Ajout post-rapport (demande utilisateur du 2026-11-24) — rendre le « 0 ms » visible
+
+Contexte : le 0 ms = moment exact où la ligne blanche passe **sous l'essieu tapé** (`dy = distance - line.dist + axleDelta = 0` dans `js/game.js:1348`, `dtMs = dy/speed*1000`). Aujourd'hui ce point n'est signalé que par le beat audio (voir ci-dessous) et par l'alignement visuel roue/ligne.
+
+27. **Marqueur visuel du point de frappe (P0, option hors LB)** — deux niveaux d'aide, jamais actifs en même temps que le classement en ligne (même principe que `wideWindows`) :
+   - (a) **flash de la ligne au moment 0 ms** : quand une ligne atteint un essieu, léger flash blanc (alpha ~0,25, ~120 ms). *Pourquoi* : tapper « sur le flash » donne le PARFAIT — c'est une aide réelle, donc option explicite (entraînement / accessibilité), exclue du LB en ligne.
+   - (b) **lueur prédictive** : la ligne commence à luire dès qu'elle entre dans la fenêtre PARFAIT (±45 ms). Aide encore plus forte, même régime hors LB.
+   - *Différence vs actuel* : seul feedback visuel existant = le flash **après** le tap réussi (`line.flash = 0,3` à la résolution) + pop-up PARFAIT/BIEN. Rien ne montre le moment cible avant le tap.
+   - *Implémentation* : option accessibilité (comme `verticalZones`), stockée dans `roadtap_save_v1`, transmise comme `wideWindows` (champ exclu du LB) ; testable headless via `lineY(line) === lineAxleY(axle)`.
+
+**Précision sur le beat existant (v1.3.46, `scheduleLineBeat` dans `js/audio.js`)** : un « tic » (oscillateur square 1250→620 Hz, ~90 ms, gain 0,22) est programmé **exactement à t = 0** pour chaque essieu (clé `dist:axle`), re-calé si la vitesse change (tolérance 0,06 s, fenêtre de tirée −50 ms…+700 ms). Il est **reconnaissable** (transient net, distinct de la musique du séquenceur) et **utilisable à l'oreille** (style Geometry Dash), mais avec 3 limites réelles : (a) la latence de la chaîne audio (casque Bluetooth ≈ 30–150 ms) décale le tic perçu par rapport au visuel — le flash visuel corrige justement ça ; (b) les tics AV et AR d'une même ligne sont séparés de ~(bodyH+16)/vitesse ≈ 180 ms à 600 px/s et ne sont pas étiquetés : il faut compter ; (c) à haute densité, des tics de lignes voisines se chevauchent. Conclusion : le beat reste le meilleur guide temps réel, le flash visuel (#27) en est le complément lisible, surtout sur mobile.
+
+---
+
+*Rapport produit le 2026-11-24 à partir de l'état v1.3.77 (main = v1.3.75 + PR #59 v1.3.76 et #60 v1.3.77 en attente de merge), par les agents gameplay / contrôles / équilibrage / niveaux / polish / assets (`.vibe/agents/`). Section 5 ajoutée le 2026-11-24 suite à la demande utilisateur (marqueur visuel du 0 ms).*
