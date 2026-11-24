@@ -181,3 +181,8 @@ Vu dans DevTools : les requêtes `realtime-database-…/scores/*.json` passaient
 
 Bug : `getSpeedrunAll()` dédoubonnait **par joueur globalement** (meilleur temps tous niveaux confondus) avant le filtre de niveau → faire un temps au niveau 2 faisait disparaître celui du niveau 1 (colonne ⏱ et rang speedrun). Fix : `getSpeedrunAll` retourne toutes les entrées ; le dedupe 1 entrée/joueur se fait **après** le filtre par niveau (`getSpeedrunTop`, `buildTimeMap`). En vue « 🌐 Tous niveaux », la colonne ⏱ affiche désormais le niveau du temps affiché (« ⏱ 0:14.13 · niv. 1 »).
 
+## v1.3.75 — saisie clavier dans les champs + suppression d'ami définitive
+
+- **Clavier** : le handler `keydown` faisait `preventDefault()` dès qu'une touche correspondait à une action de jeu (flèches/Space/Entrée/KeyS/KeyR + touches custom), même dans un champ texte — et comme `e.repeat` court-circuitait, seules les **répétitions** (appui long) inséraient la lettre. Fix : garde « target = INPUT/TEXTAREA/SELECT/contentEditable → return » posée avant `keyToAction`, donc toutes les lettres s'inscrivent dès le 1er appui (modale pseudo, champ ami).
+- **Amis** : `mergeRemote` faisait l'union local+remote des amis et `pushCloud` est en pull-merge-push → un ami supprimé revenait dès qu'on quittait/revenait. Fix : tombstones `deletedFriends` (persistés local + cloud) — `removeFriend` en pose un, `mergeRemote` exclut tout ami tombstoné, `addFriend` lève le tombstone.
+

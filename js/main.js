@@ -2005,6 +2005,10 @@ window.addEventListener('keydown', (e) => {
     return;
   }
   const canPlay = canPlayNow();
+  // v1.3.75 : on tape dans un champ (pseudo, ami…) -> la touche va au champ, jamais au jeu
+  // (avant : preventDefault bloquait le 1er appui, seules les répétitions passaient = « faut rester appuyé »)
+  const te = e.target;
+  if (te && (te.tagName === 'INPUT' || te.tagName === 'TEXTAREA' || te.tagName === 'SELECT' || te.isContentEditable)) return;
   // v1.3.28 : UNE SEULE action par touche via keyToAction (sinon ArrowLeft = tap AV + swipe
   // quand les zones horizontales sont actives ; le swipe clavier passe sur ArrowDown/KeyS)
   // v1.3.47 : les touches choisies dans Paramètres priment (save.keys)
