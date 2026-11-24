@@ -26,3 +26,14 @@ Ce fichier est lu automatiquement par les outils d'IA (Claude Code, etc.). Le su
 - Répondre en **français**, concis, avec des options concrètes plutôt que des questions ouvertes.
 - **Après chaque push**, terminer le message par un bloc `🔔 BLOC DE TEST` : kill du serveur (`lsof -ti:8080 | xargs kill`), `git pull`, `python3 -m http.server 8080`, **Ctrl+Shift+R** obligatoire (bump CACHE), puis une checklist de vérification.
 - Signaler tout blocage avec la cause exacte (ex: CORS, règles RTDB) et 2–3 pistes concrètes.
+
+## Agents spécialisés (Mistral Vibe CLI)
+
+Quatre agents configurés au niveau projet dans `.vibe/agents/` (lancement : `vibe --agent <nom>` ou Shift+Tab) :
+
+- **gameplay** (`.vibe/agents/gameplay.toml`) : mécaniques, contrôles, équilibrage, boucle de jeu — commencer par lui pour les fondations.
+- **polish** (`.vibe/agents/polish.toml`) : juice, feedback visuel/sonore, UI/UX, performance — en dernier, sur une version déjà jouable.
+- **niveaux** (`.vibe/agents/niveaux.toml`) : conception/génération des niveaux (js/data.js + js/core.js), courbe de difficulté.
+- **assets** (`.vibe/agents/assets.toml`) : intégration et cohérence des assets (canvas procédural, icônes PWA, sons) + prompts pour outils externes.
+
+Pour que l'agent principal délègue automatiquement : passer `agent_type = "subagent"` dans le TOML concerné.
