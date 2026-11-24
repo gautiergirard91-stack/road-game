@@ -731,7 +731,7 @@ export class Game {
     this.skin = SKINS.find((s) => s.id === opts.skinId) || SKINS[0];
     this.speedrun = !!opts.speedrun;
     // v1.3.54 : le speedrun n'a QU'UNE SEULE difficulté : Permis A (fixée côté UI aussi)
-    this.mode = this.speedrun ? 'permisA' : opts.mode || 'auto';
+    this.mode = opts.mode || 'auto'; // v1.3.68 : le speedrun se joue dans la difficulté choisie (plus de verrou Permis A)
     // v1.3.51 : niveaux déterministes — rand seedé (seed fixe par niveau+mode), reset dans start()
     this.rand = mulberry32(levelSeed(this.level ? this.level.id : 0, this.mode));
     this.chunkN = 0;

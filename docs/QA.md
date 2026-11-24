@@ -1,6 +1,6 @@
 # ✅ Assurance qualité
 
-> **Note (v1.3.67)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.67**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
+> **Note (v1.3.68)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.68**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
 
 ## Processus de test
 
@@ -566,3 +566,13 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] `node tests/break.test.mjs` : section AQ (11 assertions, dont getTop en ligne dédoublonné + wideWindows filtré)
 - [ ] Test manuel : ouvrir le classement → « 🌐 Tous niveaux » surligné ; choisir un niveau → scores filtrés, 1 ligne par joueur (meilleur score) ; un joueur avec 2 scores n'apparaît qu'une fois
 - [ ] CI verte + CACHE sw bumpé (roadtap-v75) + VERSION 1.3.67 + version.json 1.3.67
+
+## Checklist v1.3.68 (speedrun en Auto école + colonnes score/temps au classement — branche `vibe/speedrun-auto-264a24`)
+
+- [ ] **Speedrun dispo dans TOUTES les difficultés** (Auto école comprise) : plus de `this.speedrun ? 'permisA'`, plus de `store.setDifficulty('permisA')` forcé, picker non verrouillé, title du bouton MAJ ; `runMode` inchangé (records/envois utilisent le mode joué) ; fallback `submitSpeedrun` = `'auto'`
+- [ ] **Onglet « ⏱ Speedrun » retiré** du filtre difficulté du classement ; un filtre persisté `speedrun` retombe sur la difficulté courante à l'ouverture
+- [ ] **Colonnes score + ⏱ temps** dans chaque difficulté : `buildTimeMap(getSpeedrunAll(), lbFilter, lbLevelFilter)` (meilleur temps par joueur, filtré par difficulté + niveau) + cellule `lb-time` (`⏱ 0:14.65` ou `—`), CSS `.lb-time` ; `getTop(lbFilter, lbLevelFilter)` — la difficulté filtre même avec un niveau choisi
+- [ ] **Diagnostic d'envoi** : en fin de partie, toast explicite si le résultat n'est pas envoyé en ligne (wideWindows actives / pas de compte Google → gardé en local + file hors ligne)
+- [ ] `node tests/break.test.mjs` : section AR (11 assertions) + MAJ sections J/AH/AF/682 + `game.smoke` (mode conservé en speedrun)
+- [ ] Test manuel : speedrun ON en Auto école → niveau 2 → temps apparaît dans la colonne ⏱ de l'onglet Auto école (niveau 2) ; plus d'onglet Speedrun ; si pas connecté → toast « 🔒 Connecte Google… » en fin de partie
+- [ ] CI verte + CACHE sw bumpé (roadtap-v76) + VERSION 1.3.68 + version.json 1.3.68

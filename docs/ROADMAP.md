@@ -147,3 +147,9 @@ L'échange de jeton App Check exige l'**ID d'application** de l'app web (`1:…:
 - `dedupeByPlayer()` : dans chaque vue (difficulté/niveau), un joueur n'apparaît **qu'une fois**, avec **son meilleur score** (min `timeMs` en speedrun, min `avgMs` en réaction). Clé d'identité = `uid` Google, sinon pseudo (insensible à la casse).
 - Filtre niveau : option **🌐 Tous niveaux** explicite en tête → à l'ouverture un filtre est toujours visiblement sélectionné (les filtres mémorisés v1.3.65 restent restaurés).
 - Lignes : nom du niveau résolu via `levelId` (plus de « L 1 » sur les vieilles entrées) ; statut « N chargé(s) — M affiché(s) ici » ; liste vide avec filtre niveau → message dédié « joue ce niveau pour passer 1er ».
+
+## v1.3.68 — speedrun partout + classement en 2 colonnes (score + temps)
+
+- Le mode **speedrun est disponible dans toutes les difficultés** (Auto école comprise) : le verrou « Permis A seule » (v1.3.54) est levé côté moteur (`game.mode = opts.mode`), UI (picker libre, plus de `setDifficulty('permisA')` forcé) et libellés.
+- Page classement : l'onglet **⏱ Speedrun est supprimé** ; chaque onglet de difficulté affiche **deux colonnes** — score (meilleur, 1 entrée/joueur via v1.3.67) et **⏱ meilleur temps speedrun** du joueur sur ce filtre (niveau/difficulté), `—` sinon. La difficulté active filtre aussi quand un niveau est choisi.
+- Fin de partie : si le résultat n'est **pas** envoyé en ligne (pas de compte Google, ou fenêtres élargies), un toast dit pourquoi (résultat gardé en local / file hors ligne v1.3.66).
