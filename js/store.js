@@ -16,7 +16,7 @@ const defaults = () => ({
   best: {},
   bestTime: {}, // v1.3.19 : meilleurs temps (ms) du mode speedrun, par niveau
   speedrun: false,
-  horizontalZones: false, // v1.3.21 : zones gauche/droite (gauche=AV, droite=AR) au lieu de haut/bas
+  verticalZones: false, // v1.3.76 : zones tactiles HAUT/BAS (défaut false = gauche/droite : gauche=AV ⬅, droite=AR ➡)
   sound: true,
   keys: { ...DEFAULT_KEYS }, // v1.3.47 : touches personnalisables (menu Paramètres)
   difficulty: 'auto',
@@ -116,7 +116,7 @@ function sanitize(s) {
   s.tutorialDone = bool(s.tutorialDone);
   s.speedrun = bool(s.speedrun);
   s.keys = sanitizeKeys(s.keys); // v1.3.47 : touches valides, défauts sinon
-  s.horizontalZones = bool(s.horizontalZones);
+  s.verticalZones = bool(s.verticalZones); // v1.3.76 : migration faite dans load() sur le JSON brut
   s.lastLogin = str(s.lastLogin);
   s.streak = num(s.streak);
   s.streakRewardDay = str(s.streakRewardDay);
@@ -163,6 +163,11 @@ export function load() {
           parsed.wallets = { auto: parsed.coins, permisA: 0, pilote: 0 };
           delete parsed.coins;
         }
+        // v1.3.76 : migration horizontalZones -> verticalZones (nouveau défaut = gauche/droite)
+        if ('horizontalZones' in parsed && typeof parsed.verticalZones !== 'boolean') {
+          parsed.verticalZones = !(parsed.horizontalZones === true);
+        }
+        delete parsed.horizontalZones;
       }
     }
     save = sanitize({ ...defaults(), ...(parsed && typeof parsed === 'object' ? parsed : {}) });
@@ -255,9 +260,9 @@ export function setSpeedrun(on) {
   persist();
 }
 
-// v1.3.21 : zones de tap horizontales (gauche = roues AV, droite = roues AR)
-export function setHorizontalZones(on) {
-  save.horizontalZones = Boolean(on);
+// v1.3.76 : zones de tap verticales haut/bas (défaut = gauche/droite)
+export function setVerticalZones(on) {
+  save.verticalZones = Boolean(on);
   persist();
 }
 
@@ -548,7 +553,7 @@ export function resetProgress() {
     music: save.music,
     wideWindows: save.wideWindows,
     colorblind: save.colorblind,
-    horizontalZones: save.horizontalZones, // v1.3.57 : préférence d'accessibilité = config, pas progression
+    verticalZones: save.verticalZones, // v1.3.76 : zones haut/bas = config, pas progression
     keys: save.keys, // v1.3.57 : les touches sont la config du joueur — JAMAIS effacées par une déconnexion
   };
   save = sanitize({ ...defaults(), ...keepDevicePrefs });
@@ -609,7 +614,7 @@ export function snapshot() {
     best: save.best,
     bestTime: save.bestTime,
     speedrun: save.speedrun,
-    horizontalZones: save.horizontalZones,
+    verticalZones: save.verticalZones,
     difficulty: save.difficulty,
     achievements: save.achievements,
     totals: save.totals,
@@ -693,7 +698,8 @@ function mergeRemoteBody(remote) {
     if (cur === undefined || v < cur) save.bestTime[k] = v;
   }
   if (remote.speedrun === true) save.speedrun = true;
-  if (remote.horizontalZones === true) save.horizontalZones = true;
+  if (typeof remote.verticalZones === 'boolean') save.verticalZones = remote.verticalZones;
+  else if (remote.horizontalZones === true) save.verticalZones = false; // v1.3.76 : ancien champ -> gauche/droite
   if (remote.keys && typeof remote.keys === 'object') save.keys = sanitizeKeys(remote.keys); // v1.3.47 : touches du cloud (dernier appareil gagne)
   save.totals = {
     runs: Math.max(save.totals.runs, remote.totals?.runs || 0),

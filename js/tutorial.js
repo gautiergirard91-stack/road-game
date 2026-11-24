@@ -22,10 +22,10 @@ export class Tutorial {
     this.finished = false;
     // v1.3.21 : le texte du tuto s'adapte aux zones (haut/bas ou gauche/droite)
     // v1.3.65 : version courte
-    const zonesTxt = store.get().horizontalZones ? 'Gauche = AV · Droite = AR' : 'Haut = AV · Bas = AR';
+    const zonesTxt = store.get().verticalZones ? 'Haut = AV · Bas = AR' : 'Gauche = AV ⬅ · Droite = AR ➡'; // v1.3.76 : défaut = gauche/droite
     this.steps = [
       {
-        text: "👆 Bienvenue ! Tape l'écran (ou Espace) quand la ligne blanche atteint les roues de la voiture.",
+        text: "👆 Bienvenue ! Tape l'écran (ou Z = roues AV / S = roues AR — Espace aussi) quand la ligne blanche atteint les roues de la voiture.",
         done: (t, e) => Boolean(e),
       },
       {
@@ -49,14 +49,14 @@ export class Tutorial {
         done: (t) => t.okLines >= 3, // v1.3.65 : 3 lignes réussies
       },
       {
-        text: '🚗 Pilote : voiture lente devant ! SWIPE ← (ou ⬅) pour doubler. Ta voiture revient à droite toute seule — attends !',
+        text: '🚗 Pilote : voiture lente devant ! SWIPE ← (ou ⬅) pour doubler, puis SWIPE → (ou ➡) pour revenir à droite — ta voiture ne revient PLUS toute seule. ⚠ Reste à gauche = risque de voiture de face (alerte ⚠) : reviens vite !',
         enter: (g) => {
           g.mode = 'pilote';
           g.axles = ['front', 'rear'];
           g.forceBlocker();
         },
-        poll: true, // on laisse le temps de voir la voiture doubler ET revenir à droite
-        done: (t) => t.overtakes >= 1 && t.game.laneTarget === 0.72 && t.game.carXFrac > 0.68,
+        poll: true, // on laisse le temps de doubler ET de revenir à droite MANUELLEMENT
+        done: (t) => t.overtakes >= 1 && t.game.laneTarget === 0.72 && t.game.carXFrac > 0.68, // v1.3.76 : vrai seulement si le joueur a swipe →
       },
       {
         text: "🚶 En ville : le passage piéton (bandes blanches) est une ligne à cliquer comme les autres — et la voiture s'arrête seule pour laisser passer les piétons. Tape quand IL atteint les roues !",

@@ -817,6 +817,7 @@ export class Game {
     this.blocker = null;
     this.oncoming = [];
     this.sameDir = [];
+    this.danger = 0; // v1.3.76 : alerte voiture de face (0..1) quand le joueur est à gauche
     this.tOncoming = 1.2;
     this.tSame = 4;
     this.ped = null;
@@ -913,13 +914,18 @@ export class Game {
     }
     // v1.3.46 : beat style Geometry Dash — un « tic » audio est calé EXACTEMENT sur l'arrivée de
     // chaque ligne à l'essieu (t = (dist - axleDelta - distance) / effSpeed) -> on peut jouer à l'oreille
-    if (this.effSpeed > 1 && typeof this.audio.lineBeat === 'function') {
+    if (this.effSpeed > 1) {
       for (const line of this.lines) {
         if (line.state !== 'pending') continue;
         for (const axle of this.axles) {
-          if (line.hits[axle]) continue;
           const t = (line.dist - this.axleDelta(axle) - this.distance) / this.effSpeed;
-          if (t > -0.05 && t < 0.7) this.audio.lineBeat(t, line.dist + ':' + axle);
+          // v1.3.76 : la MUSIQUE s'ancre sur la ligne quand elle atteint les roues (rear) — une fois par ligne
+          if (axle === 'rear' && !line.anchored && t <= 0.04 && t > -0.06) {
+            line.anchored = true;
+            if (typeof this.audio.musicAnchor === 'function') this.audio.musicAnchor();
+          }
+          if (line.hits[axle]) continue;
+          if (typeof this.audio.lineBeat === 'function' && t > -0.05 && t < 0.7) this.audio.lineBeat(t, line.dist + ':' + axle);
         }
       }
     }
@@ -1110,12 +1116,15 @@ export class Game {
 
   updateTraffic(dt) {
     this.tOncoming -= dt;
+    const playerLeft = this.carXFrac < 0.6;
     if (this.tOncoming <= 0) {
       this.tOncoming = 1.3 + this.rand() * 1.7;
-      // pas de spawn en sens inverse tant que la voiture du joueur est à gauche (dépassement en cours)
-      if (this.carXFrac >= 0.6 && this.oncoming.length < 4) {
+      // v1.3.76 : les voitures de face spawnent AUSSI quand le joueur est à gauche (c'est le danger
+      // du dépassement manuel) — avec un lead ≥ ~1050 px = fenêtre d'action ~1,5-2,5 s
+      if (this.oncoming.length < 4) {
+        const lead = playerLeft ? 1050 + this.rand() * 800 : 240 + this.rand() * 400;
         this.oncoming.push({
-          p: this.distance + this.h + 240 + this.rand() * 400,
+          p: this.distance + this.h + lead,
           v: -(220 + this.rand() * 140),
           color: TRAFFIC_COLORS[(this.rand() * TRAFFIC_COLORS.length) | 0],
           w: 54 + this.rand() * 16,
@@ -1124,12 +1133,32 @@ export class Game {
     }
     for (const c of this.oncoming) c.p += c.v * dt;
     this.oncoming = this.oncoming.filter((c) => this.wheelY + this.distance - c.p < this.h + 260);
+    // v1.3.76 : collision frontale — joueur à gauche + voiture de face au même niveau = crash
+    if (this.carXFrac < 0.5) {
+      for (const c of this.oncoming) {
+        if (Math.abs(this.distance - c.p) < 58) {
+          if (this.tutorial) { this.slow = Math.max(this.slow, 0.3); break; } // tuto : pas de mort
+          this.stats.score = this.score;
+          this.finish('oncoming');
+          return;
+        }
+      }
+    }
+    // v1.3.76 : indicateur d'alerte 0..1 = proximité d'une voiture de face (quand on est à gauche)
+    this.danger = 0;
+    if (playerLeft) {
+      for (const c of this.oncoming) {
+        const rel = this.distance - c.p; // <0 = la voiture de face est devant
+        if (rel > -750 && rel < 60) this.danger = Math.max(this.danger, (rel + 750) / 810);
+      }
+    }
     let blocker = null;
     if (this.mode === 'pilote') {
       this.tSame -= dt;
       if (this.tSame <= 0) {
         this.tSame = 5 + this.rand() * 5;
-        if (!this.sameDir.some((c) => !c.overtaken)) {
+        // v1.3.76 : jamais 2 voitures d'affilée dans la file de droite à moins de 520 px
+        if (!this.sameDir.some((c) => c.p > this.distance - 400 && c.p < this.distance + 520)) {
           this.sameDir.push({
             p: this.distance + 650 + this.rand() * 450,
             v: this.level.speed * (0.5 + this.rand() * 0.2),
@@ -1154,13 +1183,7 @@ export class Game {
       }
       this.blocker = blocker;
       if (blocker) blocker.grace += dt;
-      if (this.lastOvertaken) {
-        const sy = this.wheelY + this.distance - this.lastOvertaken.p;
-        if (sy > this.wheelY + 180) {
-          this.laneTarget = CAR_LANE;
-          this.lastOvertaken = null;
-        }
-      }
+      // v1.3.76 : PLUS de retour automatique à droite — le joueur revient avec swipe → / flèche ➡ (swipeRight)
       this.sameDir = this.sameDir.filter((c) => this.wheelY + this.distance - c.p < this.h + 300);
     } else {
       this.sameDir = [];
@@ -1208,7 +1231,7 @@ export class Game {
       target.overtaken = true;
       // on vide l'entre-sens devant la voiture : aucun chevauchement visuel pendant le dépassement
       this.oncoming = this.oncoming.filter((c) => this.wheelY + this.distance - c.p > this.h + 40);
-      this.tOncoming = Math.max(this.tOncoming, 0.9);
+      this.tOncoming = Math.max(this.tOncoming, 1.4); // v1.3.76 : fenêtre d'action acceptable (~1,4 s min)
       this.lastOvertaken = target;
       this.laneTarget = ONCOMING_LANE;
       this.stats.overtakes++;
@@ -1223,6 +1246,17 @@ export class Game {
       this.audio.perfect?.();
       this.onJudge({ result: 'perfect', pts: bonus, combo: this.combo, score: this.score, overtake: true });
     }
+  }
+
+  // v1.3.76 : retour MANUEL dans la voie de droite (swipe → / flèche droite)
+  swipeRight() {
+    if (!this.running || this.paused || this.tutHold) return;
+    if (this.mode !== 'pilote') return;
+    if (this.laneTarget >= CAR_LANE && this.carXFrac > 0.6) return; // déjà à droite
+    this.laneTarget = CAR_LANE;
+    this.lastOvertaken = null;
+    this.popups.push({ text: '↩ VOIE DE DROITE', y: this.wheelY - 120, life: 0.7, color: '#8affc1' });
+    this.audio.good?.();
   }
 
   spawnLine(type, distAhead) {
@@ -1737,6 +1771,13 @@ export class Game {
       ctx.font = 'bold 20px system-ui, sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText('⬅ SWIPE POUR DOUBLER !', roadX + roadW / 2, this.h * 0.3);
+    }
+    // v1.3.76 : alerte voiture de face quand on est à gauche (dépassement manuel)
+    if (this.mode === 'pilote' && this.danger > 0.05) {
+      ctx.fillStyle = `rgba(255,60,60,${0.45 + 0.55 * this.danger * Math.abs(Math.sin(this.time * 12))})`;
+      ctx.font = 'bold 20px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('⚠ VOITURE DE FACE — SWIPE → / ➡ POUR REVENIR !', roadX + roadW / 2, this.h * 0.3);
     }
     if (this.autoStop && this.ped) {
       ctx.fillStyle = 'rgba(126,224,129,0.9)';

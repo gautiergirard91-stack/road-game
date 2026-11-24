@@ -1,7 +1,7 @@
 import { LEVELS, THEMES, SKINS, EFFECTS, DIFFICULTIES, CURRENCIES, WINDOWS, ACHIEVEMENTS, THEME_SHOP, ENDLESS_LEVEL, WEEKEND_LEVEL, PACKS, SOUND_PACKS } from './data.js';
 import { Game, CAR_STYLE_LABEL, renderCarPreview, renderEffectPreview, renderThemePreview, renderPackPreview, renderSoundPreview } from './game.js';
 import * as store from './store.js';
-import { sfx, setEnabled, setMusicEnabled, unlockAudio, applySoundPack, setMusicCombo, musicSting, musicVictory, scheduleLineBeat, clearLineBeats, musicKick } from './audio.js';
+import { sfx, setEnabled, setMusicEnabled, unlockAudio, applySoundPack, setMusicCombo, musicSting, musicVictory, scheduleLineBeat, clearLineBeats, musicKick, musicLineAnchor } from './audio.js';
 import { coinsForResult, accuracy, avgReaction, continueCost, maxMissesFor, firstClearBonus, isPerfectClear, perfectClearBonus, dailyChallenge, weeklyQuests, fmtTime, zoneFromPoint, keyToAction, isNewerVersion, starsFor, endlessMilestones, isWeekend, weekendCoinMultiplier, filterFriendsByPseudo, canSubmitToLeaderboard, keyLabel, reactionBonus } from './core.js';
 import { watchRewarded } from './ads.js';
 import { Tutorial } from './tutorial.js';
@@ -418,9 +418,9 @@ function startTutorial() {
     mode: 'auto',
     tutorial: true,
     windows: effWindows(),
-    access: { colorblind: save.colorblind, horizontalZones: save.horizontalZones },
+    access: { colorblind: save.colorblind, horizontalZones: !save.verticalZones },
     effects: save.selectedEffects,
-    audio: { tap: sfx.tap, perfect: sfx.perfect, good: sfx.good, passable: sfx.passable, fail: sfx.fail, win: sfx.win, miss: sfx.miss, lineBeat: scheduleLineBeat }, // v1.3.46 : beat GD calé sur chaque ligne
+    audio: { tap: sfx.tap, perfect: sfx.perfect, good: sfx.good, passable: sfx.passable, fail: sfx.fail, win: sfx.win, miss: sfx.miss, lineBeat: scheduleLineBeat, musicAnchor: musicLineAnchor }, // v1.3.46 : beat GD calé sur chaque ligne
     onJudge: (e) => {
       hudScore.textContent = String(e.score);
       hudCombo.textContent = e.combo >= 2 ? `COMBO x${e.combo}` : '';
@@ -1089,9 +1089,9 @@ function startLevel(level) {
     speedrun: save.speedrun, // v1.3.19 : mode speedrun (chrono + vitesse bonus)
     themeOverride: save.themeOverride || undefined,
     windows: effWindows(),
-    access: { colorblind: save.colorblind, horizontalZones: save.horizontalZones },
+    access: { colorblind: save.colorblind, horizontalZones: !save.verticalZones },
     effects: save.selectedEffects,
-    audio: { tap: sfx.tap, perfect: sfx.perfect, good: sfx.good, passable: sfx.passable, fail: sfx.fail, win: sfx.win, miss: sfx.miss, lineBeat: scheduleLineBeat }, // v1.3.46 : beat GD calé sur chaque ligne
+    audio: { tap: sfx.tap, perfect: sfx.perfect, good: sfx.good, passable: sfx.passable, fail: sfx.fail, win: sfx.win, miss: sfx.miss, lineBeat: scheduleLineBeat, musicAnchor: musicLineAnchor }, // v1.3.46 : beat GD calé sur chaque ligne
     onJudge: (e) => {
       hudScore.textContent = save.speedrun && game ? fmtTime(game.elapsed) : String(e.score);
       hudCombo.textContent = e.combo >= 2 ? `COMBO x${e.combo}` : '';
@@ -1310,7 +1310,9 @@ function onGameEnd(stats, level) {
       ? '🏁 Niveau terminé !'
       : reason === 'traffic'
         ? '🚦 Bloqué dans les bouchons !'
-        : '💥 3 ratés !';
+        : reason === 'oncoming' // v1.3.76 : voiture de face (resté à gauche)
+          ? '💥 Voiture de face ! Reviens à droite avec →'
+          : '💥 3 ratés !';
   $('#over-record').classList.toggle('hidden', !isRecord && !isTimeRecord);
   $('#over-trophy').classList.toggle('hidden', !perfectClear);
   const scoreLabel = document.querySelector('#screen-over .score-label');
@@ -1411,7 +1413,7 @@ on('btn-achievements-back', 'click', () => {
 const ACCESS_OPTS = [
   { id: 'opt-widewindows', key: 'wideWindows', set: (v) => store.setWideWindows(v), on: 'Fenêtres de timing élargies (accessibilité)', off: 'Fenêtres de timing standard' },
   { id: 'opt-colorblind', key: 'colorblind', set: (v) => store.setColorblind(v), on: 'Symboles ajoutés sur les lignes (mode daltonien)', off: 'Mode standard' },
-  { id: 'opt-zones-h', key: 'horizontalZones', set: (v) => store.setHorizontalZones(v), on: '🔄 Zones gauche/droite : gauche = roues AV, droite = roues AR', off: 'Zones haut/bas rétablies (haut = AV, bas = AR)' },
+  { id: 'opt-zones-h', key: 'verticalZones', set: (v) => store.setVerticalZones(v), on: '⬆⬇ Zones haut/bas : haut = roues AV, bas = roues AR', off: '🔀 Zones gauche/droite (défaut) : gauche = roues AV ⬅, droite = roues AR ➡' },
 ];
 function syncAccessCheckboxes(prefix) {
   for (const o of ACCESS_OPTS) {
@@ -1909,9 +1911,13 @@ const canPlayNow = () => currentScreen === 'screen-game' && game && game.running
 // téléphone même si le navigateur interrompt le geste par un pointercancel.
 function trySwipe(x) {
   if (!pointerStart || swipeFired) return;
-  if (x - pointerStart.x < -40) {
+  const dx = x - pointerStart.x;
+  if (dx < -40) {
     swipeFired = true;
     if (canPlayNow()) game.swipeLeft();
+  } else if (dx > 40) {
+    swipeFired = true; // v1.3.76 : swipe → = retour manuel à droite
+    if (canPlayNow()) game.swipeRight();
   }
 }
 
@@ -1936,11 +1942,12 @@ window.addEventListener('pointerdown', (e) => {
   }
   // en jeu : un bouton de souris bindé déclenche son action (et bloque le tap de zone pour ce clic)
   if (mcode && save.keys && Object.values(save.keys).includes(mcode) && currentScreen === 'screen-game' && game && game.running) {
-    const action = keyToAction(mcode, save.horizontalZones, save.keys);
+    const action = keyToAction(mcode, !save.verticalZones, save.keys);
     if (action) {
       e.preventDefault();
       e.stopImmediatePropagation(); // évite le double tap via le handler de zones ci-dessous
       if (action === 'swipe') game.swipeLeft();
+      else if (action === 'swipeRight') game.swipeRight(); // v1.3.76 : retour manuel à droite
       else if (action === 'retry') { cancelNextCountdown(); if (currentLevel) startLevel(currentLevel); }
       else game.tap(action);
     }
@@ -1961,7 +1968,7 @@ window.addEventListener('pointerdown', (e) => {
   if (!canPlayNow()) return;
   if (e.target.closest('button, input, select, textarea, a, label')) return; // ne pas taper le jeu quand on touche un contrôle
   // v1.3.21/v1.3.28 : option zones gauche/droite (gauche = AV, droite = AR) au lieu de haut/bas
-  const zone = zoneFromPoint(e.clientX, e.clientY, window.innerWidth, window.innerHeight, save.horizontalZones);
+  const zone = zoneFromPoint(e.clientX, e.clientY, window.innerWidth, window.innerHeight, !save.verticalZones);
   game.tap(zone);
 });
 
@@ -2012,7 +2019,7 @@ window.addEventListener('keydown', (e) => {
   // v1.3.28 : UNE SEULE action par touche via keyToAction (sinon ArrowLeft = tap AV + swipe
   // quand les zones horizontales sont actives ; le swipe clavier passe sur ArrowDown/KeyS)
   // v1.3.47 : les touches choisies dans Paramètres priment (save.keys)
-  const action = keyToAction(e.code, save.horizontalZones, save.keys);
+  const action = keyToAction(e.code, !save.verticalZones, save.keys);
   if (action) {
     e.preventDefault();
     if (action === 'retry') {
@@ -2023,6 +2030,7 @@ window.addEventListener('keydown', (e) => {
       }
     } else if (canPlay) {
       if (action === 'swipe') game.swipeLeft();
+      else if (action === 'swipeRight') game.swipeRight(); // v1.3.76 : retour manuel à droite
       else game.tap(action);
     }
   }
