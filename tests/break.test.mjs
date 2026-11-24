@@ -1389,7 +1389,7 @@ console.log('AQ. v1.3.67 : classement — 1 entrée par joueur (meilleur score/t
   ], 'reaction');
   ok('dedupe réaction : meilleur avgMs (min) gardé', ddr.length === 2 && ddr.find((e) => e.pseudo === 'A').avgMs === 35);
   ok('dedupe : entrées sans pseudo ignorées', lb.dedupeByPlayer([{ score: 5 }, null, { pseudo: '', score: 1 }], 'score').length === 0);
-  ok('leaderboard.js : dedupe intégré à sortDesc (score) et sortAscTimeUnbounded (speedrun)', lbSrc.includes("dedupeByPlayer(arr.map(cleanEntry).filter(Boolean), 'score')") && lbSrc.includes("dedupeByPlayer(arr.map(cleanTimeEntry).filter(Boolean), 'speedrun')"));
+  ok('leaderboard.js : dedupe intégré à sortDesc (score) ; speedrun = dedupe APRÈS filtre niveau (v1.3.74)', lbSrc.includes("dedupeByPlayer(arr.map(cleanEntry).filter(Boolean), 'score')") && lbSrc.includes('dedupeByPlayer(keep(') && !lbSrc.slice(lbSrc.indexOf('function sortAscTimeUnbounded'), lbSrc.indexOf('function sortAscTimeUnbounded') + 500).includes('dedupeByPlayer'));
 
   // filtre niveau : option « Tous niveaux » en tête + sélection visible
   ok('main.js : option { id: \'all\', name: \'🌐 Tous niveaux\' } en tête du filtre niveau', mainSrc.includes("{ id: 'all', name: '🌐 Tous niveaux' }"));
@@ -1439,7 +1439,7 @@ console.log('AR. v1.3.68 : speedrun en Auto école (toutes difficultés), onglet
   ok("main.js : filtre persisté 'speedrun' remis à la difficulté courante à l'ouverture", mainSrc.includes("if (lbFilter === 'speedrun') { lbFilter = save.difficulty; saveLbFilters(); }"));
 
   ok('main.js : getAll(lbFilter) + filterLevel(all, lbLevelFilter) (v1.3.70)', mainSrc.includes('await leaderboard.getAll(lbFilter)') && mainSrc.includes('leaderboard.filterLevel(all, lbLevelFilter)'));
-  ok('main.js : buildTimeMap(getSpeedrunAll(), lbFilter, lbLevelFilter) appelé dans renderLeaderboard', mainSrc.includes('leaderboard.buildTimeMap(await leaderboard.getSpeedrunAll(), lbFilter, lbLevelFilter)'));
+  ok('main.js : buildTimeMap(getSpeedrunAll(), lbFilter, lbLevelFilter) appelé dans renderLeaderboard', mainSrc.includes('leaderboard.buildTimeMap(srAll, lbFilter, lbLevelFilter)') && mainSrc.includes('leaderboard.buildTimeLevelMap(srAll, lbFilter, lbLevelFilter)'));
   ok('main.js : cellule lb-time (⏱… ou —) ajoutée à chaque ligne hors réaction', mainSrc.includes('class="lb-time"') && mainSrc.includes('timeByPlayer.get(leaderboard.playerKey(e))'));
   ok('css : .lb-time stylé (colonne temps)', css.includes('.lb-time'));
 
@@ -1554,6 +1554,40 @@ console.log('AW. v1.3.73 : speedrun d\'un niveau verrouillé tant qu\'il n\'a pa
   const srHandler = mainSrc.slice(mainSrc.indexOf("on('btn-mode-speedrun'"), mainSrc.indexOf("on('btn-help'"));
   const nHandler = mainSrc.slice(mainSrc.indexOf("on('btn-mode-normal'"), mainSrc.indexOf("on('btn-mode-speedrun'"));
   ok('main.js : renderLevels() appelé aux 2 toggles du mode (badges 🔒 à jour)', srHandler.includes('renderLevels();') && nHandler.includes('renderLevels();'));
+}
+
+
+console.log('AX. v1.3.74 : temps speedrun conservés PAR NIVEAU — getSpeedrunAll ne dédoublonne plus globalement, getSpeedrunTop filtre avant dedupe, colonne ⏱ affiche le niveau du temps en « Tous niveaux »');
+{
+  const fsX = await import('node:fs');
+  const mainSrc = fsX.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  const lbSrc = fsX.readFileSync(new URL('../js/leaderboard.js', import.meta.url), 'utf8');
+
+  // fonctionnel : MÊME joueur, temps sur 3 niveaux -> tous conservés, filtres par niveau OK
+  const origF = globalThis.fetch;
+  globalThis.fetch = async () => ({
+    ok: true,
+    json: async () => ({
+      1: { a: { pseudo: 'GigG', uid: 'u1', timeMs: 14130, level: 'Premiers tours', levelId: 1, mode: 'auto', date: 1 } },
+      2: { b: { pseudo: 'GigG', uid: 'u1', timeMs: 20380, level: 'Accélération', levelId: 2, mode: 'auto', date: 2 },
+           b2: { pseudo: 'GigG', uid: 'u1', timeMs: 19990, level: 'Accélération', levelId: 2, mode: 'auto', date: 3 } },
+      3: { c: { pseudo: 'GigG', uid: 'u1', timeMs: 25000, level: 'Double file', levelId: 3, mode: 'auto', date: 4 } },
+    }),
+  });
+  const srAll = await lb.getSpeedrunAll();
+  ok('getSpeedrunAll : 4 entrées conservées (plus de dedupe global) — les 3 niveaux du joueur restent', srAll.length === 4);
+  ok('buildTimeMap par niveau : L1=14130, L2=19990 (min des 2), L3=25000', lb.buildTimeMap(srAll, 'auto', '1').get('u:u1') === 14130 && lb.buildTimeMap(srAll, 'auto', '2').get('u:u1') === 19990 && lb.buildTimeMap(srAll, 'auto', '3').get('u:u1') === 25000);
+  ok('buildTimeMap « all » : meilleur temps global = 14130 (L1)', lb.buildTimeMap(srAll, 'auto', 'all').get('u:u1') === 14130);
+  ok('buildTimeLevelMap « all » : niveau du meilleur temps = 1', lb.buildTimeLevelMap(srAll, 'auto', 'all').get('u:u1').levelId === 1 && lb.buildTimeLevelMap(srAll, 'auto', '2').get('u:u1').levelId === 2);
+  const top2 = await lb.getSpeedrunTop('2');
+  ok('getSpeedrunTop("2") : filtre AVANT dedupe -> 1 entrée (meilleur temps L2 = 19990)', top2.length === 1 && top2[0].timeMs === 19990 && top2[0].levelId === 2);
+  const top1 = await lb.getSpeedrunTop('1');
+  ok('getSpeedrunTop("1") : entrée L1 présente (14130)', top1.length === 1 && top1[0].timeMs === 14130);
+  if (origF === undefined) delete globalThis.fetch; else globalThis.fetch = origF;
+
+  // statique : cellule ⏱ avec suffixe « niv. N » en Tous niveaux
+  ok('main.js : timeLevelByPlayer construit + suffixe « · niv. N » affiché seulement en lbLevelFilter === \'all\'', mainSrc.includes('let timeLevelByPlayer = null;') && mainSrc.includes("lbLevelFilter === 'all' && tlvl && tlvl.levelId != null") && mainSrc.includes('· niv. ${tlvl.levelId}'));
+  ok('leaderboard.js : buildTimeLevelMap exporté (map joueur -> { timeMs, levelId, level })', lbSrc.includes('export function buildTimeLevelMap'));
 }
 
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);

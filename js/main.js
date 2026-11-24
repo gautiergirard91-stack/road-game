@@ -269,6 +269,7 @@ async function renderLeaderboard() {
   const isReact = lbFilter === 'reaction'; // v1.3.48 : classement par temps de réaction moyen (croissant)
   let top = [];
   let timeByPlayer = null; // v1.3.68 : map joueur -> meilleur temps speedrun (colonne ⏱)
+  let timeLevelByPlayer = null; // v1.3.74 : map joueur -> { timeMs, levelId } du meilleur temps (niveau affiché en « Tous niveaux »)
   try {
     if (isReact) {
       // v1.3.48 : « ⚡ Réaction » — meilleur temps de réaction moyen de tout le monde (tri croissant avgMs)
@@ -287,8 +288,10 @@ async function renderLeaderboard() {
       top = leaderboard.dedupeByPlayer(leaderboard.filterLevel(all, lbLevelFilter), 'score');
       // v1.3.68 : colonne temps — meilleur temps speedrun de chaque joueur (même difficulté, même filtre niveau)
       try {
-        timeByPlayer = leaderboard.buildTimeMap(await leaderboard.getSpeedrunAll(), lbFilter, lbLevelFilter);
-      } catch { timeByPlayer = null; }
+        const srAll = await leaderboard.getSpeedrunAll(); // v1.3.74 : toutes les entrées (plus de dedupe global)
+        timeByPlayer = leaderboard.buildTimeMap(srAll, lbFilter, lbLevelFilter);
+        timeLevelByPlayer = leaderboard.buildTimeLevelMap(srAll, lbFilter, lbLevelFilter);
+      } catch { timeByPlayer = null; timeLevelByPlayer = null; }
     }
     // v1.3.70 : tri Score (défaut) ou Temps — on voit le meilleur score ET le meilleur temps
     if (!isReact) top = leaderboard.sortLbRows(top, lbSort, timeByPlayer);
@@ -346,7 +349,9 @@ async function renderLeaderboard() {
     const right = isSr ? `⏱ ${fmtTime((e.timeMs || 0) / 1000)}` : isReact ? `⚡ ${e.avgMs} ms` : (typeof e.avgMs === 'number' ? `${e.score} · ⚡${e.avgMs}ms` : e.score); // v1.3.31/v1.3.48
     // v1.3.68 : colonne temps à côté du score (sauf onglet réaction) — '—' si le joueur n'a pas de temps speedrun ici
     const tms = (!isReact && !isSr && timeByPlayer) ? timeByPlayer.get(leaderboard.playerKey(e)) : undefined;
-    const timeCell = (!isReact && !isSr) ? `<span class="lb-time">${typeof tms === 'number' ? '⏱ ' + fmtTime(tms / 1000) : '—'}</span>` : '';
+    const tlvl = (!isReact && !isSr && timeLevelByPlayer) ? timeLevelByPlayer.get(leaderboard.playerKey(e)) : undefined; // v1.3.74
+    const tSuffix = (lbLevelFilter === 'all' && tlvl && tlvl.levelId != null) ? ` · niv. ${tlvl.levelId}` : ''; // v1.3.74 : niveau du temps affiché en « Tous niveaux »
+    const timeCell = (!isReact && !isSr) ? `<span class="lb-time">${typeof tms === 'number' ? '⏱ ' + fmtTime(tms / 1000) + tSuffix : '—'}</span>` : '';
     row.innerHTML = `<span class="lb-rank">${i + 1}</span><span class="lb-name${me ? ' me' : ''}">${escapeHtml(e.pseudo || 'Anonyme')}</span><span class="lb-level">${escapeHtml(levelLabel(e))}</span><span class="lb-score">${right}</span>${timeCell}`;
     list.appendChild(row);
   });
