@@ -84,8 +84,8 @@ Priorités : **P0** = faisable vite, fort impact accessibilité ou intégrité c
 
 | Priorité | Propositions | Impact |
 |---|---|---|
-| **P0** (rapide, fort impact) | #4 anti-triche par niveau (règles RTDB), #22 médailles, #6 gros doigts/swipe réglable, #15 animations réduites, #16 contraste élevé, #17 taille de texte, #27 marqueur visuel du « 0 ms » (option, hors LB), #28 départage des égalités de temps | accessibilité immédiate + intégrité compétitive |
-| **P1** (structurant) | #1 mode entraînement, #2 buffer d'input, #3 fantôme de record, #5 calibration latence, #7 vibration, #9 courbe lissée, #14 défis variés, #18 écran de fin + partage, #19 ARIA, #23 tiers, #24 duels amis, #29 infobulle « 0 ms » + image explicative | profondeur compétitive + accessibilité avancée |
+| **P0** (rapide, fort impact) | #4 anti-triche par niveau (règles RTDB), #22 médailles, #6 gros doigts/swipe réglable, #15 animations réduites, #16 contraste élevé, #17 taille de texte, #27 marqueur visuel du « 0 ms » (option, hors LB), #28 départage des égalités de temps, #31 indicateur signé ±ms | accessibilité immédiate + intégrité compétitive |
+| **P1** (structurant) | #1 mode entraînement, #2 buffer d'input, #3 fantôme de record, #5 calibration latence, #7 vibration, #9 courbe lissée, #14 défis variés, #18 écran de fin + partage, #19 ARIA, #23 tiers, #24 duels amis, #29 infobulle « 0 ms » + image explicative, #30 replays vérifiables (standard esport/speedrun) | profondeur compétitive + accessibilité avancée |
 | **P2** (chantiers) | #8 mode gaucher, #10 récompenses visibles, #11 fenêtres adaptatives, #12 boss tous les 5 niveaux, #13 niveau hebdo, #20 saisons cosmétiques, #21 icônes saisonnières, #25 saison hebdo | rétention long terme |
 
 **Principes directeurs** : (1) toute aide à la difficulté (entraînement, ralenti, fenêtres larges, calibration) reste **hors classement en ligne** — l'accessibilité ne pénalise jamais la compétitivité et inversement ; (2) monétisation 100 % cosmétique (saisons = skins/thèmes/sons) ; (3) chaque changement passe les tests (`core`, `game.smoke`, `tutorial`, `break`, `audit`) + un 🔔 BLOC DE TEST manuel ; (4) incrémental : une PR par proposition P0/P1.
@@ -110,6 +110,33 @@ Contexte : le 0 ms = moment exact où la ligne blanche passe **sous l'essieu tap
 
 29. **Infobulle « où est le 0 ms ? » avec image explicative (P1)** — un bouton « ? » (HUD, tutoriel, écran des niveaux) ouvre une infobulle avec **image détaillée** : schéma vue de dessus — voiture, essieu AV (touche Z / zone gauche), roues AR (touche S / zone droite), ligne blanche qui défile vers le haut, **point 0 ms = ligne exactement sous l'essieu tapé**, fenêtres de jugement ±45/100/160 ms autour, sens de défilement, beat audio au t=0. L'image en **SVG inline** (zéro asset externe, net à toute taille, traduisible) ou générée via l'agent Assets (prompt Flux/Scenario). L'infobulle précise aussi que la fenêtre est **symétrique** : `judge()` juge `Math.abs(dtMs)` (`js/core.js:14-21`), donc un tap jusqu'à **45 ms AVANT** la ligne est aussi PARFAIT — le tap est traité en synchrone au `pointerdown` (`js/main.js:1964` → `game.tap()`), seule la latence tactile du téléphone décale la perception. *Pourquoi* : les joueurs compétitifs veulent savoir exactement où viser, vite. *Différence vs actuel* : le 0 ms n'est expliqué nulle part ; seules références = le beat audio et l'alignement visuel roue/ligne. C'est de l'information, pas une aide en jeu → disponible pour tout le monde, aucun impact sur le classement.
 
+30. **Replays vérifiables + une entrée par joueur côté serveur (P1 — standard esport/speedrun)** — (a) enregistrer chaque run : seed du niveau, mode, liste des taps signés (essieu, dtMs, timestamp), `timeMs` au dernier tap, et un **hash SHA-256 du replay** soumis avec l'entrée du classement (règle : `hash` = 64 caractères hex) ; (b) mode « voir le replay » en local (rejeu déterministe via seed + taps) ; (c) faire évoluer les règles RTDB : entrée indexée par `uid` avec écrasement autorisé **uniquement de sa propre entrée** (`!data.exists() || data.child('uid').val() == auth.uid`) → vrai « meilleur score par joueur » côté serveur + anti-flood structurel ; (d) rate limit doux : règle sur la fraîcheur de `date` + throttle client. *Pourquoi* : un record esport/speedrun doit être rejouable et vérifiable après coup. *Différence vs actuel* : create-only par push (plusieurs entrées possibles, dedupe seulement à l'affichage), aucun replay, aucune clé par joueur.
+
+31. **Indicateur signé ±ms de la réaction (P0)** — stocker, en plus de `avgMs` (moyenne des |dtMs|), la moyenne **signée** des dtMs (biais tôt/tard) ; afficher à l'écran de fin : « ⚡ 38 ms — biais −6 ms : tu tapes en moyenne 6 ms **trop tôt**, retarde légèrement » (et inversement). Optionnel : détail au survol dans le classement ⚡. *Pourquoi* : aujourd'hui le signe est perdu à l'enregistrement (`Math.abs(dtMs)`, `js/game.js:1380`) — impossible de savoir dans quel sens compenser la latence de son appareil (constaté par un testeur : taper « avant la ligne » donnait PARFAIT). *Différence vs actuel* : la stat ⚡ n'est qu'une valeur absolue ; aucun conseil de sens.
+
 ---
 
-*Rapport produit le 2026-11-24 à partir de l'état v1.3.77 (main = v1.3.75 + PR #59 v1.3.76 et #60 v1.3.77 en attente de merge), par les agents gameplay / contrôles / équilibrage / niveaux / polish / assets (`.vibe/agents/`). Section 5 ajoutée le 2026-11-24 suite aux demandes utilisateur : #27 marqueur visuel du 0 ms, #28 départage des égalités de temps (mesure au dernier tap + tiebreak avgMs/score/misses/date), #29 infobulle « 0 ms » avec image explicative (fenêtre symétrique ±45 ms confirmée dans le code).*
+## 6. Conformité standard esport / speedrun (objectif déclaré le 2026-11-24)
+
+État actuel vs les standards type speedrun.com / ladder esport :
+
+| Critère | État | Proposition qui ferme l'écart |
+|---|---|---|
+| Déterminisme (même niveau pour tous) | ✅ seed `mulberry32(levelSeed(id, mode))`, trafic inclus | — |
+| Règles identiques pour tous, pas de pay-to-win | ✅ fenêtres fixes 45/100/160 ms, monétisation cosmétique-only | — |
+| Modes assistés exclus du classement en ligne | ✅ `wideWindows != true` imposé par les règles | — |
+| Écritures authentifiées, create-only, bornes | ✅ auth + `uid == auth.uid` + bornes globales | #30c (clé par uid) |
+| Mesure du temps équitable quel que soit l'écran | ⚠️ chrono quantifié à la frame (60 Hz ≈ 16,7 ms vs 120 Hz ≈ 8,3 ms) | #28a (dernier tap + `performance.now()`) |
+| Latence d'entrée compensée | ❌ aucune calibration | #5 calibration, #2 buffer d'input |
+| Anti-triche par niveau côté serveur | ❌ plafond global 1e6 seulement | #4/#26 (`lines` + bornes `score ≤ lines×250`, `timeMs ≥ lines×400`) |
+| Replays vérifiables | ❌ | #30a/b |
+| Départage officiel des égalités | ❌ | #28b/c (timeMs → avgMs → score → misses → date) |
+| Anti-flood / une entrée par joueur côté serveur | ⚠️ dedupe uniquement à l'affichage | #30c/d |
+| Lisibilité compétitive (rang, médailles, tiers, saisons) | ⚠️ rang seul | #22 médailles, #23 tiers, #25 saison hebdo |
+| Savoir où viser le 0 ms + dans quel sens ajuster | ❌ | #29 infobulle, #31 indicateur ±ms, #27 flash |
+
+**Verdict** : compatible « compétition légère » aujourd'hui (défis entre amis, classement hebdo). Pour viser le **standard esport/speedrun**, livrer dans cet ordre : **#28** (mesure équitable + départage) → **#30** (replays + entrée unique serveur) → **#4/#26** (anti-triche par niveau) → **#5/#2** (latence) → puis #22/#23/#25 (meta) et #29/#31 (lisibilité).
+
+---
+
+*Rapport produit le 2026-11-24 à partir de l'état v1.3.77 (main = v1.3.75 + PR #59 v1.3.76 et #60 v1.3.77 en attente de merge), par les agents gameplay / contrôles / équilibrage / niveaux / polish / assets (`.vibe/agents/`). Section 5 ajoutée le 2026-11-24 suite aux demandes utilisateur : #27 marqueur visuel du 0 ms, #28 départage des égalités de temps (mesure au dernier tap + tiebreak avgMs/score/misses/date), #29 infobulle « 0 ms » avec image explicative (fenêtre symétrique ±45 ms confirmée dans le code), #30 replays vérifiables + entrée unique par uid (standard esport/speedrun, §6), #31 indicateur signé ±ms du biais de réaction.*
