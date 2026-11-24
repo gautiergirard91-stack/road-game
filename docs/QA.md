@@ -1,6 +1,6 @@
 # ✅ Assurance qualité
 
-> **Note (v1.3.74)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.74**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
+> **Note (v1.3.75)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.75**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
 
 ## Processus de test
 
@@ -639,4 +639,13 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] `node tests/break.test.mjs` : section AX (8 assertions : 4 entrées conservées pour 1 joueur sur 3 niveaux, buildTimeMap par niveau/all, buildTimeLevelMap, getSpeedrunTop('1'/'2')) + MAJ 2 assertions — **417 assertions**
 - [ ] Test manuel : speedrun niveaux 1, 2, 3 → classement, vue « Tous niveaux » : ⏱ affiche le meilleur temps global + son niveau (« · niv. 1 ») ; filtre niveau 2 → ⏱ = temps du niveau 2 ; filtre niveau 1 → temps du niveau 1 (plus « — »)
 - [ ] CI verte + CACHE sw bumpé (roadtap-v82) + VERSION 1.3.74 + version.json 1.3.74
+
+## Checklist v1.3.75 (saisie clavier dans les champs + ami supprimé ne revient plus — branche `vibe/pseudo-clavier-amis-264a24`)
+
+- [ ] **Clavier/pseudo** : garde « champ de saisie » (INPUT/TEXTAREA/SELECT/contentEditable) dans le handler `keydown`, posée après `e.repeat` et le bloc `keyCapture`, **avant** `keyToAction`/`preventDefault` → R/M/W/X/C/V/B/N (et Space/flèches) s'insèrent dès le 1er appui dans la modale pseudo et le champ ami
+- [ ] **Amis** : tombstones `deletedFriends` (minuscules) — `removeFriend` pose un tombstone, `addFriend` le lève, `sanitize` nettoie, `snapshot` l'envoie au cloud, `mergeRemote` fusionne les tombstones (local + remote) et **exclut** les amis tombstonés de l'union
+- [ ] `pushCloud` (pull-merge-push) ne fait plus revenir un ami supprimé au pagehide/quitter la page
+- [ ] `node tests/break.test.mjs` : section AY (8 assertions : garde avant keyToAction, tombstone add/remove/merge/re-ajout, snapshot) — **425 assertions**
+- [ ] Test manuel : modale pseudo → taper vite « RMWXCVBN » lettre par lettre → tout s'affiche immédiatement ; supprimer un ami (✕) → quitter la page classement → revenir → l'ami n'est plus là ; le remettre → OK
+- [ ] CI verte + CACHE sw bumpé (roadtap-v83) + VERSION 1.3.75 + version.json 1.3.75
 

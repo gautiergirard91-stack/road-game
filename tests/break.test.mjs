@@ -1590,4 +1590,32 @@ console.log('AX. v1.3.74 : temps speedrun conservés PAR NIVEAU — getSpeedrunA
   ok('leaderboard.js : buildTimeLevelMap exporté (map joueur -> { timeMs, levelId, level })', lbSrc.includes('export function buildTimeLevelMap'));
 }
 
+
+console.log('AY. v1.3.75 : saisie clavier dans les champs (pseudo/ami) non bloquée par le handler jeu + ami supprimé ne revient pas (tombstones cloud)');
+{
+  const fsY = await import('node:fs');
+  const mainSrc = fsY.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  const storeSrc = fsY.readFileSync(new URL('../js/store.js', import.meta.url), 'utf8');
+
+  // clavier : garde "champ de saisie" dans le handler keydown, AVANT keyToAction/preventDefault
+  const guard = "tagName === 'INPUT'";
+  ok('main.js : garde saisie (INPUT/TEXTAREA/SELECT/contentEditable) présente dans le handler keydown', mainSrc.includes(guard) && mainSrc.includes("te.isContentEditable"));
+  const kd = mainSrc.slice(mainSrc.indexOf("window.addEventListener('keydown'"));
+  ok('main.js : la garde est posée AVANT keyToAction (donc avant preventDefault) dans le handler', kd.indexOf(guard) < kd.indexOf('keyToAction(e.code') && kd.indexOf('if (e.repeat) return;') < kd.indexOf(guard));
+
+  // amis : tombstones fonctionnels
+  store.addFriend('AmiTest175');
+  ok('addFriend ajoute', store.get().friends.some((f) => f.toLowerCase() === 'amitest175'));
+  store.removeFriend('AmiTest175');
+  ok('removeFriend retire + pose un tombstone', !store.get().friends.some((f) => f.toLowerCase() === 'amitest175') && store.get().deletedFriends.includes('amitest175'));
+  store.mergeRemote({ friends: ['AmiTest175', 'AmiRestant'], deletedFriends: [] });
+  ok('mergeRemote : l\'ami supprimé NE revient pas (tombstone), l\'autre oui', !store.get().friends.some((f) => f.toLowerCase() === 'amitest175') && store.get().friends.some((f) => f.toLowerCase() === 'amirestant') && store.get().deletedFriends.includes('amitest175'));
+  store.addFriend('AmiTest175');
+  ok('addFriend après suppression lève le tombstone', store.get().friends.some((f) => f.toLowerCase() === 'amitest175') && !store.get().deletedFriends.includes('amitest175'));
+  store.removeFriend('AmiTest175');
+  store.removeFriend('AmiRestant');
+  ok('snapshot cloud inclut deletedFriends', JSON.stringify(store.snapshot()).includes('deletedFriends'));
+  ok('store.js : defaults + sanitize + merge filtrent par tombstones', storeSrc.includes('deletedFriends: [],') && storeSrc.includes('!tomb.has(k)') && storeSrc.includes('save.deletedFriends.push(dk)'));
+}
+
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);

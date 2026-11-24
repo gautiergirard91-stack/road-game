@@ -42,6 +42,7 @@ const defaults = () => ({
   googleEmail: '',
   googleRefresh: '',
   friends: [], // v1.3.36 : pseudos des amis pour le classement « amis » (voir core.filterFriendsByPseudo)
+  deletedFriends: [], // v1.3.75 : tombstones — pseudos d'amis SUPPRIMÉS (ne doivent pas revenir via le cloud)
 });
 
 let save;
@@ -141,6 +142,8 @@ function sanitize(s) {
       }
     }
   }
+  // v1.3.75 : tombstones d'amis (minuscules, dédupliqués, 16 car. max)
+  s.deletedFriends = [...new Set(arrStr(s.deletedFriends).map((x) => x.trim().slice(0, 16).toLowerCase()).filter(Boolean))];
   s.totals = obj(s.totals);
   s.totals.runs = num(s.totals.runs);
   s.totals.perfects = num(s.totals.perfects);
@@ -560,6 +563,7 @@ export function addFriend(p) {
   if (!v) return false;
   if (save.friends.some((f) => f.toLowerCase() === v.toLowerCase())) return false;
   save.friends.push(v);
+  save.deletedFriends = save.deletedFriends.filter((d) => d !== v.toLowerCase()); // v1.3.75 : ré-ajout = tombstone levé
   persist();
   return true;
 }
@@ -569,6 +573,8 @@ export function removeFriend(p) {
   const i = save.friends.findIndex((f) => f.toLowerCase() === v.toLowerCase());
   if (i < 0) return false;
   save.friends.splice(i, 1);
+  const dk = v.toLowerCase();
+  if (!save.deletedFriends.includes(dk)) save.deletedFriends.push(dk); // v1.3.75 : tombstone — ne reviendra pas via le cloud
   persist();
   return true;
 }
@@ -620,6 +626,7 @@ export function snapshot() {
     uid: save.uid,
     googleEmail: save.googleEmail,
     friends: save.friends, // v1.3.36 : liste d'amis synchronisée avec le cloud
+    deletedFriends: save.deletedFriends, // v1.3.75 : tombstones synchronisées avec le cloud
     // googleRefresh volontairement EXCLU du snapshot cloud (credential)
   };
 }
@@ -654,13 +661,19 @@ function mergeRemoteBody(remote) {
   }
   save.unlockedLevels = [...new Set([...save.unlockedLevels, ...arr(remote.unlockedLevels)])];
   // v1.3.36 : union des listes d'amis, dédupliquée sans tenir compte de la casse
+  // v1.3.75 : tombstones — un ami supprimé (en local OU sur un autre appareil) ne revient JAMAIS
   {
+    const tomb = new Set([
+      ...arr(save.deletedFriends).map((x) => String(x).toLowerCase()),
+      ...arr(remote.deletedFriends).map((x) => String(x).trim().slice(0, 16).toLowerCase()).filter(Boolean),
+    ]);
+    save.deletedFriends = [...tomb];
     const allF = [...save.friends, ...arr(remote.friends).map((x) => String(x).trim().slice(0, 16)).filter(Boolean)];
     const seenF = new Set();
     save.friends = [];
     for (const f of allF) {
       const k = f.toLowerCase();
-      if (!seenF.has(k)) {
+      if (!seenF.has(k) && !tomb.has(k)) { // v1.3.75 : tombstone -> exclu de la liste
         seenF.add(k);
         save.friends.push(f);
       }
