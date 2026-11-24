@@ -117,6 +117,15 @@ export function sortLbRows(arr, sort = 'score', timeByPlayer = null) {
       return (b.score || 0) - (a.score || 0);
     });
   }
+  if (sort === 'reaction') {
+    // v1.3.73 : tri par temps de réaction moyen (ms) croissant ; sans avgMs -> score décroissant
+    return rows.sort((a, b) => {
+      const ra = typeof a.avgMs === 'number' && Number.isFinite(a.avgMs) ? a.avgMs : Infinity;
+      const rb = typeof b.avgMs === 'number' && Number.isFinite(b.avgMs) ? b.avgMs : Infinity;
+      if (ra !== rb) return ra - rb;
+      return (b.score || 0) - (a.score || 0);
+    });
+  }
   return rows.sort((a, b) => (b.score || 0) - (a.score || 0));
 }
 

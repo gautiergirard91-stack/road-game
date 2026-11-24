@@ -1,6 +1,6 @@
 # ✅ Assurance qualité
 
-> **Note (v1.3.72)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.72**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
+> **Note (v1.3.73)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.73**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
 
 ## Processus de test
 
@@ -618,4 +618,14 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] Test manuel : DevTools → Réseau → ouvrir le classement : les requêtes `realtime-database-…/*.json` n'ont plus « service worker » dans la colonne transfert et renvoient 200 avec données à jour ; finir un niveau connecté → le rang écran de fin reflète le score qui vient d'être envoyé (v1.3.71 + v1.3.72)
 - [ ] Hors ligne : le classement local s'affiche toujours (repli `isOnline()` inchangé) ; reconnexion → file hors ligne vidée (v1.3.66)
 - [ ] CI verte + CACHE sw bumpé (roadtap-v80) + VERSION 1.3.72 + version.json 1.3.72
+
+## Checklist v1.3.73 (speedrun verrouillé par niveau + tri ⚡ Réaction — branche `vibe/speedrun-gate-reaction-sort-264a24`)
+
+- [ ] **Verrou speedrun** : `markCleared` appelé seulement si `stats.completed && !sr` (« terminé » = mode normal uniquement)
+- [ ] Carte niveau : badge `srLocked` + bouton « 🔒 ⏱ normal d’abord » quand le mode Speedrun est actif et le niveau non terminé ; `renderLevels()` appelé aux 2 toggles du mode
+- [ ] Garde au clic « Jouer » **et** en profondeur dans `startLevel` → toast « ⏱ Speedrun verrouillé : termine d'abord le niveau N « … » en mode normal ! » ; Survie ∞ non concernée
+- [ ] **Tri ⚡ Réaction** : bouton `#lb-sort` cycle 🏁 Score → ⏱ Temps → ⚡ Réaction → … (persisté, `sort: 'reaction'` accepté), `lbSortLabel()` aussi à l'ouverture ; `sortLbRows(arr,'reaction')` = avgMs croissant d'abord, puis score décroissant
+- [ ] `node tests/break.test.mjs` : section AW (8 assertions) + regex startLevel assouplie — **409 assertions**
+- [ ] Test manuel : toggle Speedrun → niveaux non terminés affichent « 🔒 ⏱ normal d’abord », clic → toast et pas de départ ; terminer un niveau en normal → le speedrun se débloque ; classement → 3 clics sur Trier = Score/Temps/Réaction, persisté
+- [ ] CI verte + CACHE sw bumpé (roadtap-v81) + VERSION 1.3.73 + version.json 1.3.73
 

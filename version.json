@@ -1,4 +1,4 @@
 {
-  "version": "1.3.72",
+  "version": "1.3.73",
   "note": "Sonde anti-SW-obsolète : JAMAIS mise en cache par le service worker (voir sw.js), lue à chaque démarrage pour détecter une version serveur plus récente que la page chargée. À bumper EN MÊME TEMPS que VERSION dans js/config.js et CACHE dans sw.js à chaque déploiement (vérifié par tools/audit.mjs)."
 }
