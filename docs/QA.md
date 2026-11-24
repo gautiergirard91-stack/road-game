@@ -1,6 +1,6 @@
 # ✅ Assurance qualité
 
-> **Note (v1.3.68)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.68**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
+> **Note (v1.3.69)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.69**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
 
 ## Processus de test
 
@@ -576,3 +576,12 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] `node tests/break.test.mjs` : section AR (11 assertions) + MAJ sections J/AH/AF/682 + `game.smoke` (mode conservé en speedrun)
 - [ ] Test manuel : speedrun ON en Auto école → niveau 2 → temps apparaît dans la colonne ⏱ de l'onglet Auto école (niveau 2) ; plus d'onglet Speedrun ; si pas connecté → toast « 🔒 Connecte Google… » en fin de partie
 - [ ] CI verte + CACHE sw bumpé (roadtap-v76) + VERSION 1.3.68 + version.json 1.3.68
+
+## Checklist v1.3.69 (faux 401 au 1er ping — jeton App Check froid au chargement — branche `vibe/ping-401-boot-264a24`)
+
+- [ ] `appcheck.js` : `warmAppCheck()` exporté (préchauffe le jeton via `appCheckHeader()`, jamais de throw)
+- [ ] `main.js` : `warmAppCheck()` appelé au boot (fire-and-forget, après `installAppCheckFetch()`)
+- [ ] `main.js` : `pingServer()` — sur `http-401` au 1er ping, attend `warmAppCheck()` puis **re-tente UNE fois** ; utilisé par `refreshStatus()` (pastille menu) ET `updateServerStatus()` (⚙️ Paramètres)
+- [ ] `node tests/break.test.mjs` : section AS (4 assertions : export, boot, retry 401, pingServer aux 2 endroits + warmAppCheck headless sans throw)
+- [ ] Test manuel : recharger roadtap.uk à froid (cache vidé) → la pastille passe directement 🟢 (plus de « HTTP 401 (mode local) » transitoire) ; ⚙️ Paramètres idem
+- [ ] CI verte + CACHE sw bumpé (roadtap-v77) + VERSION 1.3.69 + version.json 1.3.69

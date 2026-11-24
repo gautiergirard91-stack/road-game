@@ -62,6 +62,13 @@ export async function initAppCheck() {
   return initPromise;
 }
 
+// v1.3.69 : préchauffe le jeton App Check (1er getToken = cold start reCAPTCHA, parfois > 1 s) —
+// sinon le 1er ping au chargement part SANS header -> 401 sous Enforce alors que tout va bien.
+export async function warmAppCheck() {
+  await appCheckHeader();
+  return appCheckDebug();
+}
+
 // v1.3.58 : état lisible par l'UI (diagnostic serveur) — jamais de throw
 export function appCheckDebug() {
   return {

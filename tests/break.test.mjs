@@ -1446,4 +1446,21 @@ console.log('AR. v1.3.68 : speedrun en Auto école (toutes difficultés), onglet
   ok('main.js : fin de partie -> toast explicite si non éligible (wideWindows / pas de compte Google)', mainSrc.includes('résultat gardé en local, hors classement en ligne') && mainSrc.includes('apparaître dans le classement en ligne'));
 }
 
+console.log('AS. v1.3.69 : faux 401 au 1er ping (jeton App Check pas encore prêt au chargement) -> warmAppCheck au boot + pingServer() avec retry 401 une fois');
+{
+  const fsQ = await import('node:fs');
+  const mainSrc = fsQ.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  const acSrc = fsQ.readFileSync(new URL('../js/appcheck.js', import.meta.url), 'utf8');
+  const ac = await import('../js/appcheck.js');
+
+  ok('appcheck.js : warmAppCheck() exporté (préchauffe le jeton, jamais de throw)', acSrc.includes('export async function warmAppCheck()'));
+  ok('main.js : import warmAppCheck + appel au boot (fire-and-forget, après installAppCheckFetch)', mainSrc.includes('warmAppCheck } from \'./appcheck.js\'') && mainSrc.includes('warmAppCheck(); // v1.3.69'));
+  ok('main.js : pingServer() — retry UNE fois sur http-401 après warmAppCheck', mainSrc.includes('async function pingServer()') && mainSrc.includes("p.reason === 'http-401'") && mainSrc.includes('ok = await leaderboard.ping(getAuthToken());'));
+  ok('main.js : refreshStatus (pastille) ET updateServerStatus (Paramètres) passent par pingServer()', (mainSrc.match(/pingServer\(\)/g) || []).length >= 3);
+
+  // fonctionnel : warmAppCheck ne plante pas headless (gstatic injoignable -> {} proprement)
+  const dbg = await ac.warmAppCheck();
+  ok('warmAppCheck() headless -> renvoie appCheckDebug() sans throw (tokenOk false ou null, lastError renseigné ou null)', typeof dbg === 'object' && 'tokenOk' in dbg && 'appIdMissing' in dbg);
+}
+
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);
