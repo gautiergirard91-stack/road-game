@@ -38,6 +38,7 @@
     <div id="hud-right">
       <span id="hud-lives">❤️❤️❤️</span>
       <span id="hud-level"></span>
+      <span id="hud-time">0:00.00</span>
       <span id="hud-coins">🪙 0</span>
       <button id="btn-pause" aria-label="Pause">⏸</button>
     </div>
@@ -109,11 +110,7 @@
     </header>
     <div class="picker-label">Difficulté</div>
     <div id="difficulty-picker"></div>
-    <div class="picker-label">Mode de jeu</div>
-    <div id="mode-picker">
-      <button class="btn small diff-btn" id="btn-mode-normal">🏁 Standard</button>
-      <button class="btn small diff-btn" id="btn-mode-speedrun" title="Complète le niveau le plus vite possible. Chaque PARFAIT accélère, un raté remet la vitesse à zéro. Se joue dans la difficulté choisie (Auto école, Permis A, Pilote).">⏱ Speedrun</button>
-    </div>
+        <div class="picker-label">Mode unique : score 🏁 + chrono ⏱ (raté = +0,5 s, continuer = +2 s)</div>
     <div id="levels-list" class="cards"></div>
   </section>
 
@@ -218,6 +215,7 @@
       <div id="over-trophy" class="record hidden">🥇 FULL PARFAIT ! Médaille du niveau remportée</div>
       <div id="over-score">0</div>
       <div class="score-label">points</div>
+      <div id="over-time" class="card-sub"></div> <!-- v1.3.77 : chrono du run (mode unique) -->
       <div id="over-stats" class="stats-grid"></div>
       <div id="over-coins" class="coins-earned"></div>
       <div id="over-rank" class="card-sub"></div> <!-- v1.3.70 : place au classement avec le score/temps du run -->

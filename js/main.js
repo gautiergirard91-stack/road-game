@@ -2,7 +2,7 @@ import { LEVELS, THEMES, SKINS, EFFECTS, DIFFICULTIES, CURRENCIES, WINDOWS, ACHI
 import { Game, CAR_STYLE_LABEL, renderCarPreview, renderEffectPreview, renderThemePreview, renderPackPreview, renderSoundPreview } from './game.js';
 import * as store from './store.js';
 import { sfx, setEnabled, setMusicEnabled, unlockAudio, applySoundPack, setMusicCombo, musicSting, musicVictory, scheduleLineBeat, clearLineBeats, musicKick, musicLineAnchor } from './audio.js';
-import { coinsForResult, accuracy, avgReaction, continueCost, maxMissesFor, firstClearBonus, isPerfectClear, perfectClearBonus, dailyChallenge, weeklyQuests, fmtTime, zoneFromPoint, keyToAction, isNewerVersion, starsFor, endlessMilestones, isWeekend, weekendCoinMultiplier, filterFriendsByPseudo, canSubmitToLeaderboard, keyLabel, reactionBonus } from './core.js';
+import { coinsForResult, accuracy, avgReaction, maxMissesFor, firstClearBonus, isPerfectClear, perfectClearBonus, dailyChallenge, weeklyQuests, fmtTime, zoneFromPoint, keyToAction, isNewerVersion, starsFor, endlessMilestones, isWeekend, weekendCoinMultiplier, filterFriendsByPseudo, canSubmitToLeaderboard, keyLabel, reactionBonus } from './core.js';
 import { watchRewarded } from './ads.js';
 import { Tutorial } from './tutorial.js';
 import * as leaderboard from './leaderboard.js';
@@ -79,21 +79,12 @@ function renderDifficultyPicker() {
     });
     el.appendChild(b);
   }
-  renderModePicker();
-}
-
-// v1.3.19 : sélecteur de mode (Standard / Speedrun)
-function renderModePicker() {
-  const normal = $('#btn-mode-normal');
-  const sr = $('#btn-mode-speedrun');
-  if (!normal || !sr) return;
-  normal.classList.toggle('active', !save.speedrun);
-  sr.classList.toggle('active', !!save.speedrun);
 }
 
 let lbFilter = 'all';
 let lbLevelFilter = 'all';
-let lbSort = 'score'; // v1.3.70 : tri du classement — 'score' (défaut) ou 'time'
+let lbSort = 'score';
+let hudTimer = null; // v1.3.77 : rafraîchit le chrono du HUD (mode unique) // v1.3.70 : tri du classement — 'score' (défaut) ou 'time'
 // v1.3.65 : les filtres du classement (difficulté/mode, niveau, onglet amis) sont MÉMORISÉS et
 // restaurés à la réouverture de la page — le joueur retrouve ses filtres.
 // v1.3.36 : portée du classement — 'all' (tous les joueurs) ou 'friends' (amis par pseudo)
@@ -365,7 +356,7 @@ function updateLives(m) {
 function showContinue() {
   const max = maxMissesFor(save.difficulty);
   $('#continue-title').textContent = `💥 ${game ? game.stats.misses : max}/${max} ratés !`;
-  $('#btn-continue-coins').textContent = `Continuer — ${continueCost(continuesThisRun)} ${cur(save.difficulty).icon}`;
+  $('#btn-continue-coins').textContent = 'Continuer — +2 s ⏱'; // v1.3.77 : pénalité de temps au lieu de pièces
   $('#continue-overlay').classList.add('active');
 }
 
@@ -678,7 +669,6 @@ function renderLevels() {
     const locked = l.endless ? !allDone : l.cost > 0 && !save.unlockedLevels.includes(l.id);
     // v1.3.17 : achat du niveau N autorisé seulement si le niveau N-1 a été TERMINÉ EN ENTIER
     const canBuy = !locked || l.id === 1 || store.isCleared(l.id - 1);
-    const srLocked = save.speedrun && !l.endless && !store.isCleared(l.id); // v1.3.73 : speedrun verrouillé tant que le niveau n'est pas terminé en mode normal
     const c = cur(l.diff || 'auto');
     const best = store.getBest(save.difficulty, l.id); // v1.3.44 : record isolé par difficulté (mode joué)
     const bt = store.getBestTime(save.difficulty, l.id); // v1.3.19/v1.3.44 : record speedrun, par difficulté
@@ -693,7 +683,7 @@ function renderLevels() {
         <div class="card-sub">${THEMES[l.theme].name} · ${l.weekend ? 'événement week-end : pièces ×2 !' : l.endless ? 'vitesse croissante' : `vitesse ${l.speed} · ${l.lines} lignes`}</div>
         <div class="card-best">${best ? `🏆 Record : ${best}` : ''}${bt ? `${best ? ' · ' : ''}⏱ ${fmtTime(bt / 1000)}` : ''}</div>
       </div>
-      <button class="btn small">${locked ? (l.endless ? '🔒 15 niveaux à finir' : canBuy ? `🔒 ${l.cost} ${c.icon}` : `🔒 termine le niveau ${l.id - 1} en entier`) : (srLocked ? '🔒 ⏱ normal d’abord' : '▶ Jouer')}</button>`;
+      <button class="btn small">${locked ? (l.endless ? '🔒 15 niveaux à finir' : canBuy ? `🔒 ${l.cost} ${c.icon}` : `🔒 termine le niveau ${l.id - 1} en entier`) : '▶ Jouer'}</button>`;
     card.querySelector('button').addEventListener('click', () => {
       sfx.click();
       if (locked) {
@@ -718,11 +708,6 @@ function renderLevels() {
           toast(`Il te manque ${l.cost - store.getWallet(l.diff || 'auto')} ${c.icon} (${c.name})`);
         }
       } else {
-        // v1.3.73 : speedrun d'un niveau = seulement s'il a déjà été terminé en mode normal
-        if (save.speedrun && !l.endless && !store.isCleared(l.id)) {
-          toast(`⏱ Speedrun verrouillé : termine d'abord le niveau ${l.id} « ${l.name} » en mode normal !`);
-          return;
-        }
         ensurePseudoThen(() => startLevel(l)); // v1.3.29 : pseudo obligatoire avant de jouer
       }
     });
@@ -1063,11 +1048,6 @@ function renderGarage() {
 
 function startLevel(level) {
   currentLevel = level;
-  // v1.3.73 : garde en profondeur — pas de speedrun sur un niveau jamais terminé en normal
-  if (save.speedrun && !level.endless && !store.isCleared(level.id)) {
-    toast(`⏱ Speedrun verrouillé : termine d'abord « ${level.name} » en mode normal !`);
-    return;
-  }
   setMusicCombo(0); // v1.3.42 : nouvelle partie -> intensité musicale à 0  unlockAudio(); // v1.3.65 : contexte audio repris ici (geste « Jouer ») -> pas de freeze au 1er tap
   setMusicEnabled(save.music && save.sound); // v1.3.65 : musique ON dès le début de la partie
   musicKick(); // v1.3.65 : resynchronise le séquenceur -> la musique démarre immédiatement
@@ -1076,7 +1056,10 @@ function startLevel(level) {
   show('screen-game');
   $('#pause-overlay').classList.remove('active');
   hudLevel.textContent = `${level.id}. ${level.name}`;
-  hudScore.textContent = save.speedrun ? '0:00.00' : '0';
+  hudScore.textContent = '0';
+  const ht0 = $('#hud-time'); if (ht0) ht0.textContent = '0:00.00';
+  clearInterval(hudTimer); // v1.3.77 : chrono live dans le HUD (mode unique)
+  hudTimer = setInterval(() => { const t = $('#hud-time'); if (t && game) t.textContent = fmtTime(game.elapsed + (game.penaltyMs || 0) / 1000); }, 100);
   hudCombo.textContent = '';
   continuesThisRun = 0;
   updateLives(0);
@@ -1086,14 +1069,14 @@ function startLevel(level) {
     level,
     skinId: save.skin,
     mode: save.difficulty, // v1.3.68 : speedrun dans la difficulté choisie (plus de verrou Permis A)
-    speedrun: save.speedrun, // v1.3.19 : mode speedrun (chrono + vitesse bonus)
+    speedrun: true, // v1.3.77 : mode unique — chrono + pénalités + vitesse bonus TOUJOURS actifs
     themeOverride: save.themeOverride || undefined,
     windows: effWindows(),
     access: { colorblind: save.colorblind, horizontalZones: !save.verticalZones },
     effects: save.selectedEffects,
     audio: { tap: sfx.tap, perfect: sfx.perfect, good: sfx.good, passable: sfx.passable, fail: sfx.fail, win: sfx.win, miss: sfx.miss, lineBeat: scheduleLineBeat, musicAnchor: musicLineAnchor }, // v1.3.46 : beat GD calé sur chaque ligne
     onJudge: (e) => {
-      hudScore.textContent = save.speedrun && game ? fmtTime(game.elapsed) : String(e.score);
+      hudScore.textContent = String(e.score); // v1.3.77 : le score reste l'affichage principal, le chrono est dans #hud-time
       hudCombo.textContent = e.combo >= 2 ? `COMBO x${e.combo}` : '';
       setMusicCombo(e.combo || 0); // v1.3.42 : tempo/couches montent avec les PARFAIT
     },
@@ -1145,6 +1128,7 @@ function startNextCountdown(nextLevel) {
 
 function onGameEnd(stats, level) {
   hideContinue();
+  clearInterval(hudTimer); hudTimer = null; // v1.3.77
   // v1.3.42 : thème de fin — victoire = arpège montant, défaite = sting ; combo remis à 0
   if (stats.completed) musicVictory();
   else musicSting();
@@ -1154,10 +1138,10 @@ function onGameEnd(stats, level) {
   const runMode = (game && game.mode) || save.difficulty;
   const firstClear = !!stats.completed && !store.getBest(runMode, level.id);
   const isRecord = store.setBest(runMode, level.id, stats.score);
-  const isTimeRecord = sr && stats.completed ? store.setBestTime(runMode, level.id, stats.timeMs || 0) : false;
+  const isTimeRecord = stats.completed ? store.setBestTime(runMode, level.id, stats.timeMs || 0) : false; // v1.3.77 : record de temps à chaque niveau terminé
   store.addTotals({ runs: 1, perfects: stats.perfects, overtakes: stats.overtakes || 0 });
   // v1.3.17 : niveau "terminé" = partie complétée en entier (débloque l'achat du suivant)
-  if (stats.completed && !sr) store.markCleared(level.id); // v1.3.73 : « terminé » = mode NORMAL uniquement (le speedrun d'un niveau exige de l'avoir d'abord terminé en normal)
+  if (stats.completed) store.markCleared(level.id); // v1.3.77 : un seul mode — terminé = terminé
   // v1.3.35 : étoiles du niveau (1 terminé / 2 si >=60% PARFAIT / 3 full parfait) — on garde le max
   const stars = stats.completed ? starsFor(stats) : 0;
   if (stars > (save.stars[level.id] || 0)) store.setStars(level.id, stars);
@@ -1185,7 +1169,7 @@ function onGameEnd(stats, level) {
   // (règles RTDB v1.3.37 : auth != null requis ; leaderboard.submitScore refuse sinon et garde en local)
   // v1.3.71 : promesse d'envoi conservée pour ATTENDRE la fin de l'écriture avant de lire le rang
   let submitP = null;
-  if (!sr && canSubmitToLeaderboard(save)) { // v1.3.45 : wideWindows -> hors classement en ligne
+  if (canSubmitToLeaderboard(save)) { // v1.3.77 : mode unique — le score est TOUJOURS envoyé (v1.3.45 : wideWindows exclus)
     // v1.3.19 : en speedrun le score est un temps -> pas de classement global (record local bestTime)
     submitP = leaderboard
       // v1.3.32 : uid + jeton -> règles RTDB vérifient uid == auth.uid (anti-usurpation)
@@ -1203,13 +1187,13 @@ function onGameEnd(stats, level) {
     else if (!save.uid) toast('🔒 Connecte Google (« ✏️ Mon pseudo ») pour apparaître dans le classement en ligne — résultat gardé en local');
   }
   let submitSrP = null;
-  if (sr && stats.completed && canSubmitToLeaderboard(save)) { // v1.3.45 : idem speedrun
+  if (stats.completed && canSubmitToLeaderboard(save)) { // v1.3.77 : le temps aussi, dès que le niveau est terminé
     // v1.3.31 : classement speedrun dédié (nœud /speedrun/<levelId>, temps en ms, tri croissant)
     submitSrP = leaderboard
       .submitSpeedrun(level.id, { pseudo: save.pseudo, uid: save.uid || '', timeMs: stats.timeMs || 0, level: level.name, levelId: level.id, mode: runMode, date: Date.now() }, getAuthToken()) // v1.3.54 : mode réel (permisA en speedrun)
       .catch(() => {});
   }
-  // v1.3.70 : place du joueur au classement avec le score/temps du run (affiché sur l'écran de fin)
+  // v1.3.70/77 : place du joueur au classement avec le score ET le temps du run (mode unique)
   (async () => {
     const el = $('#over-rank');
     if (!el) return;
@@ -1218,35 +1202,34 @@ function onGameEnd(stats, level) {
     try {
       const key = leaderboard.playerKey({ uid: save.uid, pseudo: save.pseudo });
       const modeName = (DIFFICULTIES.find((d) => d.id === runMode) || {}).name || runMode;
-      // v1.3.71 : attendre la fin de l'envoi (POST + éventuel flush file) AVANT de lire, sinon lecture avant écriture
-      if (sr && stats.completed) { if (submitSrP) await submitSrP; } else if (submitP) await submitP;
+      // v1.3.71 : attendre la fin des envois (POST + éventuel flush file) AVANT de lire
+      if (submitP) await submitP;
+      if (submitSrP) await submitSrP;
       const readRank = async () => {
-        if (sr && stats.completed) {
-          const all = await leaderboard.getSpeedrunAll();
-          const arr = leaderboard.dedupeByPlayer(leaderboard.filterLevel(all, String(level.id)).filter((e) => !e.mode || e.mode === runMode), 'speedrun').sort((a, b) => a.timeMs - b.timeMs);
-          return arr.findIndex((e) => leaderboard.playerKey(e) === key);
-        }
         const all = await leaderboard.getAll(runMode);
         const arr = leaderboard.dedupeByPlayer(leaderboard.filterLevel(all, String(level.id)), 'score').sort((a, b) => (b.score || 0) - (a.score || 0));
         return arr.findIndex((e) => leaderboard.playerKey(e) === key);
       };
+      const readTimeRank = async () => {
+        const srAll = await leaderboard.getSpeedrunAll();
+        const sarr = leaderboard.dedupeByPlayer(leaderboard.filterLevel(srAll, String(level.id)).filter((e) => !e.mode || e.mode === runMode), 'speedrun').sort((a, b) => a.timeMs - b.timeMs);
+        return sarr.findIndex((e) => leaderboard.playerKey(e) === key);
+      };
       let i = -1;
       try { i = await readRank(); } catch { i = -1; }
-      if (i < 0) { // v1.3.71 : 2e lecture après 1,2 s (propagation) avant le message de repli
+      if (i < 0) { // v1.3.71 : 2e lecture après 1,2 s (propagation) avant le repli
         await new Promise((r) => setTimeout(r, 1200));
         try { i = await readRank(); } catch { i = -1; }
       }
+      let j = -1;
+      if (stats.completed) { try { j = await readTimeRank(); } catch { j = -1; } }
       const st2 = leaderboard.getLbStatus();
-      if (i >= 0) {
-        const rankTxt = sr && stats.completed
-          ? `⏱ ${fmtTime((stats.timeMs || 0) / 1000)} → #${i + 1} au classement speedrun — ${level.name} (${modeName})`
-          : `🏁 ${stats.score} pts → #${i + 1} au classement — ${level.name} (${modeName})`;
-        el.textContent = leaderboard.isOnline() ? rankTxt : `${rankTxt} — classement local (envoyé à la reconnexion)`;
-      } else if (st2 && st2.writeError) {
-        el.textContent = `⚠️ envoi refusé par le serveur — hors classement en ligne (${st2.writeError})`;
-      } else {
-        el.textContent = sr && stats.completed ? '⏱ temps pas encore visible en ligne…' : '🏁 score pas encore visible en ligne (local ?) — ouvre le classement';
-      }
+      const parts = [];
+      if (i >= 0) parts.push(`🏁 ${stats.score} pts → #${i + 1} au classement — ${level.name} (${modeName})`);
+      else if (st2 && st2.writeError) parts.push(`⚠️ envoi refusé par le serveur — hors classement en ligne (${st2.writeError})`);
+      else parts.push('🏁 score pas encore visible en ligne (local ?) — ouvre le classement');
+      if (stats.completed) parts.push(j >= 0 ? `⏱ ${fmtTime((stats.timeMs || 0) / 1000)} → #${j + 1} au classement speedrun — ${level.name} (${modeName})` : '⏱ temps pas encore visible en ligne…');
+      el.textContent = parts.join(' · ') + (leaderboard.isOnline() ? '' : ' — classement local (envoyé à la reconnexion)');
     } catch { /* lecture KO -> on laisse vide */ }
   })();
   pushCloud();
@@ -1304,7 +1287,7 @@ function onGameEnd(stats, level) {
     toast(`✅ Quête terminée : « ${q.label} » → +${q.reward} 🪙`);
   }
   const reason = stats.reason;
-  $('#over-title').textContent = sr && stats.completed
+  $('#over-title').textContent = stats.completed
     ? `⏱ ${fmtTime((stats.timeMs || 0) / 1000)} — Niveau terminé !`
     : stats.completed
       ? '🏁 Niveau terminé !'
@@ -1316,13 +1299,10 @@ function onGameEnd(stats, level) {
   $('#over-record').classList.toggle('hidden', !isRecord && !isTimeRecord);
   $('#over-trophy').classList.toggle('hidden', !perfectClear);
   const scoreLabel = document.querySelector('#screen-over .score-label');
-  if (sr) {
-    $('#over-score').textContent = fmtTime((stats.timeMs || 0) / 1000);
-    if (scoreLabel) scoreLabel.textContent = 'temps (speedrun ⏱)';
-  } else {
-    $('#over-score').textContent = stats.score;
-    if (scoreLabel) scoreLabel.textContent = 'points';
-  }
+  $('#over-score').textContent = stats.score;
+  if (scoreLabel) scoreLabel.textContent = 'points';
+  const ot = $('#over-time'); // v1.3.77 : mode unique — score + chrono affichés tous les deux
+  if (ot) ot.textContent = `⏱ ${fmtTime((stats.timeMs || 0) / 1000)}${isTimeRecord ? ' — 🏆 nouveau record !' : ''}`;
   const avg = avgReaction(stats);
   $('#over-stats').innerHTML = `
     <div><b>${stats.perfects}</b><span>Parfaits</span></div>
@@ -1346,10 +1326,10 @@ function onGameEnd(stats, level) {
     refreshCoins();
     show('screen-over');
     // v1.3.19 : speedrun + niveau terminé -> compte à rebours 10 s vers le niveau suivant
-    if (sr && stats.completed) {
+    if (stats.completed) {
       const next = LEVELS.find((l) => l.id === level.id + 1);
       if (next) startNextCountdown(next);
-      else $('#over-title').textContent = '🏁 Speedrun terminé — bravo !';
+      else $('#over-title').textContent = '🏁 Bravo, niveau terminé !';
     } else {
       cancelNextCountdown();
     }
@@ -1787,20 +1767,7 @@ on('btn-shop', 'click', () => {
   renderShop();
   showShopPage(shopCat);
 });
-on('btn-mode-normal', 'click', () => {
-  store.setSpeedrun(false);
-  sfx.click();
-  renderModePicker();
-  renderLevels(); // v1.3.73 : badges 🔒 mis à jour
-});
-on('btn-mode-speedrun', 'click', () => {
-  store.setSpeedrun(true); // v1.3.68 : speedrun dispo dans la difficulté choisie (Auto école comprise)
-  sfx.click();
-  renderModePicker();
-  renderDifficultyPicker();
-  renderLevels(); // v1.3.73 : badges 🔒 ⏱ sur les niveaux non terminés en normal
-  toast('⏱ Mode Speedrun : termine le niveau le plus vite possible ! (difficulté ' + (DIFFICULTIES.find((d) => d.id === save.difficulty) || {}).name + ')');
-});
+// v1.3.77 : plus de sélecteur Standard/Speedrun — un seul mode (score + chrono + pénalités de temps)
 on('btn-help', 'click', () => {
   sfx.click();
   ensurePseudoThen(() => startTutorial()); // v1.3.29 : pseudo obligatoire avant le tuto aussi
@@ -1872,16 +1839,15 @@ on('btn-continue-restart', 'click', () => {
   if (currentLevel) startLevel(currentLevel);
 });
 on('btn-continue-coins', 'click', () => {
-  const cost = continueCost(continuesThisRun);
-  if (store.spend(save.difficulty, cost)) {
-    continuesThisRun++;
-    sfx.coin();
-    logEvent('continue_purchased', { cost, currency: save.difficulty });
-    hideContinue();
-    game?.resumeWithContinue();
-  } else {
-    toast(`Il te manque ${cost - store.getWallet(save.difficulty)} ${cur(save.difficulty).icon}`);
-  }
+  // v1.3.77 : mode unique — continuer = +2 s au chrono (plus de coût en pièces)
+  continuesThisRun++;
+  if (game) game.penaltyMs = (game.penaltyMs || 0) + 2000;
+  sfx.coin();
+  logEvent('continue_time_penalty', { penaltyMs: 2000 });
+  hideContinue();
+  game?.resumeWithContinue();
+  const t = $('#hud-time');
+  if (t && game) t.textContent = fmtTime(game.elapsed + game.penaltyMs / 1000);
 });
 on('btn-continue-ad', 'click', () => {
   hideContinue();

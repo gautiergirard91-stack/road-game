@@ -193,3 +193,7 @@ Bug : `getSpeedrunAll()` dédoubonnait **par joueur globalement** (meilleur temp
 - **Musique calée sur les lignes** : `musicLineAnchor()` — à chaque ligne qui atteint les roues, un pas du séquenceur + un kick sont joués pile à ce moment et le scheduler lookahead est re-ancré.
 - Tutoriel mis à jour (Z/S, swipe ← puis →, alerte ⚠).
 
+## v1.3.77 — mode unique (standard + speedrun fusionnés) + pénalités de temps
+
+Les deux modes ne différaient que par le chrono/bonus de vitesse : **un seul mode maintenant**. Chaque partie produit un **score 🏁 ET un chrono ⏱** (tous deux envoyés au classement). Pénalités de temps : raté = **+0,5 s** (popup « RATÉ +0,5 s »), continuer = **+2 s** (plus de coût en pièces). Le sélecteur Standard/Speedrun et le verrou speedrun (v1.3.73) sont supprimés. HUD : score + chrono live ; écran de fin : score, temps et double rang (#N score · #N temps).
+

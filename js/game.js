@@ -810,6 +810,7 @@ export class Game {
     this.slowCause = null;
     this.effSpeed = this.level.speed;
     this.bonusSpeed = 0; // v1.3.19 : vitesse accumulée (speedrun)
+    this.penaltyMs = 0; // v1.3.77 : pénalités de temps — raté +0,5 s, continuer +2 s (mode unique)
     this.elapsed = 0; // v1.3.19 : chrono (s)
     this.carXFrac = CAR_LANE;
     this.prevCarX = CAR_LANE;
@@ -876,12 +877,13 @@ export class Game {
     }
     this.stats.misses++;
     this.combo = 0;
+    this.penaltyMs += 500; // v1.3.77 : raté = +0,5 s au chrono (mode unique, toujours)
     if (this.speedrun) {
       // v1.3.19 : un raté = TOUTE la vitesse accumulée est perdue
       this.bonusSpeed = 0;
       this.popups.push({ text: '⚡ VITESSE PERDUE !', y: ay - 100, life: 0.9, color: '#ff9f1c' });
     }
-    this.popups.push({ text: 'RATÉ', y: ay - 70, life: 0.9, color: '#ff5c5c' });
+    this.popups.push({ text: 'RATÉ +0,5 s', y: ay - 70, life: 0.9, color: '#ff5c5c' });
     this.shake = 8;
     this.audio.miss?.();
     if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
@@ -1435,7 +1437,7 @@ export class Game {
     this.stats.completed = completed;
     this.stats.reason = reason;
     this.audio[completed ? 'win' : 'fail']?.();
-    this.stats.timeMs = Math.round(this.elapsed * 1000); // v1.3.19 : chrono speedrun
+    this.stats.timeMs = Math.round((this.elapsed + this.penaltyMs / 1000) * 1000); // v1.3.77 : chrono + pénalités de temps
     this.onEnd({ ...this.stats, score: this.score, bestCombo: this.bestCombo, completed, reason }, this.level);
   }
 

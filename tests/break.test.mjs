@@ -1053,7 +1053,7 @@ console.log('AF. v1.3.54 -> v1.3.68 : speedrun n\'est PLUS verrouillé à Permis
   ok('main.js : startLevel mode = difficulté choisie même en speedrun', mainSrc.includes('mode: save.difficulty,') && !mainSrc.includes("mode: save.speedrun ? 'permisA'"));
   ok('main.js : records/envois utilisent le mode réellement joué (runMode)', mainSrc.includes('const runMode = (game && game.mode) || save.difficulty;') && mainSrc.includes('store.setBest(runMode, level.id') && mainSrc.includes('mode: runMode'));
   ok('main.js : plus de verrou : ni setDifficulty(\'permisA\') forcé, ni picker bloqué en speedrun', !mainSrc.includes("store.setDifficulty('permisA');") && !mainSrc.includes("save.speedrun && d.id !== 'permisA'"));
-  ok('index.html : title speedrun = difficulté choisie (plus de « seule difficulté »)', !html.includes('seule difficulté du mode speedrun') && html.includes('difficulté choisie'));
+  ok('index.html : v1.3.77 — plus de sélecteur de mode (btn-mode-* supprimés)', !html.includes('btn-mode-speedrun') && !html.includes('btn-mode-normal'));
 }
 
 console.log('AG. v1.3.55 : écrans scrollables (safe center + overflow-y) et topbar sticky -> bouton retour toujours accessible (garage)');
@@ -1545,12 +1545,9 @@ console.log('AW. v1.3.73 : speedrun d\'un niveau verrouillé tant qu\'il n\'a pa
   ok('main.js : persistance accepte sort=\'reaction\' + label appliqué à l\'ouverture du classement', mainSrc.includes("o.sort === 'score' || o.sort === 'time' || o.sort === 'reaction'") && mainSrc.includes('sortBtn.textContent = lbSortLabel()'));
 
   // verrou speedrun : terminé = mode normal uniquement
-  ok('main.js : markCleared appelé seulement si !sr (terminé en mode NORMAL)', mainSrc.includes('if (stats.completed && !sr) store.markCleared(level.id);'));
-  ok('main.js : badge srLocked sur la carte + bouton « 🔒 ⏱ normal d\'abord » quand speedrun actif et niveau non terminé', mainSrc.includes('const srLocked = save.speedrun && !l.endless && !store.isCleared(l.id);') && mainSrc.includes('srLocked ?'));
-  ok('main.js : garde dans le handler Jouer + garde en profondeur dans startLevel (2 toasts « Speedrun verrouillé »)', (mainSrc.match(/Speedrun verrouillé/g) || []).length >= 2 && mainSrc.includes('if (save.speedrun && !level.endless && !store.isCleared(level.id))'));
-  const srHandler = mainSrc.slice(mainSrc.indexOf("on('btn-mode-speedrun'"), mainSrc.indexOf("on('btn-help'"));
-  const nHandler = mainSrc.slice(mainSrc.indexOf("on('btn-mode-normal'"), mainSrc.indexOf("on('btn-mode-speedrun'"));
-  ok('main.js : renderLevels() appelé aux 2 toggles du mode (badges 🔒 à jour)', srHandler.includes('renderLevels();') && nHandler.includes('renderLevels();'));
+  ok('main.js : v1.3.77 — markCleared sans condition de mode (un seul mode)', mainSrc.includes('if (stats.completed) store.markCleared(level.id);') && !mainSrc.includes('!sr) store.markCleared'));
+  ok('main.js : v1.3.77 — gate speedrun SUPPRIMÉE (plus de srLocked / « Speedrun verrouillé » / save.speedrun)', !mainSrc.includes('srLocked') && !mainSrc.includes('Speedrun verrouillé') && !mainSrc.includes('save.speedrun'));
+  ok('main.js : v1.3.77 — gate speedrun SUPPRIMÉE (plus de srLocked / « Speedrun verrouillé » / save.speedrun)', !mainSrc.includes('srLocked') && !mainSrc.includes('Speedrun verrouillé') && !mainSrc.includes('save.speedrun'));
 }
 
 
@@ -1657,6 +1654,23 @@ console.log('AZ. v1.3.76 : voies manuelles (swipe → / ➡ pour revenir, plus d
 
   // tutoriel MAJ
   ok('tutorial.js : plus de « revient toute seule » + nouveau texte SWIPE → + alerte ⚠ + zones par défaut G/D + Z/S', !tutSrc.includes('revient à droite toute seule') && tutSrc.includes('SWIPE →') && tutSrc.includes('voiture de face') && tutSrc.includes("verticalZones ? 'Haut") && tutSrc.includes('Z = roues AV'));
+}
+
+
+console.log('BA. v1.3.77 : MODE UNIQUE (standard+speedrun fusionnés) — chrono + pénalités de temps partout, plus de sélecteur de mode');
+{
+  const fsB = await import('node:fs');
+  const mainSrc = fsB.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  const gameSrc = fsB.readFileSync(new URL('../js/game.js', import.meta.url), 'utf8');
+  const html = fsB.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+
+  ok('index.html : plus de btn-mode-* + label « Mode unique » + HUD #hud-time + écran fin #over-time', !html.includes('btn-mode-speedrun') && !html.includes('btn-mode-normal') && html.includes('Mode unique') && html.includes('id="hud-time"') && html.includes('id="over-time"'));
+  ok('main.js : plus de save.speedrun / srLocked / btn-mode / continueCost', !mainSrc.includes('save.speedrun') && !mainSrc.includes('srLocked') && !mainSrc.includes('btn-mode') && !mainSrc.includes('continueCost'));
+  ok('main.js : startLevel passe speedrun: true (chrono + bonus vitesse actifs) + chrono live dans le HUD (setInterval #hud-time)', mainSrc.includes('speedrun: true,') && mainSrc.includes('hudTimer = setInterval') && mainSrc.includes("$('#hud-time')"));
+  ok('main.js : onGameEnd envoie le score (toujours) ET le temps (si terminé) + markCleared sans !sr', mainSrc.includes('if (canSubmitToLeaderboard(save)) {') && mainSrc.includes('if (stats.completed && canSubmitToLeaderboard(save)) {') && mainSrc.includes('if (stats.completed) store.markCleared(level.id);'));
+  ok('main.js : over-rank = rang score + rang temps (readRank + readTimeRank, join « · »), écran fin score + #over-time avec record', mainSrc.includes('readTimeRank') && mainSrc.includes("parts.join(' · ')") && mainSrc.includes("$('#over-time')") && mainSrc.includes('nouveau record'));
+  ok('main.js : continuer = +2 s au chrono (penaltyMs += 2000, label « +2 s », plus de store.spend)', mainSrc.includes('game.penaltyMs = (game.penaltyMs || 0) + 2000') && mainSrc.includes('+2 s') && !mainSrc.includes('store.spend(save.difficulty, cost)'));
+  ok('game.js : raté = +0,5 s (penaltyMs += 500, popup « RATÉ +0,5 s ») + timeMs final = elapsed + pénalités', gameSrc.includes('this.penaltyMs += 500;') && gameSrc.includes('RATÉ +0,5 s') && gameSrc.includes('(this.elapsed + this.penaltyMs / 1000)'));
 }
 
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);
