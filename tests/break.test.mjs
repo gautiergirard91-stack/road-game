@@ -1519,7 +1519,7 @@ console.log('AV. v1.3.72 : le service worker ne touche plus aux requêtes cross-
 
   // GET RTDB en no-store
   const n = (lbSrc.match(/cache: 'no-store'/g) || []).length;
-  ok('leaderboard.js : cache: \'no-store\' sur les 8 GET RTDB (v1.3.81 : + seasons) (ping x2, scores x2, challenges, speedrun x2)', n === 8);
+  ok('leaderboard.js : cache: \'no-store\' sur les 9 GET RTDB (v1.3.81 seasons, v1.3.82 duels) (ping x2, scores x2, challenges, speedrun x2)', n === 9);
   ok('leaderboard.js : les POST (submitScore/submitSpeedrun) restent des POST (non concernés par le cache)', (lbSrc.match(/method: 'POST'/g) || []).length >= 3);
   ok('cloudsave.js : GET players/<uid> en no-store (sauvegarde cloud fraîche)', csSrc.includes("fetch(url(`/players/${key(account)}`, idToken), { cache: 'no-store' })"));
 }
@@ -1775,7 +1775,7 @@ console.log('BC. v1.3.79 : replays vérifiables (#30) — enregistrement taps, h
   ok('main.js : startLevel(level, replayRep) + badge ▶ REPLAY + entrée joueur ignorée en replay (pointerdown + clavier)',
     mainSrc.includes('function startLevel(level, replayRep = null)') && mainSrc.includes('▶ REPLAY ·') && mainSrc.includes('if (game && game.replayPlay) return; // v1.3.79 : replay = lecture seule') && mainSrc.includes("game.replayPlay && action !== 'retry'"));
   ok('leaderboard.js : rate-limit doux client — MIN_WRITE_GAP_MS 3000 + gap check dans submitScore ET submitSpeedrun + _setLastWriteAt exporté',
-    lbSrc.includes('let MIN_WRITE_GAP_MS = 3000;') && (lbSrc.match(/Date\.now\(\) - lastOnlineWriteAt < MIN_WRITE_GAP_MS/g) || []).length === 3 && lbSrc.includes('export function _setWriteGap')); // v1.3.81 : + submitSeason
+    lbSrc.includes('let MIN_WRITE_GAP_MS = 3000;') && (lbSrc.match(/Date\.now\(\) - lastOnlineWriteAt < MIN_WRITE_GAP_MS/g) || []).length === 4 && lbSrc.includes('export function _setWriteGap')); // v1.3.81 : + submitSeason
   {
     // fonctionnel : 2 submitScore rapprochées -> 1 seul POST, la 2e est en file (anti-flood #30d)
     const posts = [];
@@ -1874,6 +1874,34 @@ console.log('BE. v1.3.81 : compétition visible + niveaux — #22 médailles, #2
 
   // #21 icône saisonnière
   ok('main.js : applySeasonIcon (mois -> svg) au boot + 3 fichiers icons/*.svg + manifest + sw ASSETS', mainSrc.includes('function applySeasonIcon()') && mainSrc.includes('applySeasonIcon();') && manifest.icons.some((i) => i.src === 'icons/icon-halloween.svg') && swSrc.includes("'./icons/icon-noel.svg'") && fsB5.existsSync(new URL('../icons/icon-ete.svg', import.meta.url)));
+}
+
+
+console.log('BF. v1.3.82 : feel & social — #1 entraînement, #2 buffer/coyote, #3 fantôme record, #5 calibration latence, #7 vibration, #8 gaucher, #11 fenêtres adaptatives, #24 duels amis');
+{
+  const fsB6 = await import('node:fs');
+  const mainSrc = fsB6.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  const gameSrc = fsB6.readFileSync(new URL('../js/game.js', import.meta.url), 'utf8');
+  const coreSrc = fsB6.readFileSync(new URL('../js/core.js', import.meta.url), 'utf8');
+  const storeSrc = fsB6.readFileSync(new URL('../js/store.js', import.meta.url), 'utf8');
+  const lbSrc = fsB6.readFileSync(new URL('../js/leaderboard.js', import.meta.url), 'utf8');
+  const html = fsB6.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+
+  ok('store : training/trainSpeed/vibrate/leftHanded/windowLevel/latencyOffsetMs (defaults + sanitize + setters)', storeSrc.includes('training: false') && storeSrc.includes('export function setTraining') && storeSrc.includes('export function setWindowLevel') && storeSrc.includes('export function setLatencyOffsetMs'));
+  ok('game.js : training = vies infinies (maxMisses=Infinity) + inputBuffer créé', gameSrc.includes('this.training ? Infinity : maxMissesFor') && gameSrc.includes('makeInputBuffer(120)'));
+  ok('main.js : startLevel ralenti en entraînement + badge 🎓 + toasts hors classement (training/windowLevel/latency) + effWindows 3 niveaux (#11)', mainSrc.includes('Math.max(60, Math.round(level.speed * (save.trainSpeed || 1)))') && mainSrc.includes('🎓 ENTRAÎNEMENT') && mainSrc.includes("save.windowLevel === 'large'") && mainSrc.includes("save.windowLevel === 'xlarge'") && mainSrc.includes('hors classement en ligne'));
+  ok('core.canSubmitToLeaderboard : training / windowLevel!=standard / latencyOffsetMs -> hors classement', core.canSubmitToLeaderboard({ pseudo: 'a', uid: 'u', training: true }) === false && core.canSubmitToLeaderboard({ pseudo: 'a', uid: 'u', windowLevel: 'large' }) === false && core.canSubmitToLeaderboard({ pseudo: 'a', uid: 'u', latencyOffsetMs: 20 }) === false && core.canSubmitToLeaderboard({ pseudo: 'a', uid: 'u' }) === true);
+
+  ok('core.makeInputBuffer : push/consume fenêtre 120 ms, consomme le tap', (() => { const b = core.makeInputBuffer(120); b.push(1000, 'rear'); b.push(1050, 'front'); return b.consume(1100, 'rear') === 1000 && b.consume(1100, 'rear') === null && b.consume(1100, 'front') === 1050 && b.consume(2000, 'front') === null; })());
+  ok('game.js : tap bufferisé rejugé à son instant (fromBuffer, return true) + dtMs - latencyOffsetMs (#5)', gameSrc.includes('this.inputBuffer.consume(this.time * 1000, axle)') && gameSrc.includes('fromBuffer') && gameSrc.includes('return true;') && gameSrc.includes('(this.access.latencyOffsetMs || 0)'));
+
+  ok('game.js : fantôme du record (access.ghost[line._gi]) + vibration patterns (#7)', gameSrc.includes('this.access.ghost[line._gi]') && gameSrc.includes('navigator.vibrate([15, 15, 15])') && gameSrc.includes('vibrate(80)'));
+  ok('main.js : calibration (#5) btn-calibrate + calib-zone + setLatencyOffsetMs + gaucher (#8) pointer/swipe/flèches inversés',
+    mainSrc.includes("on('btn-calibrate', 'click'") && mainSrc.includes("on('calib-zone', 'pointerdown'") && mainSrc.includes('store.setLatencyOffsetMs(off)') && mainSrc.includes('window.innerWidth - e.clientX') && mainSrc.includes('if (save.leftHanded) dx = -dx;') && mainSrc.includes("action === 'swipeRight'"));
+  ok('index.html : nouvelles options (vibrate/lefty/training/trainspeed/windowlevel/calibrate/calib-zone/calib-hint) + #duels-list', ['s-opt-vibrate', 's-opt-lefty', 's-opt-training', 's-opt-trainspeed', 's-opt-windowlevel', 'btn-calibrate', 'calib-zone', 'calib-hint', 'duels-list'].every((id) => html.includes(`id="${id}"`)));
+
+  ok('leaderboard.js : submitDuel + getDuels (nœud /challenges/duels.json, mode duel, rate-limit, no-store)', lbSrc.includes('export async function submitDuel') && lbSrc.includes('/challenges/duels.json') && lbSrc.includes('export async function getDuels') && lbSrc.includes("d.mode === 'duel'"));
+  ok("main.js : bouton ⚔️ sur les lignes amis + renderDuels dans l'écran Défis + Relever -> startLevel", mainSrc.includes("lbScope === 'friends' && !me") && mainSrc.includes('leaderboard.submitDuel(') && mainSrc.includes('async function renderDuels()') && mainSrc.includes('renderDuels();'));
 }
 
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);

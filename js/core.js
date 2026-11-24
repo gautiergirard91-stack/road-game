@@ -311,7 +311,30 @@ export function weekendCoinMultiplier(d = new Date()) {
 // joue avec des fenêtres allongées ne doit pas apparaître dans le classement.
 export function canSubmitToLeaderboard(s) {
   // v1.3.80 : #27 marqueur 0 ms = aide -> hors classement en ligne (comme wideWindows)
-  return Boolean(s && s.pseudo && s.uid && !s.wideWindows && !s.hitMarker);
+  // v1.3.82 : #1 entraînement, #11 fenêtres adaptatives, #5 calibration latence -> idem (aides = hors LB)
+  return Boolean(s && s.pseudo && s.uid && !s.wideWindows && !s.hitMarker && !s.training && (!s.windowLevel || s.windowLevel === 'standard') && !(s.latencyOffsetMs));
+}
+
+// v1.3.82 : #2 buffer d'input (coyote time) — garde les derniers taps (ms) pour pardonner la latence, sans widen les fenêtres
+export function makeInputBuffer(maxMs = 120) {
+  const taps = [];
+  return {
+    push(t, axle) {
+      taps.push({ t, axle });
+      while (taps.length && taps[0].t < t - maxMs - 50) taps.shift();
+    },
+    // rend le tap le plus récent pour cet essieu dans la fenêtre, et le consomme
+    consume(now, axle) {
+      for (let i = taps.length - 1; i >= 0; i--) {
+        if (taps[i].axle === axle && taps[i].t <= now && now - taps[i].t <= maxMs) {
+          const [tp] = taps.splice(i, 1);
+          return tp.t;
+        }
+      }
+      return null;
+    },
+    size: () => taps.length,
+  };
 }
 
 export function filterFriendsByPseudo(entries, friends) {

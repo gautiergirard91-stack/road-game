@@ -1,5 +1,5 @@
 import { THEMES, SKINS, WINDOWS } from './data.js';
-import { buildPattern, judge, pointsFor, maxMissesFor, axleDelta, mulberry32, levelSeed } from './core.js';
+import { buildPattern, judge, pointsFor, maxMissesFor, axleDelta, mulberry32, levelSeed, makeInputBuffer } from './core.js';
 
 const RESULT_STYLE = {
   perfect: { label: 'PARFAIT', color: '#ffd54a' },
@@ -730,6 +730,8 @@ export class Game {
     this.theme = THEMES[opts.themeOverride] || THEMES[opts.level.theme];
     this.skin = SKINS.find((s) => s.id === opts.skinId) || SKINS[0];
     this.speedrun = !!opts.speedrun;
+    this.training = !!opts.training; // v1.3.82 #1 : entraînement = vies infinies
+    this.inputBuffer = makeInputBuffer(120); // v1.3.82 #2 : buffer d'input (coyote 120 ms)
     // v1.3.54 : le speedrun n'a QU'UNE SEULE difficulté : Permis A (fixée côté UI aussi)
     this.mode = opts.mode || 'auto'; // v1.3.68 : le speedrun se joue dans la difficulté choisie (plus de verrou Permis A)
     // v1.3.51 : niveaux déterministes — rand seedé (seed fixe par niveau+mode), reset dans start()
@@ -783,7 +785,8 @@ export class Game {
     this.chunkN = 0;
     if (!this.replayPlay) this.replay.taps = []; // v1.3.79 : nouveau run -> nouvel enregistrement de taps
     this.replayIdx = 0;
-    this.lines = buildPattern(this.level, seed, this.mode).map((l) => ({
+    this.lines = buildPattern(this.level, seed, this.mode).map((l, i) => ({ _gi: i, // v1.3.82 #3 : index pour le fantôme du record
+      type: l.type,
       type: l.type,
       dist: l.dist,
       axle: l.axle,
@@ -830,7 +833,7 @@ export class Game {
     this.ped = null;
     this.autoStop = false;
     this.drops = [];
-    this.maxMisses = maxMissesFor(this.mode);
+    this.maxMisses = this.training ? Infinity : maxMissesFor(this.mode); // v1.3.82 #1 : entraînement = vies infinies
     const mm = MODELS[this.skin.model] || MODELS.berline;
     this.frontAxleY = this.wheelY - mm.bodyH - 16;
     this.scenery = [];
@@ -877,7 +880,7 @@ export class Game {
       this.popups.push({ text: 'RATÉ −1 ❤', y: ay - 70, life: 0.9, color: '#ff5c5c' });
       if (!this.access.reduceAnims) this.shake = 8; // v1.3.80 #15
       this.audio.miss?.();
-      if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
+      if (typeof navigator !== 'undefined' && navigator.vibrate && this.access.vibrate !== false) navigator.vibrate(80); // v1.3.82 #7 : raté = longue vibration (off si option off)
       this.onMiss(this.stats.misses);
       return;
     }
@@ -893,7 +896,7 @@ export class Game {
     this.popups.push({ text: 'RATÉ +0,5 s', y: ay - 70, life: 0.9, color: '#ff5c5c' });
     if (!this.access.reduceAnims) this.shake = 8; // v1.3.80 #15
     this.audio.miss?.();
-    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
+    if (typeof navigator !== 'undefined' && navigator.vibrate && this.access.vibrate !== false) navigator.vibrate(80); // v1.3.82 #7 : raté = longue vibration (off si option off)
     this.onMiss(this.stats.misses);
     if (this.stats.misses >= this.maxMisses && !this.pendingContinue) {
       this.pendingContinue = true;
@@ -1357,10 +1360,11 @@ export class Game {
     }
   }
 
-  tap(zone = 'rear', auto = false) {
+  tap(zone = 'rear', auto = false, fromBuffer = false) {
     if (this.replayPlay && !auto) return; // v1.3.79 : en mode replay, les entrées joueur sont ignorées
     if (!this.running || this.paused || this.tutHold) return;
     const axle = this.mode === 'auto' ? 'rear' : zone;
+    if (!auto && !fromBuffer && this.inputBuffer) this.inputBuffer.push(this.time * 1000, axle); // v1.3.82 #2 : on garde le tap (fenêtre 120 ms)
     const speed = this.effSpeed;
     // v1.3.27 : voiture à l'arrêt (piéton) -> effSpeed = 0 -> tout tap est un "clic dans le vide"
     // (sinon dtMs = 0/0 = NaN et le jugement crashait)
@@ -1405,13 +1409,22 @@ export class Game {
       }
     }
     if (!best || bestAd > missPx) {
+      // v1.3.82 #2 : buffer d'input — un tap jusqu'à 120 ms avant la fenêtre est rejugé à son instant réel (coyote)
+      const bt = (!auto && !fromBuffer && this.inputBuffer) ? this.inputBuffer.consume(this.time * 1000, axle) : null;
+      if (bt != null) {
+        const saveD = this.distance;
+        this.distance = saveD - (this.effSpeed * (this.time * 1000 - bt)) / 1000;
+        const hit = this.tap(axle, true, true);
+        this.distance = saveD;
+        if (hit) return true;
+      }
       this.audio.tap?.();
       this.pendingStray = 0.25;
       return;
     }
     const ay = this.lineAxleY(axle);
     const dy = this.distance - best.dist + this.axleDelta(axle);
-    const dtMs = (dy / speed) * 1000;
+    const dtMs = (dy / speed) * 1000 - (this.access.latencyOffsetMs || 0); // v1.3.82 #5 : calibration latence (locale, hors classement si ≠ 0)
     const result = judge(dtMs, this.windows);
     if (!result) {
       // garde-fou : aucun jugement valide -> clic dans le vide
@@ -1456,10 +1469,12 @@ export class Game {
       color: RESULT_STYLE[result].color,
     });
     if (this.hasEffect('shake') && !this.access.reduceAnims) this.shake = 5; // v1.3.80 #15
+    if (result === 'perfect' && typeof navigator !== 'undefined' && navigator.vibrate && this.access.vibrate !== false) navigator.vibrate([15, 15, 15]); // v1.3.82 #7 : PARFAIT = double pulsation
     if (this.hasEffect('confetti') && result === 'perfect') this.spawnConfetti();
     this.audio[result]?.();
     if (result === 'perfect' && typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(15);
     this.onJudge({ result, pts, combo: this.combo, score: this.score, axle, type: best.type });
+    return true; // v1.3.82 #2 : un jugement a eu lieu (buffer)
   }
 
   finish(completedOrReason) {
@@ -1657,6 +1672,14 @@ export class Game {
     const firstPending = this.lines.find((l) => l.state === 'pending');
     for (const line of this.lines) {
       const y = this.lineY(line);
+      if (this.access.ghost && this.access.ghost[line._gi] && typeof this.access.ghost[line._gi].dt === 'number' && this.access.ghost[line._gi].dt !== 0) {
+        // v1.3.82 #3 : fantôme du record — petit repère à la position exacte du meilleur run sur cette ligne
+        const gdx = (this.access.ghost[line._gi].dt / 1000) * this.effSpeed;
+        ctx.fillStyle = 'rgba(255,255,255,0.55)';
+        ctx.beginPath();
+        ctx.arc(this.w / 2 + gdx, y, 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
       if (y < -90 || y > this.h + 90) continue;
       if (line.state === 'resolved') {
         const st = RESULT_STYLE[line.result] || RESULT_STYLE.passable;

@@ -229,3 +229,11 @@ Les deux modes ne différaient que par le chrono/bonus de vitesse : **un seul mo
 - Défis du jour : + « 0 raté sur N lignes » et « combo max xN ».
 - Niveau hebdo 🗓️ « Orage hebdo » le week-end ; thèmes saisonniers cosmétiques (Halloween/Noël/Été) ; icône PWA saisonnière.
 - Cartes de niveaux : bonus 1er clear et paliers Survie visibles ; courbe lissée (gapMin ≥ 260, pDouble ≤ 0,35) ; boss 👹 niveaux 5/10/15.
+
+
+## v1.3.82 — feel & social (rapport #1/#2/#3/#5/#7/#8/#11/#24) — FIN DU RAPPORT
+
+- Mode entraînement (vies infinies, vitesse réglable, hors classement), buffer d'input 120 ms, fantôme du record par ligne.
+- Calibration latence tactile (±100 ms, hors classement si active), vibration on/off + patterns, mode gaucher, fenêtres adaptatives 3 niveaux (hors classement si ≠ standard).
+- Duels asynchrones entre amis (⚔️ dans le classement amis → « Duels reçus » dans Défis).
+- **Toutes les propositions #1–#31 du rapport sont implémentées** (voir PR #62, #63–#67).

@@ -350,6 +350,19 @@ async function renderLeaderboard() {
     const tSuffix = (lbLevelFilter === 'all' && tlvl && tlvl.levelId != null) ? ` · niv. ${tlvl.levelId}` : ''; // v1.3.74 : niveau du temps affiché en « Tous niveaux »
     const timeCell = (!isReact && !isSr) ? `<span class="lb-time">${typeof tms === 'number' ? '⏱ ' + fmtTime(tms / 1000) + tSuffix : '—'}</span>` : '';
     row.innerHTML = `<span class="lb-rank">${i + 1}</span><span class="lb-name${me ? ' me' : ''}">${escapeHtml(e.pseudo || 'Anonyme')}</span><span class="lb-level">${escapeHtml(levelLabel(e))}</span><span class="lb-score">${right}</span>${timeCell}`;
+    if (lbScope === 'friends' && !me) { // v1.3.82 #24 : bouton duel asynchrone contre cet ami
+      const b = document.createElement('button');
+      b.className = 'btn small';
+      b.textContent = '⚔️';
+      b.title = `Défier ${e.pseudo} sur ce niveau`;
+      b.addEventListener('click', () => {
+        const lvId = Number(e.levelId) || (currentLevel && currentLevel.id) || 1;
+        const myBest = store.getBest(save.difficulty, lvId) || 0;
+        leaderboard.submitDuel(save.pseudo, save.uid || '', e.pseudo, lvId, myBest, getAuthToken())
+          .then((ok2) => toast(ok2 ? `⚔️ Défi envoyé à ${e.pseudo} (niveau ${lvId}, à battre : ${myBest} pts) !` : '⚠️ Défi non envoyé (hors ligne ou connexion requise)'));
+      });
+      row.appendChild(b);
+    }
     list.appendChild(row);
   });
 }
@@ -370,7 +383,12 @@ function hideContinue() {
   $('#continue-overlay').classList.remove('active');
 }
 
-const effWindows = () => (save.wideWindows ? { perfect: 70, good: 150, passable: 240 } : WINDOWS);
+const effWindows = () => { // v1.3.82 #11 : fenêtres adaptatives (hors classement si != standard)
+  if (save.wideWindows) return { perfect: 70, good: 150, passable: 240 };
+  if (save.windowLevel === 'large') return { perfect: 60, good: 130, passable: 210 };
+  if (save.windowLevel === 'xlarge') return { perfect: 90, good: 200, passable: 320 };
+  return WINDOWS;
+};
 
 // sauvegarde cloud keyed par uid Google si lié, sinon par pseudo
 // v1.3.32 : cloud UNIQUEMENT keyed par uid Google (règles players: auth.uid == $id).
@@ -415,7 +433,7 @@ function startTutorial() {
     mode: 'auto',
     tutorial: true,
     windows: effWindows(),
-    access: { colorblind: save.colorblind, horizontalZones: !save.verticalZones, hitMarker: !!save.hitMarker, reduceAnims: !!save.reduceAnims }, // v1.3.80 #27/#15
+    access: { colorblind: save.colorblind, horizontalZones: !save.verticalZones, hitMarker: !!save.hitMarker, reduceAnims: !!save.reduceAnims, vibrate: save.vibrate !== false, latencyOffsetMs: save.latencyOffsetMs || 0, ghost: (store.getReplay(save.difficulty, level.id) || {}).taps }, // v1.3.80 #27/#15 + v1.3.82 #3/#5/#7
     effects: save.selectedEffects,
     audio: { tap: sfx.tap, perfect: sfx.perfect, good: sfx.good, passable: sfx.passable, fail: sfx.fail, win: sfx.win, miss: sfx.miss, lineBeat: scheduleLineBeat, musicAnchor: musicLineAnchor }, // v1.3.46 : beat GD calé sur chaque ligne
     onJudge: (e) => {
@@ -607,6 +625,7 @@ function updateMusicBtn() {
 }
 
 async function renderChallenges() {
+  renderDuels(); // v1.3.82 #24 : duels reçus affichés dans l'écran Défis
   const dc = dailyChallenge();
   const done = store.isChallengeDone(dc.id);
   const modeName = (DIFFICULTIES.find((d) => d.id === dc.mode) || {}).name || dc.mode;
@@ -1105,6 +1124,7 @@ on('btn-share', 'click', async () => { // v1.3.81 #18 : carte de score partageab
 
 function startLevel(level, replayRep = null) {
   currentLevel = level;
+  const lvl = save.training ? { ...level, speed: Math.max(60, Math.round(level.speed * (save.trainSpeed || 1))) } : level; // v1.3.82 #1 : entraînement = vitesse réglable
   setMusicCombo(0); // v1.3.42 : nouvelle partie -> intensité musicale à 0  unlockAudio(); // v1.3.65 : contexte audio repris ici (geste « Jouer ») -> pas de freeze au 1er tap
   setMusicEnabled(save.music && save.sound); // v1.3.65 : musique ON dès le début de la partie
   musicKick(); // v1.3.65 : resynchronise le séquenceur -> la musique démarre immédiatement
@@ -1114,6 +1134,7 @@ function startLevel(level, replayRep = null) {
   $('#pause-overlay').classList.remove('active');
   hudLevel.textContent = `${level.id}. ${level.name}`;
   if (replayRep) hudLevel.textContent = '▶ REPLAY · ' + hudLevel.textContent; // v1.3.79 : badge mode lecture
+  if (save.training) hudLevel.textContent = '🎓 ENTRAÎNEMENT · ' + hudLevel.textContent; // v1.3.82 #1
   hudScore.textContent = '0';
   const ht0 = $('#hud-time'); if (ht0) ht0.textContent = '0:00.00';
   clearInterval(hudTimer); // v1.3.77 : chrono live dans le HUD (mode unique)
@@ -1124,14 +1145,16 @@ function startLevel(level, replayRep = null) {
   $('#hud-coins').textContent = `${cur(save.difficulty).icon} ${store.getWallet(save.difficulty)}`;
   logEvent('level_start', { level: level.id, mode: save.difficulty });
   game = new Game($('#game'), {
-    level,
+    level: lvl, // v1.3.82 #1
+    training: !!save.training, // v1.3.82 #1 : vies infinies
     skinId: save.skin,
     mode: save.difficulty, // v1.3.68 : speedrun dans la difficulté choisie (plus de verrou Permis A)
     speedrun: true, // v1.3.77 : mode unique — chrono + pénalités + vitesse bonus TOUJOURS actifs
     replay: replayRep || undefined, // v1.3.79 : mode lecture d'un replay enregistré (hors classement)
+    training: !!save.training, // v1.3.82 #1
     themeOverride: save.highContrast ? 'highcontrast' : (save.themeOverride || undefined), // v1.3.80 #16 : contraste élevé prioritaire
     windows: effWindows(),
-    access: { colorblind: save.colorblind, horizontalZones: !save.verticalZones, hitMarker: !!save.hitMarker, reduceAnims: !!save.reduceAnims }, // v1.3.80 #27/#15
+    access: { colorblind: save.colorblind, horizontalZones: !save.verticalZones, hitMarker: !!save.hitMarker, reduceAnims: !!save.reduceAnims, vibrate: save.vibrate !== false, latencyOffsetMs: save.latencyOffsetMs || 0, ghost: (store.getReplay(save.difficulty, level.id) || {}).taps }, // v1.3.80 #27/#15 + v1.3.82 #3/#5/#7
     effects: save.selectedEffects,
     audio: { tap: sfx.tap, perfect: sfx.perfect, good: sfx.good, passable: sfx.passable, fail: sfx.fail, win: sfx.win, miss: sfx.miss, lineBeat: scheduleLineBeat, musicAnchor: musicLineAnchor }, // v1.3.46 : beat GD calé sur chaque ligne
     onJudge: (e) => {
@@ -1254,7 +1277,10 @@ async function onGameEnd(stats, level) {
     leaderboard.submitSeason(weekKey(), { pseudo: save.pseudo, uid: save.uid || '', score: stats.score, level: level.name, levelId: level.id, mode: save.difficulty, date: Date.now(), lines: linesCount }, getAuthToken()).catch(() => {});
   // v1.3.68 : si le résultat n'est PAS envoyé au classement en ligne, on dit POURQUOI (sinon « mon score n'apparaît pas »)
   if (!canSubmitToLeaderboard(save)) {
-    if (save.wideWindows) toast('♿ Fenêtres élargies actives : résultat gardé en local, hors classement en ligne');
+    if (save.training) toast('🎓 Mode entraînement : résultat gardé en local, hors classement en ligne');
+    else if (save.windowLevel && save.windowLevel !== 'standard') toast('♿ Fenêtres ' + save.windowLevel + ' actives : hors classement en ligne');
+    else if (save.latencyOffsetMs) toast('🎚️ Calibration latence active : hors classement en ligne');
+    else if (save.wideWindows) toast('♿ Fenêtres élargies actives : résultat gardé en local, hors classement en ligne');
     else if (!save.uid) toast('🔒 Connecte Google (« ✏️ Mon pseudo ») pour apparaître dans le classement en ligne — résultat gardé en local');
   }
   let submitSrP = null;
@@ -1489,6 +1515,9 @@ const ACCESS_OPTS = [
   { id: 'opt-reduceanims', key: 'reduceAnims', set: (v) => store.setReduceAnims(v), on: '✨ Animations réduites (pas de shake/particules/flash)', off: 'Animations standard' }, // v1.3.80 #15
   { id: 'opt-highcontrast', key: 'highContrast', set: (v) => store.setHighContrast(v), on: '◼️ Contraste élevé (fond noir, lignes blanches épaisses)', off: 'Thème du niveau' }, // v1.3.80 #16
   { id: 'opt-hitmarker', key: 'hitMarker', set: (v) => store.setHitMarker(v), on: '🎯 Marqueur du 0 ms (flash sous la roue) — HORS classement', off: 'Pas de marqueur 0 ms' }, // v1.3.80 #27
+  { id: 'opt-vibrate', key: 'vibrate', set: (v) => store.setVibrate(v), on: '📳 Vibration activée (double pulsation PARFAIT, longue au raté)', off: 'Vibration désactivée' }, // v1.3.82 #7
+  { id: 'opt-lefty', key: 'leftHanded', set: (v) => store.setLeftHanded(v), on: '🤚 Mode gaucher : zones et swipes inversés', off: 'Mode droitier (défaut)' }, // v1.3.82 #8
+  { id: 'opt-training', key: 'training', set: (v) => store.setTraining(v), on: '🎓 Mode entraînement ON (vies infinies, vitesse réglable) — HORS classement', off: 'Mode entraînement OFF' }, // v1.3.82 #1
 ];
 function syncAccessCheckboxes(prefix) {
   for (const o of ACCESS_OPTS) {
@@ -1514,6 +1543,8 @@ function applyUiPrefs() {
   document.body.classList.toggle('reduce-anims', !!save.reduceAnims);
   const sel = $('#s-opt-textsize');
   if (sel) sel.value = ts;
+  const wl = $('#s-opt-windowlevel'); if (wl) wl.value = save.windowLevel || 'standard'; // v1.3.82 #11
+  const tsp = $('#s-opt-trainspeed'); if (tsp) tsp.value = String(save.trainSpeed || 1); // v1.3.82 #1
 }
 applyUiPrefs();
 on('s-opt-textsize', 'change', (e) => {
@@ -1521,6 +1552,73 @@ on('s-opt-textsize', 'change', (e) => {
   applyUiPrefs();
   toast(`Taille du texte : ${e.target.value === 'large' ? 'grand' : e.target.value === 'small' ? 'petit' : 'moyen'}`);
 });
+on('s-opt-trainspeed', 'change', (e) => { store.setTrainSpeed(Number(e.target.value) || 1); toast(`Vitesse entraînement : ${e.target.value}×`); applyUiPrefs(); }); // v1.3.82 #1
+on('s-opt-windowlevel', 'change', (e) => { // v1.3.82 #11
+  store.setWindowLevel(e.target.value);
+  applyUiPrefs();
+  toast(e.target.value === 'standard' ? 'Fenêtres standard (éligible au classement)' : `Fenêtres ${e.target.value} — HORS classement en ligne`);
+});
+// v1.3.82 #5 : calibration de la latence tactile — 4 pulsations, le joueur tape au rythme, offset moyen stocké localement
+let calib = null;
+on('btn-calibrate', 'click', () => {
+  calib = { beats: [], taps: [] };
+  let n = 0;
+  const z = $('#calib-zone');
+  const hint = $('#calib-hint');
+  if (hint) hint.textContent = 'Prépare-toi… 4 pulsations à 600 ms.';
+  const iv = setInterval(() => {
+    n++;
+    calib.beats.push(performance.now());
+    sfx.tap();
+    if (z) { z.textContent = `● ${4 - n}`; z.classList.add('pulse'); setTimeout(() => z.classList.remove('pulse'), 120); }
+    if (n >= 4) {
+      clearInterval(iv);
+      if (hint) hint.textContent = 'Tape 4 fois EN RYTHME sur la zone quand elle pulse.';
+    }
+  }, 600);
+});
+on('calib-zone', 'pointerdown', () => {
+  if (!calib || !calib.beats.length || calib.taps.length >= 4) return;
+  calib.taps.push(performance.now());
+  if (calib.taps.length === 4) {
+    const offs = calib.taps.map((t) => t - calib.beats.reduce((p, b) => (Math.abs(b - t) < Math.abs(p - t) ? b : p)));
+    const off = Math.max(-100, Math.min(100, Math.round(offs.reduce((a, b) => a + b, 0) / offs.length)));
+    store.setLatencyOffsetMs(off);
+    toast(`🎚️ Latence mesurée : ${off >= 0 ? '+' : ''}${off} ms (hors classement si ≠ 0)`);
+    calib = null;
+    const hint = $('#calib-hint');
+    if (hint) hint.textContent = 'Calibration terminée.';
+  }
+});
+// v1.3.82 #24 : duels asynchrones — liste des duels reçus dans l'écran Défis
+async function renderDuels() {
+  const el = $('#duels-list');
+  if (!el) return;
+  el.innerHTML = '';
+  try {
+    const duels = await leaderboard.getDuels(save.pseudo);
+    if (!duels.length) {
+      el.innerHTML = '<div class="card-sub">Aucun duel en attente — défie un ami ⚔️ depuis l\'onglet « Amis » du classement.</div>';
+      return;
+    }
+    for (const d of duels) {
+      const row = document.createElement('div');
+      row.className = 'card lb-row';
+      row.innerHTML = `<span class="lb-rank">⚔️</span><div class="card-body"><div class="card-title">${escapeHtml(d.pseudo || '?')} te défie</div><div class="card-sub">${escapeHtml(levelLabel(d)) || 'niveau ?'} · à battre : ${d.score} pts</div></div>`;
+      const b = document.createElement('button');
+      b.className = 'btn small';
+      b.textContent = 'Relever';
+      b.addEventListener('click', () => {
+        const lv = LEVELS.find((l) => l.id === Number(d.levelId)) || WEEKLY_LEVEL;
+        if (lv) startLevel(lv);
+      });
+      row.appendChild(b);
+      el.appendChild(row);
+    }
+  } catch {
+    el.innerHTML = '<div class="card-sub">Duels indisponibles (hors ligne ?)</div>';
+  }
+}
 // v1.3.80 : #29 — infobulle « 0 ms » (schéma)
 function openTimingHelp() { const m = $('#modal-timing'); if (m) m.classList.remove('hidden'); }
 on('btn-help-timing', 'click', openTimingHelp);
@@ -2002,7 +2100,8 @@ on('btn-replay', 'click', () => { // v1.3.79 : rejoue le meilleur run enregistr�
 
 function trySwipe(x) {
   if (!pointerStart || swipeFired) return;
-  const dx = x - pointerStart.x;
+  let dx = x - pointerStart.x;
+  if (save.leftHanded) dx = -dx; // v1.3.82 #8 : mode gaucher inverse le swipe
   const minSwipe = save.bigTargets ? 25 : 40; // v1.3.80 #6 : seuil de swipe réglable
   if (dx < -minSwipe) {
     swipeFired = true;
@@ -2061,7 +2160,9 @@ window.addEventListener('pointerdown', (e) => {
   if (e.target.closest('button, input, select, textarea, a, label')) return; // ne pas taper le jeu quand on touche un contrôle
   if (game && game.replayPlay) return; // v1.3.79 : replay = lecture seule
   // v1.3.21/v1.3.28 : option zones gauche/droite (gauche = AV, droite = AR) au lieu de haut/bas
-  const zone = zoneFromPoint(e.clientX, e.clientY, window.innerWidth, window.innerHeight, !save.verticalZones, save.bigTargets ? 0.6 : 0.5); // v1.3.80 #6 : zones 60/40 si gros doigts
+  const px = save.leftHanded ? window.innerWidth - e.clientX : e.clientX; // v1.3.82 #8 : mode gaucher
+  const py = save.leftHanded ? window.innerHeight - e.clientY : e.clientY;
+  const zone = zoneFromPoint(px, py, window.innerWidth, window.innerHeight, !save.verticalZones, save.bigTargets ? 0.6 : 0.5); // v1.3.80 #6 : zones 60/40 si gros doigts
   game.tap(zone);
 });
 
@@ -2112,7 +2213,9 @@ window.addEventListener('keydown', (e) => {
   // v1.3.28 : UNE SEULE action par touche via keyToAction (sinon ArrowLeft = tap AV + swipe
   // quand les zones horizontales sont actives ; le swipe clavier passe sur ArrowDown/KeyS)
   // v1.3.47 : les touches choisies dans Paramètres priment (save.keys)
-  const action = keyToAction(e.code, !save.verticalZones, save.keys);
+  let action = keyToAction(e.code, !save.verticalZones, save.keys);
+  if (save.leftHanded && action === 'swipe') action = 'swipeRight'; // v1.3.82 #8 : mode gaucher inverse les flèches
+  else if (save.leftHanded && action === 'swipeRight') action = 'swipe';
   if (action) {
     e.preventDefault();
     if (game && game.replayPlay && action !== 'retry') return; // v1.3.79 : replay = lecture seule (retry autorisé pour quitter)

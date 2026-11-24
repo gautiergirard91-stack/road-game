@@ -1144,3 +1144,7 @@ html[data-textsize='large'] body { font-size: 19px; }
 .modal .panel { max-width: 540px; max-height: 88vh; overflow: auto; }
 #modal-timing svg { width: 100%; height: auto; border-radius: 8px; border: 1px solid #444; }
 #btn-hud-help { margin-left: 6px; }
+
+/* --- v1.3.82 : calibration latence --- */
+.calib-zone { margin: 8px 0; padding: 18px; border: 2px dashed #6b7bd6; border-radius: 10px; text-align: center; user-select: none; touch-action: manipulation; background: rgba(107,123,214,.08); }
+.calib-zone.pulse { background: rgba(107,123,214,.45); }

@@ -1,6 +1,6 @@
 # ✅ Assurance qualité
 
-> **Note (v1.3.77)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.81**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
+> **Note (v1.3.77)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.82**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
 
 ## Processus de test
 
@@ -717,3 +717,16 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - **#10 Récompenses visibles** sur les cartes (bonus 1er clear, paliers Survie 25/50/100).
 - **#9 Courbe lissée** : `gapMin` plancher 260 px, `pDouble` plafonné à 0,35. **#12 Boss** 👹 niveaux 5/10/15 (densité 0,45 min).
 - Tests : break section BE (496 assertions) ; audit OK ; triple bump v1.3.81/roadtap-v89.
+
+
+## v1.3.82 — feel & social (#1/#2/#3/#5/#7/#8/#11/#24)
+
+- **#1 Mode entraînement** : vies infinies + vitesse 0,5×/0,75×/1×, badge 🎓, **hors classement** (toast explicite).
+- **#2 Buffer d'input (coyote 120 ms)** : un tap jusqu'à 120 ms avant la fenêtre est rejugé à son instant réel — la latence du téléphone pardonne, les fenêtres ne changent pas.
+- **#3 Fantôme du record** : repère translucide sur chaque ligne à la position exacte du meilleur run (replay local).
+- **#5 Calibration latence** : 4 pulsations, 4 taps, offset moyen clampé ±100 ms, appliqué au jugement — **hors classement si ≠ 0**.
+- **#7 Vibration** on/off + patterns (PARFAIT = double pulsation, raté = longue).
+- **#8 Mode gaucher** : zones, swipes et flèches inversés.
+- **#11 Fenêtres adaptatives** : standard / larges (60/130/210) / très larges (90/200/320) — hors classement si ≠ standard.
+- **#24 Duels asynchrones entre amis** : bouton ⚔️ dans l'onglet Amis du classement → défi stocké (`/challenges/duels`, mode `duel`) → l'ami le voit dans Défis > « ⚔️ Duels reçus » avec « Relever ».
+- Tests : break section BF (507 assertions) ; audit OK ; triple bump v1.3.82/roadtap-v90.
