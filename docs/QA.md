@@ -1,6 +1,6 @@
 # ✅ Assurance qualité
 
-> **Note (v1.3.77)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.80**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
+> **Note (v1.3.77)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.81**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
 
 ## Processus de test
 
@@ -702,3 +702,18 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - **#27 Marqueur du 0 ms** : flash de la ligne quand elle passe exactement sous l'essieu — **hors classement** (`canSubmitToLeaderboard` refuse, règle `aids != true` ajoutée à scores/speedrun/challenges — **redéployer les règles**).
 - **#29 Infobulle « 0 ms »** : modale avec schéma SVG (boutons ❓ en jeu, niveaux, paramètres) — explique le 0 ms, la fenêtre symétrique ±45 ms, le beat audio, la stat ⚡.
 - Tests : break section BD (483 assertions) ; audit OK ; triple bump v1.3.80/roadtap-v88.
+
+
+## v1.3.81 — compétition visible + niveaux (#22/#23/#25/#18/#14/#13/#20/#21/#10/#9/#12)
+
+- **#22 Médailles** 🥇🥈🥉 déduites du rang au classement (top 3), stockées par `mode:niveau`, affichées sur les cartes de niveaux.
+- **#23 Tiers** Bronze→Légende (`tierOf` sur les médailles), affiché dans le menu (`#menu-tier`).
+- **#25 Saison hebdo** : onglet 🗓️ Saison (nœud `/seasons/<weekKey>/…`, mêmes règles que scores — **redéployer les règles**), envoi auto à la fin de chaque partie.
+- **#18 Écran de fin** : rang animé (compte jusqu'à #N) + bouton 📤 Partager (Web Share API, repli presse-papiers).
+- **#14 Défis du jour** : +2 types (« 0 raté sur N lignes », « combo max xN »).
+- **#13 Niveau hebdo 🗓️** « Orage hebdo » (id 900) affiché samedi/dimanche en plus du Week-end doré.
+- **#20 Thèmes saisonniers cosmétiques** : Halloween 🎃, Noël 🎄, Été 🏖️ dans la boutique.
+- **#21 Icône PWA saisonnière** : favicon swap selon le mois (3 SVG dans le manifest + SW).
+- **#10 Récompenses visibles** sur les cartes (bonus 1er clear, paliers Survie 25/50/100).
+- **#9 Courbe lissée** : `gapMin` plancher 260 px, `pDouble` plafonné à 0,35. **#12 Boss** 👹 niveaux 5/10/15 (densité 0,45 min).
+- Tests : break section BE (496 assertions) ; audit OK ; triple bump v1.3.81/roadtap-v89.

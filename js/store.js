@@ -16,6 +16,7 @@ const defaults = () => ({
   best: {},
   bestTime: {}, // v1.3.19 : meilleurs temps (ms) du mode speedrun, par niveau
   replays: {}, // v1.3.79 : replays locaux du meilleur run par "mode:levelId" — {seed, mode, lines, score, timeMs, hash, taps}
+  medals: {}, // v1.3.81 #22 : médailles par "mode:levelId" — 1=🥇 2=🥈 3=🥉 (déduites du rang au classement)
   speedrun: false,
   verticalZones: false, // v1.3.76 : zones tactiles HAUT/BAS (défaut false = gauche/droite : gauche=AV ⬅, droite=AR ➡)
   sound: true,
@@ -106,6 +107,7 @@ function sanitize(s) {
   s.best = numMap(s.best);
   s.bestTime = numMap(s.bestTime);
   s.replays = replayMap(s.replays); // v1.3.79
+  s.medals = numMap(s.medals); // v1.3.81 #22
   s.bigTargets = bool(s.bigTargets); // v1.3.80
   s.reduceAnims = bool(s.reduceAnims);
   s.highContrast = bool(s.highContrast);
@@ -318,6 +320,14 @@ export function setReplay(mode, levelId, rep) {
     persist();
   }
   return save.replays[k];
+}
+export function getMedal(mode, levelId) { return (save.medals || {})[bestKey(mode, levelId)] || 0; } // v1.3.81 #22
+export function setMedal(mode, levelId, m) { // garde la meilleure (1=or est le minimum)
+  if (![1, 2, 3].includes(m)) return;
+  save.medals = save.medals || {};
+  const k = bestKey(mode, levelId);
+  const prev = save.medals[k] || 0;
+  if (prev === 0 || m < prev) { save.medals[k] = m; persist(); }
 }
 export function getBestTime(mode, levelId) {
   return save.bestTime[bestKey(mode, levelId)];

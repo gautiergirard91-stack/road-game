@@ -821,7 +821,7 @@ console.log('W. v1.3.45 : wideWindows hors classement en ligne (garde client + f
   const srTop = await lb.getSpeedrunTop('all');
   ok('getSpeedrunTop exclut aussi wideWindows', srTop.every((e) => e.pseudo !== 'Wide'));
 
-  ok('database.rules.json : les 3 règles .write rejettent wideWindows==true', (rules.match(/wideWindows'\)\.val\(\) != true/g) || []).length === 3);
+  ok('database.rules.json : les 3 règles .write rejettent wideWindows==true', (rules.match(/wideWindows'\)\.val\(\) != true/g) || []).length === 4); // v1.3.81 : + nœud seasons
 
   const pauseHtml = html.slice(html.indexOf('id="pause-overlay"'), html.indexOf('id="continue-overlay"'));
   ok('index.html : #btn-pause-retry présent UNE FOIS et dans pause-overlay', (html.match(/id="btn-pause-retry"/g) || []).length === 1 && pauseHtml.includes('btn-pause-retry'));
@@ -1519,7 +1519,7 @@ console.log('AV. v1.3.72 : le service worker ne touche plus aux requêtes cross-
 
   // GET RTDB en no-store
   const n = (lbSrc.match(/cache: 'no-store'/g) || []).length;
-  ok('leaderboard.js : cache: \'no-store\' sur les 7 GET RTDB (ping x2, scores x2, challenges, speedrun x2)', n === 7);
+  ok('leaderboard.js : cache: \'no-store\' sur les 8 GET RTDB (v1.3.81 : + seasons) (ping x2, scores x2, challenges, speedrun x2)', n === 8);
   ok('leaderboard.js : les POST (submitScore/submitSpeedrun) restent des POST (non concernés par le cache)', (lbSrc.match(/method: 'POST'/g) || []).length >= 3);
   ok('cloudsave.js : GET players/<uid> en no-store (sauvegarde cloud fraîche)', csSrc.includes("fetch(url(`/players/${key(account)}`, idToken), { cache: 'no-store' })"));
 }
@@ -1775,7 +1775,7 @@ console.log('BC. v1.3.79 : replays vérifiables (#30) — enregistrement taps, h
   ok('main.js : startLevel(level, replayRep) + badge ▶ REPLAY + entrée joueur ignorée en replay (pointerdown + clavier)',
     mainSrc.includes('function startLevel(level, replayRep = null)') && mainSrc.includes('▶ REPLAY ·') && mainSrc.includes('if (game && game.replayPlay) return; // v1.3.79 : replay = lecture seule') && mainSrc.includes("game.replayPlay && action !== 'retry'"));
   ok('leaderboard.js : rate-limit doux client — MIN_WRITE_GAP_MS 3000 + gap check dans submitScore ET submitSpeedrun + _setLastWriteAt exporté',
-    lbSrc.includes('let MIN_WRITE_GAP_MS = 3000;') && (lbSrc.match(/Date\.now\(\) - lastOnlineWriteAt < MIN_WRITE_GAP_MS/g) || []).length === 2 && lbSrc.includes('export function _setWriteGap'));
+    lbSrc.includes('let MIN_WRITE_GAP_MS = 3000;') && (lbSrc.match(/Date\.now\(\) - lastOnlineWriteAt < MIN_WRITE_GAP_MS/g) || []).length === 3 && lbSrc.includes('export function _setWriteGap')); // v1.3.81 : + submitSeason
   {
     // fonctionnel : 2 submitScore rapprochées -> 1 seul POST, la 2e est en file (anti-flood #30d)
     const posts = [];
@@ -1831,6 +1831,49 @@ console.log('BD. v1.3.80 : accessibilité P0 — #6 gros doigts/swipe, #15 anims
   ok('index.html : modal-timing avec SVG explicatif (0 ms, ±45/100/160 symétrique) + 3 boutons + fermeture', html.includes('id="modal-timing"') && html.includes('<svg viewBox="0 0 320 200"') && html.includes('symétrique') && html.includes('id="btn-help-timing"') && html.includes('id="btn-help-timing-levels"') && html.includes('id="btn-hud-help"') && html.includes('id="btn-timing-close"'));
   ok('main.js : handlers modal (3 ouvertures + close + clic extérieur) + nouvelles options s-opt-* présentes dans le HTML',
     mainSrc.includes("on('btn-help-timing', 'click'") && mainSrc.includes("on('btn-hud-help', 'click'") && mainSrc.includes("on('btn-timing-close', 'click'") && ['s-opt-bigtargets', 's-opt-reduceanims', 's-opt-highcontrast', 's-opt-hitmarker', 's-opt-textsize'].every((id) => (mainSrc.includes(`'${id}'`) || mainSrc.includes(`'${id.replace('s-', '')}'`)) && html.includes(`id="${id}"`))); // v1.3.80 ACCESS_OPTS (préfixe 's-' ajouté au câblage)
+}
+
+
+console.log('BE. v1.3.81 : compétition visible + niveaux — #22 médailles, #23 tiers, #25 saison hebdo, #18 partage+rang animé, #14 défis, #13 niveau hebdo, #20 thèmes saison, #21 icône saison, #10 récompenses visibles, #9 courbe lissée, #12 boss');
+{
+  const fsB5 = await import('node:fs');
+  const mainSrc = fsB5.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  const coreSrc = fsB5.readFileSync(new URL('../js/core.js', import.meta.url), 'utf8');
+  const dataSrc = fsB5.readFileSync(new URL('../js/data.js', import.meta.url), 'utf8');
+  const storeSrc = fsB5.readFileSync(new URL('../js/store.js', import.meta.url), 'utf8');
+  const lbSrc = fsB5.readFileSync(new URL('../js/leaderboard.js', import.meta.url), 'utf8');
+  const html = fsB5.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const rules = JSON.parse(fsB5.readFileSync(new URL('../database.rules.json', import.meta.url), 'utf8')).rules;
+  const manifest = JSON.parse(fsB5.readFileSync(new URL('../manifest.webmanifest', import.meta.url), 'utf8'));
+  const swSrc = fsB5.readFileSync(new URL('../sw.js', import.meta.url), 'utf8');
+
+  // #22 médailles + #23 tiers
+  ok('store : medals (defaults+sanitize+get/set, meilleure gardée)', storeSrc.includes('medals: {}') && storeSrc.includes('s.medals = numMap(s.medals)') && storeSrc.includes('export function setMedal'));
+  ok('store fonctionnel setMedal : or(1) conservé vs bronze(3)', (() => { store.setMedal('auto', 1, 3); store.setMedal('auto', 1, 1); store.setMedal('auto', 1, 2); return store.getMedal('auto', 1) === 1; })());
+  ok('core.tierOf : Bronze->Légende selon les points de médailles (or=3 pts)', core.tierOf({}).id === 'bronze' && core.tierOf({ 'a:1': 1, 'a:2': 1 }).pts === 6 && (() => { const m = {}; for (let i = 0; i < 34; i++) m['k' + i] = 1; return core.tierOf(m).id === 'legende' && core.tierOf(m).pts === 102; })());
+  ok('main.js : setMedal au rang top3 + updateTier + #menu-tier dans le HTML + médailles sur les cartes de niveaux', mainSrc.includes('store.setMedal(runMode, level.id, i + 1)') && mainSrc.includes('function updateTier()') && html.includes('id="menu-tier"') && mainSrc.includes("['🥇', '🥈', '🥉'][md - 1]"));
+
+  // #25 saison hebdo
+  ok('leaderboard.js : submitSeason + getSeasonAll (nœud /seasons/<week>/<mode>, rate-limit partagé)', lbSrc.includes('export async function submitSeason') && lbSrc.includes('/seasons/${week}/${modeOf(entry)}.json') && lbSrc.includes('export async function getSeasonAll'));
+  ok('rules : nœud seasons (read public + write create-only/uid/lines/aids) + indexOn', rules.seasons && rules.seasons['$week']['$mode']['$id']['.write'].includes('!data.exists()') && rules.seasons['$week']['$mode']['$id']['.write'].includes('lines') && rules.seasons['$week']['$mode']['.indexOn'].includes('score'));
+  ok('main.js : onglet 🗓️ Saison + branche isSeason (getSeasonAll(weekKey())) + envoi submitSeason à la fin de partie', mainSrc.includes("{ id: 'season', name: '🗓️ Saison' }") && mainSrc.includes('getSeasonAll(weekKey()') && mainSrc.includes('leaderboard.submitSeason(weekKey()'));
+
+  // #18 écran de fin : partage + rang animé
+  ok('main.js : btn-share (Web Share + repli presse-papiers) + lastShare + rang animé (#N compte)', mainSrc.includes("on('btn-share', 'click'") && mainSrc.includes('navigator.share') && mainSrc.includes('navigator.clipboard.writeText') && mainSrc.includes('let lastShare = null;') && mainSrc.includes('setInterval') && html.includes('id="btn-share"'));
+
+  // #14 nouveaux défis du jour
+  ok("core : CHALLENGE_KINDS + 'nomiss' + 'maxcombo' + main.js branches de validation", coreSrc.includes("id: 'nomiss'") && coreSrc.includes("id: 'maxcombo'") && mainSrc.includes("dc.kind === 'nomiss'") && mainSrc.includes("dc.kind === 'maxcombo'"));
+
+  // #13 niveau hebdo + #10 récompenses visibles + #12 boss
+  ok('data.js : WEEKLY_LEVEL (id 900, weekly) + niveaux 5/10/15 boss:true + thèmes halloween/noel/ete dans THEMES et THEME_SHOP',
+    dataSrc.includes('export const WEEKLY_LEVEL') && dataSrc.includes('weekly: true') && (dataSrc.match(/boss: true/g) || []).length === 3 && dataSrc.includes("id: 'halloween'") && dataSrc.includes("id: 'noel'") && dataSrc.includes("id: 'ete'") && dataSrc.includes('Thème Halloween'));
+  ok('main.js : WEEKLY_LEVEL affiché le week-end + carte avec bonus 1er clear / paliers Survie + 👹 boss', mainSrc.includes('[WEEKEND_LEVEL, WEEKLY_LEVEL]') && mainSrc.includes('firstClearBonus(l)') && mainSrc.includes('paliers 25/50/100') && mainSrc.includes("l.boss ? ' 👹'"));
+
+  // #9 courbe lissée
+  ok('core.buildPattern : gapMin plancher 260 + pDouble plafonné 0,35 (boss 0,45 min)', coreSrc.includes('Math.max(260, Number.isFinite(level.gapMin)') && coreSrc.includes('Math.min(level.pDouble || 0, 0.35)') && coreSrc.includes('Math.max(level.pDouble || 0, 0.45)'));
+
+  // #21 icône saisonnière
+  ok('main.js : applySeasonIcon (mois -> svg) au boot + 3 fichiers icons/*.svg + manifest + sw ASSETS', mainSrc.includes('function applySeasonIcon()') && mainSrc.includes('applySeasonIcon();') && manifest.icons.some((i) => i.src === 'icons/icon-halloween.svg') && swSrc.includes("'./icons/icon-noel.svg'") && fsB5.existsSync(new URL('../icons/icon-ete.svg', import.meta.url)));
 }
 
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);

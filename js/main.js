@@ -1,8 +1,8 @@
-import { LEVELS, THEMES, SKINS, EFFECTS, DIFFICULTIES, CURRENCIES, WINDOWS, ACHIEVEMENTS, THEME_SHOP, ENDLESS_LEVEL, WEEKEND_LEVEL, PACKS, SOUND_PACKS } from './data.js';
+import { LEVELS, THEMES, SKINS, EFFECTS, DIFFICULTIES, CURRENCIES, WINDOWS, ACHIEVEMENTS, THEME_SHOP, ENDLESS_LEVEL, WEEKEND_LEVEL, WEEKLY_LEVEL, PACKS, SOUND_PACKS } from './data.js';
 import { Game, CAR_STYLE_LABEL, renderCarPreview, renderEffectPreview, renderThemePreview, renderPackPreview, renderSoundPreview } from './game.js';
 import * as store from './store.js';
 import { sfx, setEnabled, setMusicEnabled, unlockAudio, applySoundPack, setMusicCombo, musicSting, musicVictory, scheduleLineBeat, clearLineBeats, musicKick, musicLineAnchor } from './audio.js';
-import { coinsForResult, accuracy, avgReaction, biasReaction, levelSeed, maxMissesFor, firstClearBonus, isPerfectClear, perfectClearBonus, dailyChallenge, weeklyQuests, fmtTime, zoneFromPoint, keyToAction, isNewerVersion, starsFor, endlessMilestones, isWeekend, weekendCoinMultiplier, filterFriendsByPseudo, canSubmitToLeaderboard, keyLabel, reactionBonus } from './core.js';
+import { coinsForResult, accuracy, avgReaction, biasReaction, levelSeed, weekKey, tierOf, maxMissesFor, firstClearBonus, isPerfectClear, perfectClearBonus, dailyChallenge, weeklyQuests, fmtTime, zoneFromPoint, keyToAction, isNewerVersion, starsFor, endlessMilestones, isWeekend, weekendCoinMultiplier, filterFriendsByPseudo, canSubmitToLeaderboard, keyLabel, reactionBonus } from './core.js';
 import { watchRewarded } from './ads.js';
 import { Tutorial } from './tutorial.js';
 import * as leaderboard from './leaderboard.js';
@@ -233,7 +233,7 @@ function renderLbFilter() {
   const el = $('#lb-filter');
   if (!el) return;
   el.innerHTML = '';
-  const opts = [...DIFFICULTIES, { id: 'reaction', name: '⚡ Réaction' }]; // v1.3.68 : onglet Speedrun retiré (les temps s'affichent en colonne dans chaque difficulté) — v1.3.50 : plus d'option « Tous »
+  const opts = [...DIFFICULTIES, { id: 'reaction', name: '⚡ Réaction' }, { id: 'season', name: '🗓️ Saison' }]; // v1.3.68 : onglet Speedrun retiré — v1.3.81 #25 : onglet Saison hebdo
   for (const d of opts) {
     const b = document.createElement('button');
     b.className = 'btn small diff-btn' + (lbFilter === d.id ? ' active' : '');
@@ -250,7 +250,7 @@ function renderLbFilter() {
 }
 
 // v1.3.67 : nom du niveau affiché = LEVEL_NAMES[levelId] (les vieilles entrées ont level brut ex. 'L 1')
-const LEVEL_NAME_BY_ID = { ...Object.fromEntries(LEVELS.map((l) => [l.id, l.name])), [ENDLESS_LEVEL.id]: ENDLESS_LEVEL.name, [WEEKEND_LEVEL.id]: WEEKEND_LEVEL.name };
+const LEVEL_NAME_BY_ID = { ...Object.fromEntries(LEVELS.map((l) => [l.id, l.name])), [ENDLESS_LEVEL.id]: ENDLESS_LEVEL.name, [WEEKEND_LEVEL.id]: WEEKEND_LEVEL.name, [WEEKLY_LEVEL.id]: WEEKLY_LEVEL.name }; // v1.3.81 #13
 const levelLabel = (e) => (e && e.levelId != null && LEVEL_NAME_BY_ID[Number(e.levelId)]) || (e && e.level) || '';
 
 async function renderLeaderboard() {
@@ -258,11 +258,16 @@ async function renderLeaderboard() {
   list.innerHTML = '<div class="card-sub">Chargement…</div>';
   const isSr = lbFilter === 'speedrun'; // v1.3.31 : classement speedrun (temps, tri croissant)
   const isReact = lbFilter === 'reaction'; // v1.3.48 : classement par temps de réaction moyen (croissant)
+  const isSeason = lbFilter === 'season'; // v1.3.81 #25 : classement de la semaine (reset lundi)
   let top = [];
   let timeByPlayer = null; // v1.3.68 : map joueur -> meilleur temps speedrun (colonne ⏱)
   let timeLevelByPlayer = null; // v1.3.74 : map joueur -> { timeMs, levelId } du meilleur temps (niveau affiché en « Tous niveaux »)
   try {
-    if (isReact) {
+    if (isSeason) {
+      // v1.3.81 #25 : saison hebdo — nœud /seasons/<weekKey>/<mode>, mêmes règles que scores
+      const all = await leaderboard.getSeasonAll(weekKey(), 'all');
+      top = leaderboard.dedupeByPlayer(leaderboard.filterLevel(all, lbLevelFilter), 'score');
+    } else if (isReact) {
       // v1.3.48 : « ⚡ Réaction » — meilleur temps de réaction moyen de tout le monde (tri croissant avgMs)
       const all = await leaderboard.getAll('all');
       let arr = all.filter((e) => typeof e.avgMs === 'number' && Number.isFinite(e.avgMs));
@@ -285,7 +290,8 @@ async function renderLeaderboard() {
       } catch { timeByPlayer = null; timeLevelByPlayer = null; }
     }
     // v1.3.70 : tri Score (défaut) ou Temps — on voit le meilleur score ET le meilleur temps
-    if (!isReact) top = leaderboard.sortLbRows(top, lbSort, timeByPlayer);
+    if (!isReact && !isSeason) top = leaderboard.sortLbRows(top, lbSort, timeByPlayer);
+    else if (isSeason) top = leaderboard.sortLbRows(top, lbSort, null); // v1.3.81 : tri saison (score/temps sans map speedrun)
     top = top.slice(0, 50);
   } catch {
     top = [];
@@ -296,7 +302,7 @@ async function renderLeaderboard() {
   if (!leaderboard.isOnline()) {
     srcEl.textContent = 'Classement local — configure Firebase dans js/config.js pour un classement en ligne (voir README)';
   } else if (st && st.source === 'firebase') {
-    srcEl.textContent = `${isSr ? '⏱ Classement speedrun' : isReact ? '⚡ Classement réaction' : 'Classement'} en ligne (Firebase) — ${st.count} ${isSr ? 'temps' : isReact ? 'réactions' : 'score(s)'} chargé(s)${lbLevelFilter !== 'all' || lbScope === 'friends' ? ` — ${top.length} affiché(s) ici` : ''}` + (st.error ? ` — ⚠ ${st.error}` : ''); // v1.3.67 : compte = lignes affichées quand filtre actif
+    srcEl.textContent = `${isSeason ? '🗓️ Saison hebdo' : isSr ? '⏱ Classement speedrun' : isReact ? '⚡ Classement réaction' : 'Classement'} en ligne (Firebase) — ${st.count} ${isSr ? 'temps' : isReact ? 'réactions' : 'score(s)'} chargé(s)${lbLevelFilter !== 'all' || lbScope === 'friends' ? ` — ${top.length} affiché(s) ici` : ''}` + (st.error ? ` — ⚠ ${st.error}` : ''); // v1.3.67/v1.3.81
   } else if (st && st.error) {
     srcEl.textContent = `⚠ ${isSr ? 'Speedrun' : 'Firebase'} injoignable ou refusé : ${st.error} — affichage local`;
   } else {
@@ -664,7 +670,7 @@ function renderLevels() {
   list.innerHTML = '';
   const allDone = LEVELS.every((lv) => store.isCleared(lv.id));
   // v1.3.36 : niveau spécial de l'événement week-end, affiché UNIQUEMENT samedi/dimanche (core.isWeekend)
-  const levelsShown = [ENDLESS_LEVEL, ...(isWeekend() ? [WEEKEND_LEVEL] : []), ...LEVELS];
+  const levelsShown = [ENDLESS_LEVEL, ...(isWeekend() ? [WEEKEND_LEVEL, WEEKLY_LEVEL] : []), ...LEVELS]; // v1.3.81 #13 : niveau hebdo en plus le week-end
   for (const l of levelsShown) {
     // Survie ∞ : débloquée seulement quand les 15 niveaux sont terminés au moins une fois
     const locked = l.endless ? !allDone : l.cost > 0 && !save.unlockedLevels.includes(l.id);
@@ -673,15 +679,16 @@ function renderLevels() {
     const c = cur(l.diff || 'auto');
     const best = store.getBest(save.difficulty, l.id); // v1.3.44 : record isolé par difficulté (mode joué)
     const bt = store.getBestTime(save.difficulty, l.id); // v1.3.19/v1.3.44 : record speedrun, par difficulté
-    const medal = save.trophies[l.id] ? ' 🥇' : '';
+    const md = store.getMedal(save.difficulty, l.id); // v1.3.81 #22
+    const medal = (md ? ' ' + ['🥇', '🥈', '🥉'][md - 1] : '') + (save.trophies[l.id] ? ' 🥇' : '') + (l.boss ? ' 👹' : ''); // #22 médailles + #12 boss
     const starsTxt = save.stars[l.id] ? ' ' + '⭐'.repeat(Math.min(3, save.stars[l.id])) : ''; // v1.3.35
     const card = document.createElement('div');
     card.className = 'card';
     card.innerHTML = `
       <canvas class="card-theme level-preview" aria-label="Aperçu ${l.name}"></canvas>
       <div class="card-body">
-        <div class="card-title">${l.weekend ? '🎉 ' : ''}${l.endless ? '∞' : l.id}. ${l.name}${medal}${starsTxt}</div>
-        <div class="card-sub">${THEMES[l.theme].name} · ${l.weekend ? 'événement week-end : pièces ×2 !' : l.endless ? 'vitesse croissante' : `vitesse ${l.speed} · ${l.lines} lignes`}</div>
+        <div class="card-title">${l.weekend ? '🎉 ' : l.weekly ? '🗓️ ' : ''}${l.endless ? '∞' : l.id}. ${l.name}${medal}${starsTxt}</div>
+        <div class="card-sub">${THEMES[l.theme].name} · ${l.weekend ? 'événement week-end : pièces ×2 !' : l.weekly ? 'niveau hebdo thématique 🗓️' : l.endless ? 'vitesse croissante · paliers 25/50/100 lignes 🏆' : `vitesse ${l.speed} · ${l.lines} lignes · +${firstClearBonus(l)} ${cur(l.diff || 'auto').icon} au 1er clear`}</div>
         <div class="card-best">${best ? `🏆 Record : ${best}` : ''}${bt ? `${best ? ' · ' : ''}⏱ ${fmtTime(bt / 1000)}` : ''}</div>
       </div>
       <button class="btn small">${locked ? (l.endless ? '🔒 15 niveaux à finir' : canBuy ? `🔒 ${l.cost} ${c.icon}` : `🔒 termine le niveau ${l.id - 1} en entier`) : '▶ Jouer'}</button>`;
@@ -1069,6 +1076,32 @@ async function replayHash(rep) {
   return out.slice(0, 64);
 }
 let lastRun = null; // v1.3.79 : { mode, levelId } du dernier run terminé (bouton « voir le replay »)
+let lastShare = null; // v1.3.81 #18 : { score, timeMs, levelName, modeName, rank } pour le bouton partager
+function updateTier() { // v1.3.81 #23 : tier affiché dans le menu (médailles de niveau)
+  const el = $('#menu-tier');
+  if (!el) return;
+  const t = tierOf(save.medals || {});
+  el.textContent = `${t.icon} Tier ${t.name} — ${t.pts} pts de médailles`;
+}
+updateTier();
+// v1.3.81 #21 : icône PWA saisonnière (favicon/masque selon le mois)
+function applySeasonIcon() {
+  const m = new Date().getMonth();
+  const icon = m === 9 ? 'icons/icon-halloween.svg' : m === 11 ? 'icons/icon-noel.svg' : (m >= 5 && m <= 7) ? 'icons/icon-ete.svg' : 'icons/icon-192.png';
+  document.querySelectorAll('link[rel="icon"], link[rel="apple-touch-icon"]').forEach((l) => { l.href = icon; });
+}
+applySeasonIcon();
+on('btn-share', 'click', async () => { // v1.3.81 #18 : carte de score partageable (Web Share API, repli presse-papiers)
+  if (!lastShare) return;
+  const s = lastShare;
+  const txt = `🏁 ${s.score} pts · ⏱ ${fmtTime((s.timeMs || 0) / 1000)}${s.rank ? ` · #${s.rank} ` : ' '}sur ${s.levelName} (${s.modeName}) — Road Tap Racer https://roadtap.uk`;
+  try {
+    if (navigator.share) await navigator.share({ title: 'Road Tap Racer', text: txt });
+    else { await navigator.clipboard.writeText(txt); toast('📋 Score copié dans le presse-papiers !'); }
+  } catch {
+    try { await navigator.clipboard.writeText(txt); toast('📋 Score copié !'); } catch { toast(txt); }
+  }
+});
 
 function startLevel(level, replayRep = null) {
   currentLevel = level;
@@ -1217,6 +1250,8 @@ async function onGameEnd(stats, level) {
       })
       .catch(() => {});
   }
+    // v1.3.81 #25 : le score est aussi envoyé à la saison hebdomadaire (reset lundi, weekKey)
+    leaderboard.submitSeason(weekKey(), { pseudo: save.pseudo, uid: save.uid || '', score: stats.score, level: level.name, levelId: level.id, mode: save.difficulty, date: Date.now(), lines: linesCount }, getAuthToken()).catch(() => {});
   // v1.3.68 : si le résultat n'est PAS envoyé au classement en ligne, on dit POURQUOI (sinon « mon score n'apparaît pas »)
   if (!canSubmitToLeaderboard(save)) {
     if (save.wideWindows) toast('♿ Fenêtres élargies actives : résultat gardé en local, hors classement en ligne');
@@ -1265,7 +1300,22 @@ async function onGameEnd(stats, level) {
       else if (st2 && st2.writeError) parts.push(`⚠️ envoi refusé par le serveur — hors classement en ligne (${st2.writeError})`);
       else parts.push('🏁 score pas encore visible en ligne (local ?) — ouvre le classement');
       if (stats.completed) parts.push(j >= 0 ? `⏱ ${fmtTime((stats.timeMs || 0) / 1000)} → #${j + 1} au classement speedrun — ${level.name} (${modeName})` : '⏱ temps pas encore visible en ligne…');
-      el.textContent = parts.join(' · ') + (leaderboard.isOnline() ? '' : ' — classement local (envoyé à la reconnexion)');
+      const full = parts.join(' · ') + (leaderboard.isOnline() ? '' : ' — classement local (envoyé à la reconnexion)');
+      if (i >= 0 && i < 3 && !isReplay) store.setMedal(runMode, level.id, i + 1); // v1.3.81 #22 : médaille selon le rang (top 3)
+      lastShare = { score: stats.score, timeMs: stats.timeMs || 0, levelName: level.name, modeName, rank: i >= 0 ? i + 1 : 0 }; // v1.3.81 #18
+      updateTier(); // v1.3.81 #23
+      if (i >= 0) { // v1.3.81 #18 : le rang compte jusqu'à #N (animation courte)
+        const target = i + 1;
+        let curN = Math.max(1, target - 8);
+        el.textContent = full.replace(`#${target}`, `#${curN}`);
+        const iv = setInterval(() => {
+          curN++;
+          if (curN >= target) { clearInterval(iv); el.textContent = full; }
+          else el.textContent = full.replace(`#${target}`, `#${curN}`);
+        }, 70);
+      } else {
+        el.textContent = full;
+      }
     } catch { /* lecture KO -> on laisse vide */ }
   })();
   pushCloud();
@@ -1297,6 +1347,8 @@ async function onGameEnd(stats, level) {
     else if (dc.kind === 'combo') ok = stats.bestCombo >= dc.target;
     else if (dc.kind === 'overtakes') ok = (stats.overtakes || 0) >= dc.target;
     else if (dc.kind === 'complete') ok = !!stats.completed;
+    else if (dc.kind === 'nomiss') ok = !!stats.completed && (stats.misses || 0) === 0 && (stats.lines || 0) >= dc.target; // v1.3.81 #14
+    else if (dc.kind === 'maxcombo') ok = (stats.bestCombo || 0) >= dc.target; // v1.3.81 #14
     if (ok) {
       store.markChallengeDone(dc.id);
       store.addCoins(dc.mode, dc.reward);

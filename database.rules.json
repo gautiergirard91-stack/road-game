@@ -22,6 +22,19 @@
         ]
       }
     },
+    "seasons": {
+      ".read": true,
+      "$week": {
+        "$mode": {
+          "$id": {
+            ".write": "!data.exists() && newData.exists() && newData.hasChildren(['pseudo','score','level','mode','date','lines']) && auth != null && newData.child('uid').val() == auth.uid && newData.child('score').val() <= 1000000 && newData.child('lines').val() >= 1 && newData.child('lines').val() <= 10000 && newData.child('score').val() <= newData.child('lines').val() * 250 && newData.child('pseudo').val().length <= 16 && newData.child('aids').val() != true && newData.child('wideWindows').val() != true"
+          },
+          ".indexOn": [
+            "score"
+          ]
+        }
+      }
+    },
     "challenges": {
       ".read": true,
       "$day": {

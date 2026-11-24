@@ -34,7 +34,7 @@ export function buildPattern(level, seed, mode = 'auto') {
   if (!types.length) types = ['dash']; // v1.3.27 : poids corrompus -> dash par défaut
   // v1.3.27 : jamais de boucle infinie, même avec un level bidouillé (lines = NaN/Infinity/énorme)
   const nLines = Math.max(1, Math.min(Math.floor(Number(level.lines)) || 1, 10000));
-  const gapMin = Number.isFinite(level.gapMin) ? level.gapMin : 540;
+  const gapMin = Math.max(260, Number.isFinite(level.gapMin) ? level.gapMin : 540); // v1.3.81 #9 : plancher 260 px — courbe de difficulté lissée (niveaux 6-15)
   const gapMax = Number.isFinite(level.gapMax) && level.gapMax >= gapMin ? level.gapMax : gapMin + 180;
   const axle = () => (mode === 'auto' ? 'rear' : rand() < 0.5 ? 'front' : 'rear');
   const lines = [];
@@ -56,7 +56,7 @@ export function buildPattern(level, seed, mode = 'auto') {
     const gap = gapMin + rand() * (gapMax - gapMin);
     dist += gap;
     lines.push({ type, dist, axle: axle() });
-    if (rand() < (level.pDouble || 0)) {
+    if (rand() < (level.boss ? Math.max(level.pDouble || 0, 0.45) : Math.min(level.pDouble || 0, 0.35))) { // v1.3.81 : #9 pDouble plafonné à 0,35 ; #12 boss = 0,45 min
       dist += 130;
       lines.push({ type: 'dash', dist, axle: axle() });
     }
@@ -262,6 +262,26 @@ export function dayKey(d = new Date()) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+// v1.3.81 : #23 — tiers de rang (Bronze -> Légende), calculés sur les médailles de niveau (or=3, argent=2, bronze=1 pts)
+export const TIERS = [
+  { id: 'bronze', name: 'Bronze', min: 0, icon: '🥉' },
+  { id: 'argent', name: 'Argent', min: 10, icon: '🥈' },
+  { id: 'or', name: 'Or', min: 25, icon: '🥇' },
+  { id: 'platine', name: 'Platine', min: 45, icon: '💠' },
+  { id: 'diamant', name: 'Diamant', min: 70, icon: '💎' },
+  { id: 'legende', name: 'Légende', min: 100, icon: '👑' },
+];
+export function tierOf(medals) {
+  let pts = 0;
+  for (const k of Object.keys(medals || {})) {
+    const m = Number(medals[k]);
+    if (m >= 1 && m <= 3) pts += 4 - m;
+  }
+  let t = TIERS[0];
+  for (const x of TIERS) if (pts >= x.min) t = x;
+  return { ...t, pts };
+}
+
 export function weekKey(d = new Date()) {
   const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
   x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); // lundi de la semaine
@@ -309,6 +329,8 @@ const CHALLENGE_KINDS = [
   { id: 'combo', label: (t) => `Atteindre un combo x${t}`, min: 5, step: 2 },
   { id: 'overtakes', label: (t) => `${t} dépassement(s)`, min: 1, step: 1 },
   { id: 'complete', label: () => 'Terminer le niveau', min: 1, step: 1 },
+  { id: 'nomiss', label: (t) => `0 raté sur ${t} lignes`, min: 10, step: 10 }, // v1.3.81 #14
+  { id: 'maxcombo', label: (t) => `Combo max x${t}`, min: 8, step: 3 }, // v1.3.81 #14
 ];
 
 // Défi du jour : identique pour tous les joueurs (dérivé de la date), avec son classement Firebase
