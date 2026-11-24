@@ -1,6 +1,6 @@
 # ✅ Assurance qualité
 
-> **Note (v1.3.77)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.79**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
+> **Note (v1.3.77)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.80**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
 
 ## Processus de test
 
@@ -690,3 +690,15 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - Bouton **▶ Voir mon replay** à l'écran de fin : rejoue le run en mode lecture (badge ▶ REPLAY, entrées ignorées, rien n'est envoyé au classement).
 - **Rate-limit doux client** : min 3 s entre 2 écritures en ligne (trop tôt = mis en file hors-ligne).
 - Tests : break section BC (470 assertions), smoke 11ᵉ scénario (replay rejoué, entrée joueur ignorée) ; audit OK.
+
+
+## v1.3.80 — accessibilité P0 (#6/#15/#16/#17/#19/#27/#29)
+
+- **#6 Gros doigts** : zones tactiles 60/40 (ratio `zoneFromPoint`) + seuil de swipe 25 px (option Paramètres).
+- **#15 Animations réduites** : plus de shake/particules/flash en jeu + transitions CSS coupées (`body.reduce-anims`) — photosensibilité.
+- **#16 Contraste élevé** : thème `highcontrast` (fond noir pur, lignes blanches) prioritaire sur le thème du niveau.
+- **#17 Taille du texte** : petit/moyen/grand via `html[data-textsize]` (UI uniquement, pas le canvas).
+- **#19 ARIA** : `#sr-live` (aria-live) alimenté par chaque toast, dialog `aria-modal` pour la modale d'aide.
+- **#27 Marqueur du 0 ms** : flash de la ligne quand elle passe exactement sous l'essieu — **hors classement** (`canSubmitToLeaderboard` refuse, règle `aids != true` ajoutée à scores/speedrun/challenges — **redéployer les règles**).
+- **#29 Infobulle « 0 ms »** : modale avec schéma SVG (boutons ❓ en jeu, niveaux, paramètres) — explique le 0 ms, la fenêtre symétrique ±45 ms, le beat audio, la stat ⚡.
+- Tests : break section BD (483 assertions) ; audit OK ; triple bump v1.3.80/roadtap-v88.

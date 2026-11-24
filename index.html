@@ -41,6 +41,7 @@
       <span id="hud-time">0:00.00</span>
       <span id="hud-coins">🪙 0</span>
       <button id="btn-pause" aria-label="Pause">⏸</button>
+      <button id="btn-hud-help" aria-label="Aide : où viser (0 ms)">❓</button>
     </div>
   </div>
 
@@ -73,6 +74,12 @@
       <label class="lb-optin"><input type="checkbox" id="s-opt-widewindows"> Fenêtres de timing élargies (±70/150/240 ms) — <b>hors classement</b></label>
       <label class="lb-optin"><input type="checkbox" id="s-opt-colorblind"> Symboles sur les lignes (mode daltonien)</label>
       <label class="lb-optin"><input type="checkbox" id="s-opt-zones-h"> ⬆⬇ Zones <b>haut/bas</b> : haut = roues AV, bas = roues AR (défaut : gauche = AV ⬅, droite = AR ➡)</label>
+      <label class="lb-optin"><input type="checkbox" id="s-opt-bigtargets"> 👆 <b>Gros doigts</b> : zones 60/40 + swipe 25 px</label>
+      <label class="lb-optin"><input type="checkbox" id="s-opt-reduceanims"> ✨ <b>Animations réduites</b> (pas de shake/particules/flash — photosensibilité)</label>
+      <label class="lb-optin"><input type="checkbox" id="s-opt-highcontrast"> ◼️ <b>Contraste élevé</b> (fond noir, lignes blanches épaisses)</label>
+      <label class="lb-optin"><input type="checkbox" id="s-opt-hitmarker"> 🎯 <b>Marqueur du 0 ms</b> : la ligne flashe quand elle passe sous la roue — <b>hors classement</b></label>
+      <div class="key-row"><span class="key-name">Taille du texte</span><select id="s-opt-textsize" aria-label="Taille du texte"><option value="small">Petit</option><option value="medium">Moyen</option><option value="large">Grand</option></select></div>
+      <button class="btn secondary" id="btn-help-timing">🎯 Comprendre le « 0 ms » (schéma)</button>
 
       <div class="picker-label">🔊 Audio</div>
       <button class="btn secondary" id="btn-set-sound">🔊 Son : ON</button>
@@ -106,6 +113,7 @@
     <header class="topbar">
       <button class="btn back" id="btn-levels-back">←</button>
       <h2>Niveaux</h2>
+      <button class="btn small" id="btn-help-timing-levels" aria-label="Aide : où viser (0 ms)">❓</button>
       <div class="coins-display">🪙 0</div>
     </header>
     <div class="picker-label">Difficulté</div>
@@ -281,5 +289,33 @@
   <div id="toast"></div>
 
   <script type="module" src="js/main.js"></script>
+
+  <div id="sr-live" class="sr-only" aria-live="polite"></div> <!-- v1.3.80 #19 : annonces lecteur d'écran -->
+
+  <div id="modal-timing" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modal-timing-title">
+    <div class="panel">
+      <h2 id="modal-timing-title">🎯 Où viser ? Le « 0 ms »</h2>
+      <svg viewBox="0 0 320 200" role="img" aria-label="Schéma : la ligne blanche doit passer exactement sous la roue au moment du tap">
+        <rect x="0" y="0" width="320" height="200" fill="#000"/>
+        <rect x="110" y="0" width="100" height="200" fill="#1a1a1a"/>
+        <line x1="110" y1="0" x2="110" y2="200" stroke="#fff" stroke-width="3"/>
+        <line x1="210" y1="0" x2="210" y2="200" stroke="#fff" stroke-width="3"/>
+        <line x1="110" y1="60" x2="210" y2="60" stroke="#fff" stroke-width="6" stroke-dasharray="14 10"/>
+        <text x="6" y="52" fill="#fff" font-size="11">ligne blanche</text>
+        <rect x="135" y="120" width="50" height="70" rx="8" fill="#4af" stroke="#fff" stroke-width="2"/>
+        <rect x="135" y="120" width="50" height="7" fill="#fff"/>
+        <rect x="135" y="183" width="50" height="7" fill="#fff"/>
+        <text x="192" y="126" fill="#fff" font-size="10">essieu AV (Z / gauche)</text>
+        <text x="192" y="192" fill="#fff" font-size="10">roues AR (S / droite)</text>
+        <line x1="222" y1="120" x2="222" y2="62" stroke="#ff0" stroke-width="2"/>
+        <path d="M218,66 L222,58 L226,66 z" fill="#ff0"/>
+        <text x="230" y="95" fill="#ff0" font-size="11">défile ↑</text>
+        <text x="6" y="176" fill="#9f9" font-size="11">0 ms = ligne pile sous la roue tapée</text>
+        <text x="6" y="192" fill="#9f9" font-size="11">PARFAIT ±45 ms · BIEN ±100 · OK ±160 (symétrique)</text>
+      </svg>
+      <p>Le <b>0 ms</b> = la ligne blanche <b>exactement sous la roue</b> que tu tapes (essieu AV = <b>Z</b> / zone <b>gauche</b>, roues AR = <b>S</b> / zone <b>droite</b>). La fenêtre est <b>symétrique</b> : un tap jusqu'à <b>45 ms avant</b> la ligne est aussi <b>PARFAIT</b>. Le « tic » audio joue exactement à 0 ms. Ta stat ⚡ = l'écart moyen en ms à ce moment : plus elle est proche de 0, mieux tu classes.</p>
+      <button class="btn" id="btn-timing-close">Compris !</button>
+    </div>
+  </div>
 </body>
 </html>
