@@ -109,7 +109,7 @@ function loadLbFilters() {
       if (typeof o.filter === 'string') lbFilter = o.filter;
       if (typeof o.level === 'string') lbLevelFilter = o.level;
       if (typeof o.scope === 'string') lbScope = o.scope;
-      if (o.sort === 'score' || o.sort === 'time') lbSort = o.sort; // v1.3.70
+      if (o.sort === 'score' || o.sort === 'time' || o.sort === 'reaction') lbSort = o.sort; // v1.3.70/73
       lbFiltersLoaded = true;
     }
   } catch { /* ignore */ }
@@ -225,13 +225,16 @@ function renderLbLevelFilter() {
   }
 }
 
-// v1.3.70 : tri du classement Score ⇄ Temps (persisté)
+// v1.3.70/73 : tri du classement (persisté) — cycle 🏁 Score → ⏱ Temps → ⚡ Réaction
+function lbSortLabel() {
+  return lbSort === 'time' ? 'Trier : ⏱ Temps' : lbSort === 'reaction' ? 'Trier : ⚡ Réaction' : 'Trier : 🏁 Score';
+}
 on('lb-sort', 'click', () => {
-  lbSort = lbSort === 'score' ? 'time' : 'score';
+  lbSort = lbSort === 'score' ? 'time' : lbSort === 'time' ? 'reaction' : 'score'; // v1.3.73 : cycle à 3
   saveLbFilters();
   sfx.click();
   const b = $('#lb-sort');
-  if (b) b.textContent = lbSort === 'time' ? 'Trier : ⏱ Temps' : 'Trier : 🏁 Score';
+  if (b) b.textContent = lbSortLabel();
   renderLeaderboard();
 });
 
@@ -670,6 +673,7 @@ function renderLevels() {
     const locked = l.endless ? !allDone : l.cost > 0 && !save.unlockedLevels.includes(l.id);
     // v1.3.17 : achat du niveau N autorisé seulement si le niveau N-1 a été TERMINÉ EN ENTIER
     const canBuy = !locked || l.id === 1 || store.isCleared(l.id - 1);
+    const srLocked = save.speedrun && !l.endless && !store.isCleared(l.id); // v1.3.73 : speedrun verrouillé tant que le niveau n'est pas terminé en mode normal
     const c = cur(l.diff || 'auto');
     const best = store.getBest(save.difficulty, l.id); // v1.3.44 : record isolé par difficulté (mode joué)
     const bt = store.getBestTime(save.difficulty, l.id); // v1.3.19/v1.3.44 : record speedrun, par difficulté
@@ -684,7 +688,7 @@ function renderLevels() {
         <div class="card-sub">${THEMES[l.theme].name} · ${l.weekend ? 'événement week-end : pièces ×2 !' : l.endless ? 'vitesse croissante' : `vitesse ${l.speed} · ${l.lines} lignes`}</div>
         <div class="card-best">${best ? `🏆 Record : ${best}` : ''}${bt ? `${best ? ' · ' : ''}⏱ ${fmtTime(bt / 1000)}` : ''}</div>
       </div>
-      <button class="btn small">${locked ? (l.endless ? '🔒 15 niveaux à finir' : canBuy ? `🔒 ${l.cost} ${c.icon}` : `🔒 termine le niveau ${l.id - 1} en entier`) : '▶ Jouer'}</button>`;
+      <button class="btn small">${locked ? (l.endless ? '🔒 15 niveaux à finir' : canBuy ? `🔒 ${l.cost} ${c.icon}` : `🔒 termine le niveau ${l.id - 1} en entier`) : (srLocked ? '🔒 ⏱ normal d’abord' : '▶ Jouer')}</button>`;
     card.querySelector('button').addEventListener('click', () => {
       sfx.click();
       if (locked) {
@@ -709,6 +713,11 @@ function renderLevels() {
           toast(`Il te manque ${l.cost - store.getWallet(l.diff || 'auto')} ${c.icon} (${c.name})`);
         }
       } else {
+        // v1.3.73 : speedrun d'un niveau = seulement s'il a déjà été terminé en mode normal
+        if (save.speedrun && !l.endless && !store.isCleared(l.id)) {
+          toast(`⏱ Speedrun verrouillé : termine d'abord le niveau ${l.id} « ${l.name} » en mode normal !`);
+          return;
+        }
         ensurePseudoThen(() => startLevel(l)); // v1.3.29 : pseudo obligatoire avant de jouer
       }
     });
@@ -1049,6 +1058,11 @@ function renderGarage() {
 
 function startLevel(level) {
   currentLevel = level;
+  // v1.3.73 : garde en profondeur — pas de speedrun sur un niveau jamais terminé en normal
+  if (save.speedrun && !level.endless && !store.isCleared(level.id)) {
+    toast(`⏱ Speedrun verrouillé : termine d'abord « ${level.name} » en mode normal !`);
+    return;
+  }
   setMusicCombo(0); // v1.3.42 : nouvelle partie -> intensité musicale à 0  unlockAudio(); // v1.3.65 : contexte audio repris ici (geste « Jouer ») -> pas de freeze au 1er tap
   setMusicEnabled(save.music && save.sound); // v1.3.65 : musique ON dès le début de la partie
   musicKick(); // v1.3.65 : resynchronise le séquenceur -> la musique démarre immédiatement
@@ -1138,7 +1152,7 @@ function onGameEnd(stats, level) {
   const isTimeRecord = sr && stats.completed ? store.setBestTime(runMode, level.id, stats.timeMs || 0) : false;
   store.addTotals({ runs: 1, perfects: stats.perfects, overtakes: stats.overtakes || 0 });
   // v1.3.17 : niveau "terminé" = partie complétée en entier (débloque l'achat du suivant)
-  if (stats.completed) store.markCleared(level.id);
+  if (stats.completed && !sr) store.markCleared(level.id); // v1.3.73 : « terminé » = mode NORMAL uniquement (le speedrun d'un niveau exige de l'avoir d'abord terminé en normal)
   // v1.3.35 : étoiles du niveau (1 terminé / 2 si >=60% PARFAIT / 3 full parfait) — on garde le max
   const stars = stats.completed ? starsFor(stats) : 0;
   if (stars > (save.stars[level.id] || 0)) store.setStars(level.id, stars);
@@ -1555,7 +1569,7 @@ on('btn-leaderboard', 'click', () => {
   }
   if (lbFilter === 'speedrun') { lbFilter = save.difficulty; saveLbFilters(); } // v1.3.68 : onglet speedrun supprimé -> on retombe sur la difficulté courante
   const sortBtn = $('#lb-sort'); // v1.3.70 : label du tri courant
-  if (sortBtn) sortBtn.textContent = lbSort === 'time' ? 'Trier : ⏱ Temps' : 'Trier : 🏁 Score';
+  if (sortBtn) sortBtn.textContent = lbSortLabel(); // v1.3.73
   leaderboard.flushQueue(getAuthToken(), save.uid); // v1.3.66 : file hors ligne vidée si possible
   renderLbScope(); // v1.3.36 : onglets 🌍 Tous / 👥 Amis
   renderFriends();
@@ -1770,12 +1784,14 @@ on('btn-mode-normal', 'click', () => {
   store.setSpeedrun(false);
   sfx.click();
   renderModePicker();
+  renderLevels(); // v1.3.73 : badges 🔒 mis à jour
 });
 on('btn-mode-speedrun', 'click', () => {
   store.setSpeedrun(true); // v1.3.68 : speedrun dispo dans la difficulté choisie (Auto école comprise)
   sfx.click();
   renderModePicker();
   renderDifficultyPicker();
+  renderLevels(); // v1.3.73 : badges 🔒 ⏱ sur les niveaux non terminés en normal
   toast('⏱ Mode Speedrun : termine le niveau le plus vite possible ! (difficulté ' + (DIFFICULTIES.find((d) => d.id === save.difficulty) || {}).name + ')');
 });
 on('btn-help', 'click', () => {

@@ -1304,7 +1304,7 @@ console.log('AO. v1.3.65 : liste du joueur — tuto raccourci (9 étapes, ❤ r�
 
   // musique au lancement
   ok('audio.js : musicKick() exporté (reprend le contexte + resync séquenceur)', audioSrc.includes('export function musicKick()'));
-  ok('main.js : startLevel -> unlockAudio + setMusicEnabled + musicKick (musique dès le début)', /function startLevel[\s\S]{0,300}unlockAudio\(\);[\s\S]{0,120}setMusicEnabled\(save\.music && save\.sound\);[\s\S]{0,80}musicKick\(\);/.test(mainSrc));
+  ok('main.js : startLevel -> unlockAudio + setMusicEnabled + musicKick (musique dès le début)', /function startLevel[\s\S]{0,700}unlockAudio\(\);[\s\S]{0,120}setMusicEnabled\(save\.music && save\.sound\);[\s\S]{0,80}musicKick\(\);/.test(mainSrc));
 
   // anti-freeze : plus de shadowBlur dans le rendu des lignes en jeu (pulse/glow/néon remplacés par alpha)
   const renderZone = gameSrc.slice(gameSrc.indexOf('drawLines'), gameSrc.indexOf('drawLineShape(type'));
@@ -1524,6 +1524,36 @@ console.log('AV. v1.3.72 : le service worker ne touche plus aux requêtes cross-
   ok('leaderboard.js : cache: \'no-store\' sur les 7 GET RTDB (ping x2, scores x2, challenges, speedrun x2)', n === 7);
   ok('leaderboard.js : les POST (submitScore/submitSpeedrun) restent des POST (non concernés par le cache)', (lbSrc.match(/method: 'POST'/g) || []).length >= 3);
   ok('cloudsave.js : GET players/<uid> en no-store (sauvegarde cloud fraîche)', csSrc.includes("fetch(url(`/players/${key(account)}`, idToken), { cache: 'no-store' })"));
+}
+
+
+console.log('AW. v1.3.73 : speedrun d\'un niveau verrouillé tant qu\'il n\'a pas été terminé en mode NORMAL + tri ⚡ Réaction (3e état du bouton Trier)');
+{
+  const fsW = await import('node:fs');
+  const mainSrc = fsW.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  const lbSrc = fsW.readFileSync(new URL('../js/leaderboard.js', import.meta.url), 'utf8');
+
+  // tri réaction fonctionnel
+  const rowsR = [
+    { pseudo: 'A', uid: 'u1', score: 9000, avgMs: 40 },
+    { pseudo: 'B', uid: 'u2', score: 100, avgMs: 23 },
+    { pseudo: 'C', uid: 'u3', score: 500 }, // pas d'avgMs
+  ];
+  const byReac = lb.sortLbRows(rowsR, 'reaction', null);
+  ok('sortLbRows reaction : avgMs croissant d\'abord (B 23ms, A 40ms), puis sans avgMs par score desc (C)', byReac.map((r) => r.pseudo).join(',') === 'B,A,C');
+  ok('leaderboard.js : branche sort === \'reaction\' (avgMs asc, repli score desc)', lbSrc.includes("sort === 'reaction'") && lbSrc.includes('Number.isFinite(a.avgMs)'));
+
+  // cycle de tri à 3 + persistance
+  ok('main.js : cycle lbSort score→time→reaction→score + lbSortLabel() avec ⚡ Réaction', mainSrc.includes("lbSort === 'score' ? 'time' : lbSort === 'time' ? 'reaction' : 'score'") && mainSrc.includes('function lbSortLabel()') && mainSrc.includes('Trier : ⚡ Réaction'));
+  ok('main.js : persistance accepte sort=\'reaction\' + label appliqué à l\'ouverture du classement', mainSrc.includes("o.sort === 'score' || o.sort === 'time' || o.sort === 'reaction'") && mainSrc.includes('sortBtn.textContent = lbSortLabel()'));
+
+  // verrou speedrun : terminé = mode normal uniquement
+  ok('main.js : markCleared appelé seulement si !sr (terminé en mode NORMAL)', mainSrc.includes('if (stats.completed && !sr) store.markCleared(level.id);'));
+  ok('main.js : badge srLocked sur la carte + bouton « 🔒 ⏱ normal d\'abord » quand speedrun actif et niveau non terminé', mainSrc.includes('const srLocked = save.speedrun && !l.endless && !store.isCleared(l.id);') && mainSrc.includes('srLocked ?'));
+  ok('main.js : garde dans le handler Jouer + garde en profondeur dans startLevel (2 toasts « Speedrun verrouillé »)', (mainSrc.match(/Speedrun verrouillé/g) || []).length >= 2 && mainSrc.includes('if (save.speedrun && !level.endless && !store.isCleared(level.id))'));
+  const srHandler = mainSrc.slice(mainSrc.indexOf("on('btn-mode-speedrun'"), mainSrc.indexOf("on('btn-help'"));
+  const nHandler = mainSrc.slice(mainSrc.indexOf("on('btn-mode-normal'"), mainSrc.indexOf("on('btn-mode-speedrun'"));
+  ok('main.js : renderLevels() appelé aux 2 toggles du mode (badges 🔒 à jour)', srHandler.includes('renderLevels();') && nHandler.includes('renderLevels();'));
 }
 
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);
