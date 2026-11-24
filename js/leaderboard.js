@@ -104,6 +104,22 @@ export function buildTimeMap(srArr, mode, levelFilter = 'all') {
   return map;
 }
 
+// v1.3.74 : map joueur -> { timeMs, levelId, level } de SON meilleur temps sur le filtre courant
+// (pour afficher « ⏱ … · niv. N » dans la colonne temps en vue « Tous niveaux »)
+export function buildTimeLevelMap(srArr, mode, levelFilter = 'all') {
+  const map = new Map();
+  for (const e of filterLevel(srArr || [], levelFilter)) {
+    if (mode && mode !== 'reaction' && e.mode && e.mode !== mode) continue;
+    const k = playerKey(e);
+    if (!k || typeof e.timeMs !== 'number' || !Number.isFinite(e.timeMs)) continue;
+    const prev = map.get(k);
+    if (prev === undefined || e.timeMs < prev.timeMs) {
+      map.set(k, { timeMs: e.timeMs, levelId: e.levelId != null ? Number(e.levelId) : null, level: e.level || '' });
+    }
+  }
+  return map;
+}
+
 // v1.3.70 : tri des lignes — 'score' (défaut, desc) ou 'time' (joueurs avec un temps d'abord, temps asc)
 export function sortLbRows(arr, sort = 'score', timeByPlayer = null) {
   const rows = [...(arr || [])];
@@ -413,8 +429,10 @@ function sortAscTime(arr) {
 
 // v1.3.36 : tri croissant SANS slice — utilisé par getSpeedrunAll (classement amis)
 function sortAscTimeUnbounded(arr) {
-  return dedupeByPlayer(arr.map(cleanTimeEntry).filter(Boolean), 'speedrun') // v1.3.67 : 1 entrée/joueur (meilleur temps)
-    .sort((a, b) => a.timeMs - b.timeMs);
+  // v1.3.74 : PAS de dédoublonnage global ici — sinon un seul temps par joueur survivrait,
+  // tous niveaux confondus, et les autres niveaux disparaîtraient (colonne ⏱ / rang).
+  // Le dedupe 1 entrée/joueur se fait APRÈS le filtre par niveau (getSpeedrunTop / buildTimeMap).
+  return (arr || []).map(cleanTimeEntry).filter(Boolean).sort((a, b) => a.timeMs - b.timeMs);
 }
 
 export function submitSpeedrunLocal(entry) {
@@ -498,9 +516,11 @@ export async function getSpeedrunTop(levelFilter = 'all') {
     const id = Number(levelFilter);
     return arr.filter((e) => Number(e.levelId) === id || e.level === LEVEL_NAMES[id]); // v1.3.50 : levelId string ou number accepté
   };
+  // v1.3.74 : filtre par niveau PUIS dedupe 1 entrée/joueur (meilleur temps) DANS ce niveau
+  const top = (arr) => dedupeByPlayer(keep(arr).map(cleanTimeEntry).filter(Boolean), 'speedrun').sort((a, b) => a.timeMs - b.timeMs).slice(0, TOP);
   if (!isOnline()) {
     setLbStatus('local', 0);
-    return keep(sortAscTime(localSrList()));
+    return top(localSrList());
   }
   try {
     const base = FIREBASE_DB_URL.replace(/\/$/, '');
@@ -515,15 +535,15 @@ export async function getSpeedrunTop(levelFilter = 'all') {
         }
         if (all.length) {
           setLbStatus('firebase', all.length, null);
-          return keep(sortAscTime(all));
+          return top(all);
         }
       }
       setLbStatus('local', 0, 'aucun temps speedrun en ligne (nœud /speedrun vide ou règles RTDB)');
-      return keep(sortAscTime(localSrList()));
+      return top(localSrList());
     }
     setLbStatus('local', 0, `HTTP ${res.status} sur speedrun`);
   } catch (e) {
     setLbStatus('local', 0, `speedrun: réseau indisponible (${(e && e.message) || 'fetch failed'})`);
   }
-  return keep(sortAscTime(localSrList()));
+  return top(localSrList());
 }

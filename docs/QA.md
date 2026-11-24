@@ -1,6 +1,6 @@
 # ✅ Assurance qualité
 
-> **Note (v1.3.73)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.73**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
+> **Note (v1.3.74)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.74**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
 
 ## Processus de test
 
@@ -628,4 +628,15 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] `node tests/break.test.mjs` : section AW (8 assertions) + regex startLevel assouplie — **409 assertions**
 - [ ] Test manuel : toggle Speedrun → niveaux non terminés affichent « 🔒 ⏱ normal d’abord », clic → toast et pas de départ ; terminer un niveau en normal → le speedrun se débloque ; classement → 3 clics sur Trier = Score/Temps/Réaction, persisté
 - [ ] CI verte + CACHE sw bumpé (roadtap-v81) + VERSION 1.3.73 + version.json 1.3.73
+
+## Checklist v1.3.74 (temps speedrun conservés PAR NIVEAU — plus de dedupe global — branche `vibe/speedrun-per-level-264a24`)
+
+- [ ] `leaderboard.js` : `sortAscTimeUnbounded` ne dédoublonne **plus** globalement → `getSpeedrunAll()` retourne TOUTES les entrées (tous niveaux), triées croissant
+- [ ] `getSpeedrunTop(levelFilter)` : filtre par niveau **AVANT** `dedupeByPlayer(...,'speedrun')` → 1 meilleur temps par joueur **par niveau**
+- [ ] `buildTimeMap` inchangé (filtre niveau puis min/joueur) — fonctionne maintenant grâce à getSpeedrunAll non dédoublonné ; nouveau `buildTimeLevelMap` (joueur → { timeMs, levelId })
+- [ ] `main.js` : colonne ⏱ = « ⏱ 0:14.13 · niv. 1 » en vue « 🌐 Tous niveaux » (suffixe `niv. N` seulement si `lbLevelFilter === 'all'`), « ⏱ 0:20.38 » avec un filtre niveau
+- [ ] Bloc `#over-rank` speedrun : `getAll`-équivalent corrigé → le rang du niveau joué est trouvé même si le meilleur temps global du joueur est sur un autre niveau
+- [ ] `node tests/break.test.mjs` : section AX (8 assertions : 4 entrées conservées pour 1 joueur sur 3 niveaux, buildTimeMap par niveau/all, buildTimeLevelMap, getSpeedrunTop('1'/'2')) + MAJ 2 assertions — **417 assertions**
+- [ ] Test manuel : speedrun niveaux 1, 2, 3 → classement, vue « Tous niveaux » : ⏱ affiche le meilleur temps global + son niveau (« · niv. 1 ») ; filtre niveau 2 → ⏱ = temps du niveau 2 ; filtre niveau 1 → temps du niveau 1 (plus « — »)
+- [ ] CI verte + CACHE sw bumpé (roadtap-v82) + VERSION 1.3.74 + version.json 1.3.74
 

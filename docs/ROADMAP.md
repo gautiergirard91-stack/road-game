@@ -177,3 +177,7 @@ Vu dans DevTools : les requêtes `realtime-database-…/scores/*.json` passaient
 - **Speedrun verrouillé tant que le niveau n'a pas été terminé en mode normal** (comportement « feature » validé : un joueur qui ne fait que du speedrun n'apparaît pas dans le classement, puisque les lignes viennent des scores). `markCleared` ne compte plus que les completions **normal** (`stats.completed && !sr`) ; carte niveau « 🔒 ⏱ normal d’abord », toast explicite au clic, et garde en profondeur dans `startLevel`. Survie ∞ non concernée.
 - **Bouton « Trier » en cycle à 3** : 🏁 Score → ⏱ Temps → **⚡ Réaction** (temps de réaction moyen croissant, persisté dans `roadtap_lb_filters_v1.sort`).
 
+## v1.3.74 — temps speedrun conservés par niveau (fix dedupe global)
+
+Bug : `getSpeedrunAll()` dédoubonnait **par joueur globalement** (meilleur temps tous niveaux confondus) avant le filtre de niveau → faire un temps au niveau 2 faisait disparaître celui du niveau 1 (colonne ⏱ et rang speedrun). Fix : `getSpeedrunAll` retourne toutes les entrées ; le dedupe 1 entrée/joueur se fait **après** le filtre par niveau (`getSpeedrunTop`, `buildTimeMap`). En vue « 🌐 Tous niveaux », la colonne ⏱ affiche désormais le niveau du temps affiché (« ⏱ 0:14.13 · niv. 1 »).
+
