@@ -27,6 +27,7 @@ const { WINDOWS, LEVELS } = await import('../js/data.js');
 const store = await import('../js/store.js');
 const lb = await import('../js/leaderboard.js');
 const { Game } = await import('../js/game.js');
+lb._setWriteGap(0); // tests : rate-limit client désactivé par défaut (testé à part en section BC)
 
 let passed = 0;
 function ok(name, cond) {
@@ -1667,7 +1668,7 @@ console.log('BA. v1.3.77 : MODE UNIQUE (standard+speedrun fusionnés) — chrono
   ok('index.html : plus de btn-mode-* + label « Mode unique » + HUD #hud-time + écran fin #over-time', !html.includes('btn-mode-speedrun') && !html.includes('btn-mode-normal') && html.includes('Mode unique') && html.includes('id="hud-time"') && html.includes('id="over-time"'));
   ok('main.js : plus de save.speedrun / srLocked / btn-mode / continueCost', !mainSrc.includes('save.speedrun') && !mainSrc.includes('srLocked') && !mainSrc.includes('btn-mode') && !mainSrc.includes('continueCost'));
   ok('main.js : startLevel passe speedrun: true (chrono + bonus vitesse actifs) + chrono live dans le HUD (setInterval #hud-time)', mainSrc.includes('speedrun: true,') && mainSrc.includes('hudTimer = setInterval') && mainSrc.includes("$('#hud-time')"));
-  ok('main.js : onGameEnd envoie le score (toujours) ET le temps (si terminé) + markCleared sans !sr', mainSrc.includes('if (canSubmitToLeaderboard(save)) {') && mainSrc.includes('if (stats.completed && canSubmitToLeaderboard(save)) {') && mainSrc.includes('if (stats.completed) store.markCleared(level.id);'));
+  ok('main.js : onGameEnd envoie le score (toujours) ET le temps (si terminé) + markCleared sans !sr', mainSrc.includes('if (!isReplay && canSubmitToLeaderboard(save)) {') && mainSrc.includes('if (stats.completed && !isReplay && canSubmitToLeaderboard(save)) {') && mainSrc.includes('if (stats.completed) store.markCleared(level.id);'));
   ok('main.js : over-rank = rang score + rang temps (readRank + readTimeRank, join « · »), écran fin score + #over-time avec record', mainSrc.includes('readTimeRank') && mainSrc.includes("parts.join(' · ')") && mainSrc.includes("$('#over-time')") && mainSrc.includes('nouveau record'));
   ok('main.js : continuer = +2 s au chrono (penaltyMs += 2000, label « +2 s », plus de store.spend)', mainSrc.includes('game.penaltyMs = (game.penaltyMs || 0) + 2000') && mainSrc.includes('+2 s') && !mainSrc.includes('store.spend(save.difficulty, cost)'));
   ok('game.js : raté = +0,5 s (penaltyMs += 500, popup « RATÉ +0,5 s ») + timeMs final = elapsed + pénalités', gameSrc.includes('this.penaltyMs += 500;') && gameSrc.includes('RATÉ +0,5 s') && gameSrc.includes('(this.elapsed + this.penaltyMs / 1000)'));
@@ -1742,9 +1743,60 @@ console.log('BB. v1.3.78 : mesure au dernier tap + départage des égalités + a
   // --- main.js : envois enrichis + départage écran de fin + indicateur ±ms ---
   const mainSrc2 = fsB2.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
   ok('main.js : submitScore/submitSpeedrun envoient lines: linesCount + misses + biasMs (+ avgMs/score côté speedrun)',
-    (mainSrc2.match(/lines: linesCount/g) || []).length === 2 && (mainSrc2.match(/biasMs: biasReaction\(stats\)/g) || []).length === 2 && mainSrc2.includes('misses: stats.misses || 0'));
+    (mainSrc2.match(/lines: linesCount/g) || []).length >= 2 && (mainSrc2.match(/biasMs: biasReaction\(stats\)/g) || []).length === 2 && mainSrc2.includes('misses: stats.misses || 0'));
   ok('main.js : over-rank + branche reaction utilisent compareEntries (≥3 appels)', (mainSrc2.match(/compareEntries\(a, b, '(score|time|reaction)'\)/g) || []).length >= 3);
   ok('main.js : écran de fin affiche le biais signé ±ms (trop tôt / trop tard) #31', mainSrc2.includes("bias < 0 ? '−' : '+'") && mainSrc2.includes('trop tôt') && mainSrc2.includes('trop tard'));
+}
+
+
+console.log('BC. v1.3.79 : replays vérifiables (#30) — enregistrement taps, hash SHA-256 soumis, lecture replay, rate-limit client');
+{
+  const fsB3 = await import('node:fs');
+  const gameSrc = fsB3.readFileSync(new URL('../js/game.js', import.meta.url), 'utf8');
+  const mainSrc = fsB3.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  const storeSrc = fsB3.readFileSync(new URL('../js/store.js', import.meta.url), 'utf8');
+  const lbSrc = fsB3.readFileSync(new URL('../js/leaderboard.js', import.meta.url), 'utf8');
+  const html = fsB3.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+
+  ok('game.js : replay initialisé (seed+mode+taps) + replayPlay + rejoue auto dans update() + tap(zone, auto) protégé',
+    gameSrc.includes('this.replay = { seed: levelSeed(') && gameSrc.includes('this.replayPlay = opts.replay || null;') && gameSrc.includes('while (this.replayIdx < this.replayPlay.taps.length') && gameSrc.includes("if (this.replayPlay && !auto) return;"));
+  ok('game.js : taps enregistrés (tap dt signé, crosswalk, miss) + swipes bloqués en replay',
+    (gameSrc.match(/this\.replay\.taps\.push\(/g) || []).length === 3 && gameSrc.includes("if (this.replayPlay) return; // v1.3.79 : replay = lecture seule"));
+  ok('store.js : replays dans defaults + sanitize replayMap + getReplay/setReplay (garde le meilleur timeMs)',
+    storeSrc.includes('replays: {}') && storeSrc.includes('function replayMap') && storeSrc.includes('export function getReplay') && storeSrc.includes('export function setReplay'));
+  ok('store fonctionnel : setReplay garde le meilleur temps, getReplay relit', (() => {
+    store.setReplay('auto', 1, { seed: 1, taps: [{ a: 'rear', dt: 0, t: 10 }], timeMs: 9000, score: 100 });
+    store.setReplay('auto', 1, { seed: 1, taps: [{ a: 'rear', dt: 1, t: 20 }], timeMs: 12000, score: 50 });
+    const r = store.getReplay('auto', 1);
+    return r && r.timeMs === 9000 && r.taps.length === 1;
+  })());
+  ok('main.js : replayHash (SHA-256 crypto.subtle + repli FNV 64 hex) + hash ajouté aux 2 envois + lastRun + btn-replay',
+    mainSrc.includes('crypto.subtle.digest') && (mainSrc.match(/hash: replayHashHex/g) || []).length === 2 && mainSrc.includes('let lastRun = null;') && mainSrc.includes("on('btn-replay', 'click'") && html.includes('id="btn-replay"'));
+  ok('main.js : startLevel(level, replayRep) + badge ▶ REPLAY + entrée joueur ignorée en replay (pointerdown + clavier)',
+    mainSrc.includes('function startLevel(level, replayRep = null)') && mainSrc.includes('▶ REPLAY ·') && mainSrc.includes('if (game && game.replayPlay) return; // v1.3.79 : replay = lecture seule') && mainSrc.includes("game.replayPlay && action !== 'retry'"));
+  ok('leaderboard.js : rate-limit doux client — MIN_WRITE_GAP_MS 3000 + gap check dans submitScore ET submitSpeedrun + _setLastWriteAt exporté',
+    lbSrc.includes('let MIN_WRITE_GAP_MS = 3000;') && (lbSrc.match(/Date\.now\(\) - lastOnlineWriteAt < MIN_WRITE_GAP_MS/g) || []).length === 2 && lbSrc.includes('export function _setWriteGap'));
+  {
+    // fonctionnel : 2 submitScore rapprochées -> 1 seul POST, la 2e est en file (anti-flood #30d)
+    const posts = [];
+    globalThis.fetch = async (url, opts) => { if (opts && opts.method === 'POST') posts.push({ url: String(url), body: JSON.parse(opts.body) }); return { ok: true, json: async () => null }; };
+    lb._setWriteGap(3000);
+    lb._setLastWriteAt(0);
+    localStorage.removeItem('roadtap_lb_queue_v1');
+    await lb.submitScore({ pseudo: 'T', uid: 'u1', score: 100, level: 'L', levelId: 1, mode: 'auto', date: 1, lines: 10 }, 'TOK');
+    await lb.submitScore({ pseudo: 'T', uid: 'u1', score: 200, level: 'L', levelId: 1, mode: 'auto', date: 2, lines: 10 }, 'TOK');
+    ok('rate-limit fonctionnel : 2 envois < 3 s -> 1 POST + 1 en file', posts.length === 1 && posts[0].body.score === 100 && lb.queueSize() === 1);
+    lb._setWriteGap(0);
+    lb._setLastWriteAt(0);
+    localStorage.removeItem('roadtap_lb_queue_v1');
+    delete globalThis.fetch;
+  }
+  {
+    // fonctionnel : replayHash via source main.js évalué ? non — on teste le contrat via crypto directement (node a crypto.subtle)
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('{"seed":1}'));
+    const hex = [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+    ok('contrat hash : SHA-256 -> 64 hex (règle RTDB matches(/^[0-9a-f]{64}$/))', /^[0-9a-f]{64}$/.test(hex));
+  }
 }
 
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);

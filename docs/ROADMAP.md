@@ -205,3 +205,10 @@ Les deux modes ne différaient que par le chrono/bonus de vitesse : **un seul mo
 - Anti-triche par niveau côté règles RTDB (`lines` + bornes `score ≤ lines×250`, `timeMs ≥ lines×400`) — **déployer les règles Firebase**.
 - Indicateur signé ±ms du biais de réaction à l'écran de fin.
 - File hors-ligne : les entrées définitivement refusées (401/403) sont abandonnées au lieu de bloquer la file.
+
+
+## v1.3.79 — replays vérifiables (#30)
+
+- Replay de chaque run terminé (seed + taps signés + instants), meilleur run gardé en local, hash SHA-256 soumis avec score/temps (règle `hash` 64 hex).
+- Mode lecture « ▶ Voir mon replay » (hors classement, entrées ignorées).
+- Rate-limit client anti-flood : 3 s min entre 2 écritures en ligne.

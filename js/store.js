@@ -15,6 +15,7 @@ const defaults = () => ({
   selectedEffects: [],
   best: {},
   bestTime: {}, // v1.3.19 : meilleurs temps (ms) du mode speedrun, par niveau
+  replays: {}, // v1.3.79 : replays locaux du meilleur run par "mode:levelId" — {seed, mode, lines, score, timeMs, hash, taps}
   speedrun: false,
   verticalZones: false, // v1.3.76 : zones tactiles HAUT/BAS (défaut false = gauche/droite : gauche=AV ⬅, droite=AR ➡)
   sound: true,
@@ -58,6 +59,26 @@ const num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const str = (v, d = '') => (typeof v === 'string' ? v : d);
 const bool = (v, d = false) => (typeof v === 'boolean' ? v : d);
 const arrStr = (v) => (Array.isArray(v) ? v.filter((x) => typeof x === 'string') : []);
+// v1.3.79 : sanitizer des replays — objets valides uniquement, taps plafonnés
+function replayMap(v) {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return {};
+  const out = {};
+  for (const k of Object.keys(v).slice(0, 200)) {
+    const r = v[k];
+    if (r && typeof r === 'object' && Array.isArray(r.taps) && r.taps.length <= 20000 && r.seed !== undefined) {
+      out[k] = {
+        seed: r.seed,
+        mode: str(r.mode, 'auto'),
+        lines: num(r.lines, 0),
+        score: num(r.score, 0),
+        timeMs: num(r.timeMs, 0),
+        hash: str(r.hash, ''),
+        taps: r.taps.slice(0, 10000).filter((t) => t && typeof t === 'object' && typeof t.t === 'number'),
+      };
+    }
+  }
+  return out;
+}
 const arrNum = (v) => (Array.isArray(v) ? v.filter((x) => typeof x === 'number' && Number.isFinite(x)) : []);
 const obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : {});
 const numMap = (v) => {
@@ -79,6 +100,7 @@ function sanitize(s) {
   s.cleared = boolMap(s.cleared);
   s.best = numMap(s.best);
   s.bestTime = numMap(s.bestTime);
+  s.replays = replayMap(s.replays); // v1.3.79
   // v1.3.44 : migration — anciennes clés "levelId" (partagées entre difficultés) copiées dans chaque mode
   for (const field of ['best', 'bestTime']) {
     const m = s[field];
@@ -267,6 +289,21 @@ export function setVerticalZones(on) {
 }
 
 // v1.3.44 : record de temps (ms), isolé par difficulté — retourne true si nouveau record
+// v1.3.79 : replay local du meilleur run (vérification #30) — clé "mode:levelId"
+export function getReplay(mode, levelId) {
+  return (save.replays || {})[bestKey(mode, levelId)] || null;
+}
+export function setReplay(mode, levelId, rep) {
+  if (!rep || !Array.isArray(rep.taps)) return null;
+  save.replays = save.replays || {};
+  const k = bestKey(mode, levelId);
+  const prev = save.replays[k];
+  if (!prev || (rep.timeMs || Infinity) < (prev.timeMs || Infinity)) {
+    save.replays[k] = rep;
+    persist();
+  }
+  return save.replays[k];
+}
 export function getBestTime(mode, levelId) {
   return save.bestTime[bestKey(mode, levelId)];
 }

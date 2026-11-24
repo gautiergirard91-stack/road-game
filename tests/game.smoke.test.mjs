@@ -387,4 +387,20 @@ for (const l of [...LEVELS, ENDLESS_LEVEL]) renderThemePreview(fakeCanvas(), l.t
   assert.ok(Array.isArray(game.stats.reactionsSigned) && game.stats.reactionsSigned.length === 1 && game.stats.reactionsSigned[0] === 0, 'dtMs signé enregistré (0 = pile au 0 ms)');
 }
 
-console.log('OK - smoke test moteur : 10 scénarios sans crash, mécaniques vérifiées');
+
+{
+  // v1.3.79 : mode lecture replay — les taps enregistrés sont rejoués automatiquement, entrée joueur ignorée
+  const rep = { seed: 1, mode: 'auto', taps: [{ a: 'rear', dt: 0, t: 0 }] };
+  const { game, events } = makeGame(LEVELS[0], 'auto', { speedrun: true, replay: rep });
+  game.start();
+  game.tap('rear'); // entrée joueur -> ignorée en mode replay
+  assert.equal(game.stats.reactions.length, 0, 'entrée joueur ignorée en mode replay');
+  const line0 = game.lines.find((l) => l.state === 'pending');
+  line0.dist = 0; // à la 1re frame distance = 0 -> dy = 0 -> le tap replay fait PARFAIT
+  game.update(0.2); // t = 200 ms >= 0 -> le tap du replay est joué
+  assert.equal(game.stats.reactions.length, 1, 'tap du replay rejoué automatiquement à son instant');
+  assert.equal(game.stats.reactionsSigned[0], 0, 'dtMs rejoué = 0 (ligne sous la roue)');
+  assert.ok(Array.isArray(game.replay.taps), 'replay.taps existe');
+}
+
+console.log('OK - smoke test moteur : 11 scénarios sans crash, mécaniques vérifiées');
