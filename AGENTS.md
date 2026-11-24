@@ -29,11 +29,16 @@ Ce fichier est lu automatiquement par les outils d'IA (Claude Code, etc.). Le su
 
 ## Agents spécialisés (Mistral Vibe CLI)
 
-Quatre agents configurés au niveau projet dans `.vibe/agents/` (lancement : `vibe --agent <nom>` ou Shift+Tab) :
+Agents configurés au niveau projet dans `.vibe/agents/` :
 
-- **gameplay** (`.vibe/agents/gameplay.toml`) : mécaniques, contrôles, équilibrage, boucle de jeu — commencer par lui pour les fondations.
-- **polish** (`.vibe/agents/polish.toml`) : juice, feedback visuel/sonore, UI/UX, performance — en dernier, sur une version déjà jouable.
-- **niveaux** (`.vibe/agents/niveaux.toml`) : conception/génération des niveaux (js/data.js + js/core.js), courbe de difficulté.
-- **assets** (`.vibe/agents/assets.toml`) : intégration et cohérence des assets (canvas procédural, icônes PWA, sons) + prompts pour outils externes.
+**Sous-agents (délégation automatique par l'agent principal selon la description)** :
+- **gameplay** (`.vibe/agents/gameplay.toml`) : mécaniques, physique, boucle de jeu — outils : read_file, search_replace, write_file, bash.
+- **équilibrage** (`.vibe/agents/equilibrage.toml`) : valeurs numériques uniquement (js/data.js, bonus) — outils : read_file, search_replace, write_file.
+- **contrôles** (`.vibe/agents/controles.toml`) : inputs, réactivité, feel, timing — outils : read_file, search_replace, write_file, bash.
 
-Pour que l'agent principal délègue automatiquement : passer `agent_type = "subagent"` dans le TOML concerné.
+**Agents sélectionnables (`vibe --agent <nom>` ou Shift+Tab)** :
+- **polish** (`.vibe/agents/polish.toml`) : juice, feedback, UI/UX, perfs — en dernier, sur une version déjà jouable.
+- **niveaux** (`.vibe/agents/niveaux.toml`) : design/génération des niveaux (js/data.js + js/core.js).
+- **assets** (`.vibe/agents/assets.toml`) : intégration assets (canvas procédural, icônes PWA, sons) + prompts outils externes.
+
+Pour rendre un agent sélectionnable en subagent (ou l'inverse) : changer `agent_type` dans son TOML.
