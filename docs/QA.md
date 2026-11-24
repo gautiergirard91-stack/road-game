@@ -1,6 +1,6 @@
 # ✅ Assurance qualité
 
-> **Note (v1.3.70)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.70**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
+> **Note (v1.3.71)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.71**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
 
 ## Processus de test
 
@@ -597,4 +597,14 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] `node tests/break.test.mjs` : section AT (7 assertions : sortLbRows fonctionnel score/temps, HTML #lb-sort/#over-rank, persistance lbSort, câblage renderLeaderboard, bloc over-rank, toast writeError) + MAJ AR (getAll+filterLevel) et lignes 984-986 — **390 assertions**
 - [ ] Test manuel : classement → cliquer « Trier » → l'ordre change (meilleur temps en 1er en tri Temps) et persiste après fermeture/réouverture ; finir le niveau 2 en Auto école connecté → ligne de rang affichée sur l'écran de fin ; si pas connecté ou wideWindows → toast + pas de rang
 - [ ] CI verte + CACHE sw bumpé (roadtap-v78) + VERSION 1.3.70 + version.json 1.3.70
+
+## Checklist v1.3.71 (rang écran de fin fiable : attendre l'envoi avant de lire le classement — branche `vibe/over-rank-await-264a24`)
+
+- [ ] `main.js` : promesses d'envoi capturées (`let submitP = null;` / `let submitSrP = null;`, assignées sur `leaderboard.submitScore` / `submitSpeedrun`)
+- [ ] Bloc `#over-rank` : **await** de l'envoi (`await submitP` / `await submitSrP`) AVANT toute lecture du rang — corrige « 🏁 score pas encore visible en ligne » alors que le score apparaissait ensuite dans le classement (course lecture/écriture)
+- [ ] Si rang non trouvé : **2e lecture après 1,2 s** (`readRank` + `setTimeout(r, 1200)`) avant le message de repli
+- [ ] Rang trouvé hors ligne → suffixe « — classement local (envoyé à la reconnexion) » ; `writeError` → ligne « ⚠️ envoi refusé par le serveur — hors classement en ligne (…) »
+- [ ] `node tests/break.test.mjs` : section AU (5 assertions) — **395 assertions**
+- [ ] Test manuel : finir un niveau connecté (Auto école, niveau 2) → l'écran de fin affiche directement « 🏁 N pts → #k au classement — Accélération (Auto école) » (plus de « pas encore visible ») ; speedrun → « ⏱ t → #k au classement speedrun » ; si envoi refusé (fenêtres élargies) → ligne ⚠️ explicite
+- [ ] CI verte + CACHE sw bumpé (roadtap-v79) + VERSION 1.3.71 + version.json 1.3.71
 

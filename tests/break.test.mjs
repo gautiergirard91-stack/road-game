@@ -1493,4 +1493,17 @@ console.log('AT. v1.3.70 : classement en 2 colonnes triables (Score ⇄ Temps pe
   ok('main.js : toast « ⚠️ Envoi refusé » si writeError après submitScore', mainSrc.includes('Envoi refusé :'));
 }
 
+
+console.log('AU. v1.3.71 : rang écran de fin fiable — attendre la fin de l\'envoi (await submitP/submitSrP) + 2e lecture après 1,2 s avant le repli « pas encore visible »');
+{
+  const fsU = await import('node:fs');
+  const mainSrc = fsU.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+
+  ok('main.js : promesses d\'envoi capturées (let submitP / let submitSrP, assignées sur leaderboard)', mainSrc.includes('let submitP = null;') && mainSrc.includes('let submitSrP = null;') && mainSrc.includes('submitP = leaderboard') && mainSrc.includes('submitSrP = leaderboard'));
+  ok('main.js : le bloc #over-rank ATTEND l\'envoi avant de lire le rang (await submitP / await submitSrP)', mainSrc.includes('await submitP') && mainSrc.includes('await submitSrP'));
+  ok('main.js : lecture du rang factorisée (readRank) + 2e lecture après 1,2 s si non trouvé (setTimeout(r, 1200))', mainSrc.includes('readRank') && mainSrc.includes('setTimeout(r, 1200)') && mainSrc.includes('i = await readRank()'));
+  ok('main.js : rang trouvé -> « #N au classement » ; hors ligne -> suffixe « classement local (envoyé à la reconnexion) »', mainSrc.includes('au classement —') && mainSrc.includes('classement local (envoyé à la reconnexion)'));
+  ok('main.js : writeError -> ligne « hors classement en ligne » ; sinon repli « pas encore visible » inchangé', mainSrc.includes('hors classement en ligne') && mainSrc.includes('pas encore visible en ligne (local ?)') && mainSrc.includes('pas encore visible en ligne…'));
+}
+
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);

@@ -164,3 +164,7 @@ Au 1ᵉʳ chargement, le 1ᵉʳ ping partait avant que le jeton reCAPTCHA Enterp
 - **Rang du joueur sur l'écran de fin** (`#over-rank`) : « 🏁 N pts → #i au classement — niveau (mode) » (ou ⏱ temps en speedrun), calculé sur le classement dédoublonné du mode+niveau joué.
 - **Toast si l'envoi est refusé** (403 côté règles) — diagnostique du « niveau 2 auto école, rien n'apparaît » : causes principales = pas connecté (local uniquement) ou fenêtres élargies (exclu par les règles `wideWindows != true`).
 
+## v1.3.71 — rang à l'écran de fin fiable (attente de l'envoi avant lecture)
+
+Bug constaté : l'écran de fin affichait « 🏁 score pas encore visible en ligne (local ?) » alors que le score apparaissait ensuite dans le classement — le rang était **lu avant que l'écriture ne soit posée** (envoi fire-and-forget). Fix : le bloc `#over-rank` **attend la fin du POST** (`await submitP`/`submitSrP`), refait une **2e lecture après 1,2 s** si le joueur n'est pas trouvé, affiche « classement local (envoyé à la reconnexion) » hors ligne, et une ligne ⚠️ explicite si le serveur a refusé l'envoi.
+
