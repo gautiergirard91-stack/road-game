@@ -157,3 +157,10 @@ L'échange de jeton App Check exige l'**ID d'application** de l'app web (`1:…:
 ## v1.3.69 — faux 401 au chargement (jeton App Check froid)
 
 Au 1ᵉʳ chargement, le 1ᵉʳ ping partait avant que le jeton reCAPTCHA Enterprise soit prêt (cold start) → **401 sous Enforce** affiché en pastille, alors que ⚙️ Paramètres voyait tout vert ensuite. Fix : `warmAppCheck()` au boot (préchauffe le jeton) + `pingServer()` qui, sur un `http-401` initial, attend le jeton et re-tente **une fois** — utilisé par la pastille menu et par Paramètres.
+
+## v1.3.70 — classement : colonnes Score/Temps triables indépendamment + rang du joueur en fin de partie
+
+- Bouton **« Trier : 🏁 Score ⇄ ⏱ Temps »** au-dessus du classement, persisté (`roadtap_lb_filters_v1.sort`) : en tri Temps, les joueurs avec un temps speedrun passent d'abord (croissant), puis les autres par score. Chaque ligne garde ses **deux colonnes** (score + ⏱ temps) — on voit le meilleur score ET le meilleur temps en même temps.
+- **Rang du joueur sur l'écran de fin** (`#over-rank`) : « 🏁 N pts → #i au classement — niveau (mode) » (ou ⏱ temps en speedrun), calculé sur le classement dédoublonné du mode+niveau joué.
+- **Toast si l'envoi est refusé** (403 côté règles) — diagnostique du « niveau 2 auto école, rien n'apparaît » : causes principales = pas connecté (local uniquement) ou fenêtres élargies (exclu par les règles `wideWindows != true`).
+
