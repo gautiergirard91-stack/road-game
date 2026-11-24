@@ -83,11 +83,32 @@ function cleanEntry(e) {
 }
 // v1.3.67 : UNE SEULE entrée par joueur dans un classement (niveau/difficulté) — on garde SON
 // meilleur score (ou son meilleur temps en speedrun / sa meilleure réaction moyenne).
+// v1.3.68 : clé d'identité joueur partagée (dédoublonnage + colonnes temps)
+export function playerKey(e) {
+  if (!e) return '';
+  if (e.uid) return 'u:' + String(e.uid);
+  return e.pseudo ? 'p:' + String(e.pseudo).toLowerCase() : '';
+}
+
+// v1.3.68 : map joueur -> meilleur temps speedrun (ms) pour une difficulté + un filtre niveau,
+// pour afficher la colonne « ⏱ temps » à côté de la colonne score dans chaque difficulté.
+export function buildTimeMap(srArr, mode, levelFilter = 'all') {
+  const map = new Map();
+  for (const e of filterLevel(srArr || [], levelFilter)) {
+    if (mode && mode !== 'reaction' && e.mode && e.mode !== mode) continue; // temps de CETTE difficulté
+    const k = playerKey(e);
+    if (!k || typeof e.timeMs !== 'number' || !Number.isFinite(e.timeMs)) continue;
+    const prev = map.get(k);
+    if (prev === undefined || e.timeMs < prev) map.set(k, e.timeMs);
+  }
+  return map;
+}
+
 export function dedupeByPlayer(arr, kind = 'score') {
   const best = new Map();
   for (const e of arr || []) {
     if (!e || e.pseudo == null || e.pseudo === '') continue;
-    const key = e.uid ? 'u:' + String(e.uid) : 'p:' + String(e.pseudo).toLowerCase();
+    const key = playerKey(e); // v1.3.68
     const prev = best.get(key);
     if (!prev) { best.set(key, e); continue; }
     const better = kind === 'speedrun'
@@ -384,8 +405,8 @@ export function submitSpeedrunLocal(entry) {
 }
 
 export async function submitSpeedrun(levelId, entry, idToken) {
-  // v1.3.54 : le speedrun n'existe qu'en Permis A -> mode par défaut 'permisA' (main.js transmet de toute façon le mode réellement joué)
-  const body = { pseudo: entry.pseudo, uid: entry.uid || '', timeMs: entry.timeMs, level: entry.level, levelId, mode: entry.mode || 'permisA', date: entry.date };
+  // v1.3.68 : speedrun dispo dans toutes les difficultés -> fallback 'auto' (main.js transmet de toute façon le mode réellement joué)
+  const body = { pseudo: entry.pseudo, uid: entry.uid || '', timeMs: entry.timeMs, level: entry.level, levelId, mode: entry.mode || 'auto', date: entry.date };
   if (!isOnline()) { enqueue('speedrun', { levelId, entry: body }); return submitSpeedrunLocal(body); } // v1.3.66
   if (!hasAuth(idToken)) {
     lastLbWriteError = ANON_WRITE_MSG;

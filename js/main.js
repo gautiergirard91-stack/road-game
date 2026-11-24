@@ -73,15 +73,7 @@ function renderDifficultyPicker() {
     b.textContent = d.name;
     b.title = d.desc;
     b.addEventListener('click', () => {
-      // v1.3.54 : en speedrun, la seule difficulté possible est Permis A (verrouillée)
-      if (save.speedrun && d.id !== 'permisA') {
-        store.setDifficulty('permisA');
-        sfx.click();
-        toast('⏱ En speedrun, la difficulté est fixée à Permis A');
-        renderDifficultyPicker();
-        return;
-      }
-      store.setDifficulty(d.id);
+      store.setDifficulty(d.id); // v1.3.68 : en speedrun on garde la difficulté choisie (plus de verrou)
       sfx.click();
       renderDifficultyPicker();
     });
@@ -235,7 +227,7 @@ function renderLbFilter() {
   const el = $('#lb-filter');
   if (!el) return;
   el.innerHTML = '';
-  const opts = [...DIFFICULTIES, { id: 'speedrun', name: '⏱ Speedrun' }, { id: 'reaction', name: '⚡ Réaction' }]; // v1.3.50 : plus d'option « Tous » (difficulté courante par défaut à l'ouverture)
+  const opts = [...DIFFICULTIES, { id: 'reaction', name: '⚡ Réaction' }]; // v1.3.68 : onglet Speedrun retiré (les temps s'affichent en colonne dans chaque difficulté) — v1.3.50 : plus d'option « Tous »
   for (const d of opts) {
     const b = document.createElement('button');
     b.className = 'btn small diff-btn' + (lbFilter === d.id ? ' active' : '');
@@ -261,6 +253,7 @@ async function renderLeaderboard() {
   const isSr = lbFilter === 'speedrun'; // v1.3.31 : classement speedrun (temps, tri croissant)
   const isReact = lbFilter === 'reaction'; // v1.3.48 : classement par temps de réaction moyen (croissant)
   let top = [];
+  let timeByPlayer = null; // v1.3.68 : map joueur -> meilleur temps speedrun (colonne ⏱)
   try {
     if (isReact) {
       // v1.3.48 : « ⚡ Réaction » — meilleur temps de réaction moyen de tout le monde (tri croissant avgMs)
@@ -274,7 +267,12 @@ async function renderLeaderboard() {
       const all = isSr ? await leaderboard.getSpeedrunAll() : await leaderboard.getAll(lbLevelFilter !== 'all' ? 'all' : lbFilter); // v1.3.50 : idem pour les amis
       top = leaderboard.dedupeByPlayer(filterFriendsByPseudo(leaderboard.filterLevel(all, lbLevelFilter), save.friends), isSr ? 'speedrun' : 'score').slice(0, 50); // v1.3.67
     } else {
-      top = isSr ? await leaderboard.getSpeedrunTop(lbLevelFilter) : await leaderboard.getTop(lbLevelFilter !== 'all' ? 'all' : lbFilter, lbLevelFilter); // v1.3.50 : filtre par niveau => on balaie tous les modes (bug testeur niveau 2)
+      // v1.3.68 : la difficulté active filtre AUSSI quand un niveau est choisi (colonnes score+temps cohérentes)
+      top = await leaderboard.getTop(lbFilter, lbLevelFilter);
+      // v1.3.68 : colonne temps — meilleur temps speedrun de chaque joueur (même difficulté, même filtre niveau)
+      try {
+        timeByPlayer = leaderboard.buildTimeMap(await leaderboard.getSpeedrunAll(), lbFilter, lbLevelFilter);
+      } catch { timeByPlayer = null; }
     }
   } catch {
     top = [];
@@ -327,7 +325,10 @@ async function renderLeaderboard() {
     row.className = 'card lb-row';
     const me = save.pseudo && e.pseudo === save.pseudo;
     const right = isSr ? `⏱ ${fmtTime((e.timeMs || 0) / 1000)}` : isReact ? `⚡ ${e.avgMs} ms` : (typeof e.avgMs === 'number' ? `${e.score} · ⚡${e.avgMs}ms` : e.score); // v1.3.31/v1.3.48
-    row.innerHTML = `<span class="lb-rank">${i + 1}</span><span class="lb-name${me ? ' me' : ''}">${escapeHtml(e.pseudo || 'Anonyme')}</span><span class="lb-level">${escapeHtml(levelLabel(e))}</span><span class="lb-score">${right}</span>`;
+    // v1.3.68 : colonne temps à côté du score (sauf onglet réaction) — '—' si le joueur n'a pas de temps speedrun ici
+    const tms = (!isReact && !isSr && timeByPlayer) ? timeByPlayer.get(leaderboard.playerKey(e)) : undefined;
+    const timeCell = (!isReact && !isSr) ? `<span class="lb-time">${typeof tms === 'number' ? '⏱ ' + fmtTime(tms / 1000) : '—'}</span>` : '';
+    row.innerHTML = `<span class="lb-rank">${i + 1}</span><span class="lb-name${me ? ' me' : ''}">${escapeHtml(e.pseudo || 'Anonyme')}</span><span class="lb-level">${escapeHtml(levelLabel(e))}</span><span class="lb-score">${right}</span>${timeCell}`;
     list.appendChild(row);
   });
 }
@@ -1036,7 +1037,7 @@ function startLevel(level) {
   game = new Game($('#game'), {
     level,
     skinId: save.skin,
-    mode: save.speedrun ? 'permisA' : save.difficulty, // v1.3.54 : speedrun = une seule difficulté, Permis A
+    mode: save.difficulty, // v1.3.68 : speedrun dans la difficulté choisie (plus de verrou Permis A)
     speedrun: save.speedrun, // v1.3.19 : mode speedrun (chrono + vitesse bonus)
     themeOverride: save.themeOverride || undefined,
     windows: effWindows(),
@@ -1140,6 +1141,11 @@ function onGameEnd(stats, level) {
       // v1.3.32 : uid + jeton -> règles RTDB vérifient uid == auth.uid (anti-usurpation)
       .submitScore({ pseudo: save.pseudo, uid: save.uid || '', score: stats.score, level: level.name, levelId: level.id, mode: save.difficulty, date: Date.now(), avgMs: avgReaction(stats) ?? undefined }, getAuthToken()) // v1.3.48 : avgMs envoyé au classement
       .catch(() => {});
+  }
+  // v1.3.68 : si le résultat n'est PAS envoyé au classement en ligne, on dit POURQUOI (sinon « mon score n'apparaît pas »)
+  if (!canSubmitToLeaderboard(save)) {
+    if (save.wideWindows) toast('♿ Fenêtres élargies actives : résultat gardé en local, hors classement en ligne');
+    else if (!save.uid) toast('🔒 Connecte Google (« ✏️ Mon pseudo ») pour apparaître dans le classement en ligne — résultat gardé en local');
   }
   if (sr && stats.completed && canSubmitToLeaderboard(save)) { // v1.3.45 : idem speedrun
     // v1.3.31 : classement speedrun dédié (nœud /speedrun/<levelId>, temps en ms, tri croissant)
@@ -1470,6 +1476,7 @@ on('btn-leaderboard', 'click', () => {
     lbLevelFilter = 'all';
     saveLbFilters();
   }
+  if (lbFilter === 'speedrun') { lbFilter = save.difficulty; saveLbFilters(); } // v1.3.68 : onglet speedrun supprimé -> on retombe sur la difficulté courante
   leaderboard.flushQueue(getAuthToken(), save.uid); // v1.3.66 : file hors ligne vidée si possible
   renderLbScope(); // v1.3.36 : onglets 🌍 Tous / 👥 Amis
   renderFriends();
@@ -1686,13 +1693,11 @@ on('btn-mode-normal', 'click', () => {
   renderModePicker();
 });
 on('btn-mode-speedrun', 'click', () => {
-  // v1.3.54 : speedrun = UNE SEULE difficulté : Permis A (on cale la difficulté dessus)
-  store.setSpeedrun(true);
-  store.setDifficulty('permisA');
+  store.setSpeedrun(true); // v1.3.68 : speedrun dispo dans la difficulté choisie (Auto école comprise)
   sfx.click();
   renderModePicker();
   renderDifficultyPicker();
-  toast('⏱ Mode Speedrun : termine le niveau le plus vite possible ! (difficulté Permis A)');
+  toast('⏱ Mode Speedrun : termine le niveau le plus vite possible ! (difficulté ' + (DIFFICULTIES.find((d) => d.id === save.difficulty) || {}).name + ')');
 });
 on('btn-help', 'click', () => {
   sfx.click();

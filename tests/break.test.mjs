@@ -351,7 +351,7 @@ console.log('J. v1.3.31 : classement speedrun dédié (contrat POST, tri croissa
   await lb.submitSpeedrun(3, { pseudo: 'Test', uid: 'uidT', timeMs: 45320, level: 'Double file', date: 9 }, 'TOK_J'); // v1.3.37 : jeton requis
   const post = calls.find((c) => c.method === 'POST');
   ok('POST vers /speedrun/3.json', post && post.url.includes('/speedrun/3.json'));
-  ok('corps = contrat règles speedrun (pseudo/timeMs/level/date + bornes, mode fallback = permisA depuis v1.3.56)', post && ['pseudo', 'timeMs', 'level', 'date'].every((k) => k in post.body) && post.body.timeMs >= 1000 && post.body.timeMs <= 3600000 && post.body.mode === 'permisA');
+  ok('corps = contrat règles speedrun (pseudo/timeMs/level/date + bornes, mode fallback = auto depuis v1.3.68)', post && ['pseudo', 'timeMs', 'level', 'date'].every((k) => k in post.body) && post.body.timeMs >= 1000 && post.body.timeMs <= 3600000 && post.body.mode === 'auto');
 
   // tri CROISSANT sur timeMs + entrées corrompues filtrées + filtre par niveau
   globalThis.fetch = async () => ({
@@ -679,8 +679,9 @@ console.log('S. v1.3.41 : dépassement retravaillé (z-order ahead/behind + voit
   ok('swipeLeft : entre-sens vidé devant (plus de voiture en sens inverse pendant le dépassement)', g3.oncoming.length === 0);
 
   // --- speedrun dans toutes les difficultés ---
-  ok('speedrun force permisA (auto demandé -> permisA)', makeGame(LEVELS[0], 'auto', { speedrun: true }).mode === 'permisA');
-  ok('speedrun force permisA (pilote demandé -> permisA)', makeGame(LEVELS[0], 'pilote', { speedrun: true }).mode === 'permisA');
+  // v1.3.68 : speedrun dans toutes les difficultés
+  ok('speedrun en auto -> mode auto conservé', makeGame(LEVELS[0], 'auto', { speedrun: true }).mode === 'auto');
+  ok('speedrun en pilote -> mode pilote conservé', makeGame(LEVELS[0], 'pilote', { speedrun: true }).mode === 'pilote');
   ok('speedrun en permisA -> permisA', makeGame(LEVELS[0], 'permisA', { speedrun: true }).mode === 'permisA');
 
   // --- submitSpeedrun transmet le vrai mode joué ---
@@ -1045,17 +1046,17 @@ console.log('AE. v1.3.53 : Son/Musique retirés du menu principal (dans Paramèt
   ok('main.js : retry accepté en screen-game ET screen-over', mainSrc.includes("currentScreen === 'screen-game' || currentScreen === 'screen-over'"));
 }
 
-console.log('AF. v1.3.54 : speedrun = une seule difficulté (Permis A), verrouillée côté UI et moteur');
+console.log('AF. v1.3.54 -> v1.3.68 : speedrun n\'est PLUS verrouillé à Permis A (toutes difficultés, Auto école comprise)');
 {
   const fsD = await import('node:fs');
   const mainSrc = fsD.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
   const gameSrc = fsD.readFileSync(new URL('../js/game.js', import.meta.url), 'utf8');
   const html = fsD.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-  ok('game.js : speedrun force mode=permisA', gameSrc.includes("this.speedrun ? 'permisA' : opts.mode"));
-  ok('main.js : startLevel mode = speedrun ? permisA : difficulté', mainSrc.includes("mode: save.speedrun ? 'permisA' : save.difficulty"));
+  ok('game.js : speedrun garde la difficulté demandée (plus de force permisA)', !gameSrc.includes("this.speedrun ? 'permisA'") && gameSrc.includes("this.mode = opts.mode || 'auto'"));
+  ok('main.js : startLevel mode = difficulté choisie même en speedrun', mainSrc.includes('mode: save.difficulty,') && !mainSrc.includes("mode: save.speedrun ? 'permisA'"));
   ok('main.js : records/envois utilisent le mode réellement joué (runMode)', mainSrc.includes('const runMode = (game && game.mode) || save.difficulty;') && mainSrc.includes('store.setBest(runMode, level.id') && mainSrc.includes('mode: runMode'));
-  ok('main.js : bouton speedrun cale la difficulté sur permisA + picker verrouillé', mainSrc.includes("store.setDifficulty('permisA');") && mainSrc.includes("save.speedrun && d.id !== 'permisA'"));
-  ok('index.html : title du bouton speedrun = Permis A seule', html.includes('seule difficulté du mode speedrun'));
+  ok('main.js : plus de verrou : ni setDifficulty(\'permisA\') forcé, ni picker bloqué en speedrun', !mainSrc.includes("store.setDifficulty('permisA');") && !mainSrc.includes("save.speedrun && d.id !== 'permisA'"));
+  ok('index.html : title speedrun = difficulté choisie (plus de « seule difficulté »)', !html.includes('seule difficulté du mode speedrun') && html.includes('difficulté choisie'));
 }
 
 console.log('AG. v1.3.55 : écrans scrollables (safe center + overflow-y) et topbar sticky -> bouton retour toujours accessible (garage)');
@@ -1080,7 +1081,7 @@ console.log('AH. v1.3.56 : nettoyage check de nuit (modale/boutons/CSS morts ret
   ok('main.js : handlers morts supprimés (btn-access, btn-access-close, btn-sound, btn-music, #access-modal)', !mainSrc.includes("on('btn-access'") && !mainSrc.includes("on('btn-access-close'") && !mainSrc.includes("on('btn-sound'") && !mainSrc.includes("on('btn-music'") && !mainSrc.includes("$('#access-modal')"));
   ok("main.js : wiring accessibilité uniquement sur préfixe 's-' (plus de '' )", !mainSrc.includes("wireAccessCheckboxes('')") && !mainSrc.includes("syncAccessCheckboxes('')") && mainSrc.includes("wireAccessCheckboxes('s-')"));
   ok('CSS : .tagline et .pause-access supprimés', !css.includes('.tagline') && !css.includes('.pause-access'));
-  ok("leaderboard.js : fallback mode speedrun = 'permisA' (v1.3.54), plus de 'pilote'", lbSrc.includes("mode: entry.mode || 'permisA'") && !lbSrc.includes("mode: entry.mode || 'pilote'"));
+  ok("leaderboard.js : fallback mode speedrun = 'auto' (v1.3.68)", lbSrc.includes("mode: entry.mode || 'auto'") && !lbSrc.includes("mode: entry.mode || 'permisA'") && !lbSrc.includes("mode: entry.mode || 'pilote'"));
 
   // fonctionnel : submitSpeedrun sans entry.mode envoie bien mode=permisA dans le POST
   {
@@ -1096,7 +1097,7 @@ console.log('AH. v1.3.56 : nettoyage check de nuit (modale/boutons/CSS morts ret
       if (origFetch === undefined) delete globalThis.fetch; else globalThis.fetch = origFetch;
     }
     const post = calls.find((c) => c.body && typeof c.body.timeMs === 'number');
-    ok('submitSpeedrun(3, sans entry.mode) -> POST /speedrun/3.json avec body.mode === "permisA"', !!post && post.body.mode === 'permisA' && post.body.timeMs === 12345 && post.url.includes('/speedrun/3.json'));
+    ok('submitSpeedrun(3, sans entry.mode) -> POST /speedrun/3.json avec body.mode === "auto" (v1.3.68)', !!post && post.body.mode === 'auto' && post.body.timeMs === 12345 && post.url.includes('/speedrun/3.json'));
   }
 }
 
@@ -1413,6 +1414,36 @@ console.log('AQ. v1.3.67 : classement — 1 entrée par joueur (meilleur score/t
   const top = await lb.getTop('auto', 'all');
   ok('getTop en ligne : dédoublonné (GigG 1x meilleur score 3910), wideWindows filtré, tri desc', top.length === 2 && top[0].pseudo === 'GigG' && top[0].score === 3910 && top[1].pseudo === 'Test');
   if (origF2 === undefined) delete globalThis.fetch; else globalThis.fetch = origF2;
+}
+
+console.log('AR. v1.3.68 : speedrun en Auto école (toutes difficultés), onglet Speedrun retiré du classement, colonnes score + ⏱ temps par difficulté, toast si score non envoyé');
+{
+  const fsP = await import('node:fs');
+  const mainSrc = fsP.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  const lbSrc = fsP.readFileSync(new URL('../js/leaderboard.js', import.meta.url), 'utf8');
+  const css = fsP.readFileSync(new URL('../css/style.css', import.meta.url), 'utf8');
+
+  ok('leaderboard.js : playerKey (uid prioritaire, sinon pseudo minuscule)', lb.playerKey({ uid: 'u1', pseudo: 'A' }) === 'u:u1' && lb.playerKey({ pseudo: 'AbC' }) === 'p:abc' && lb.playerKey({}) === '');
+  const tm = lb.buildTimeMap([
+    { pseudo: 'A', uid: 'u1', timeMs: 90000, levelId: 2, mode: 'auto' },
+    { pseudo: 'A', uid: 'u1', timeMs: 60000, levelId: 2, mode: 'auto' },
+    { pseudo: 'A', uid: 'u1', timeMs: 30000, levelId: 2, mode: 'permisA' },
+    { pseudo: 'B', uid: 'u2', timeMs: 45000, levelId: 3, mode: 'auto' },
+  ], 'auto', '2');
+  ok('buildTimeMap : meilleur temps (min) par joueur, filtré par difficulté ET niveau', tm.get('u:u1') === 60000 && !tm.has('u:u2'));
+  const tmAll = lb.buildTimeMap([{ pseudo: 'A', uid: 'u1', timeMs: 90000, levelId: 2, mode: 'auto' }, { pseudo: 'A', uid: 'u1', timeMs: 50000, levelId: 5, mode: 'auto' }], 'auto', 'all');
+  ok('buildTimeMap sans filtre niveau : meilleur temps global', tmAll.get('u:u1') === 50000);
+  ok('dedupeByPlayer réutilise playerKey', lbSrc.includes('const key = playerKey(e);'));
+
+  ok('main.js : plus d\'onglet speedrun dans le filtre difficulté du classement', !mainSrc.includes("{ id: 'speedrun', name: '⏱ Speedrun' }"));
+  ok("main.js : filtre persisté 'speedrun' remis à la difficulté courante à l'ouverture", mainSrc.includes("if (lbFilter === 'speedrun') { lbFilter = save.difficulty; saveLbFilters(); }"));
+
+  ok('main.js : getTop(lbFilter, lbLevelFilter) — la difficulté filtre même avec un niveau choisi', mainSrc.includes('await leaderboard.getTop(lbFilter, lbLevelFilter)'));
+  ok('main.js : buildTimeMap(getSpeedrunAll(), lbFilter, lbLevelFilter) appelé dans renderLeaderboard', mainSrc.includes('leaderboard.buildTimeMap(await leaderboard.getSpeedrunAll(), lbFilter, lbLevelFilter)'));
+  ok('main.js : cellule lb-time (⏱… ou —) ajoutée à chaque ligne hors réaction', mainSrc.includes('class="lb-time"') && mainSrc.includes('timeByPlayer.get(leaderboard.playerKey(e))'));
+  ok('css : .lb-time stylé (colonne temps)', css.includes('.lb-time'));
+
+  ok('main.js : fin de partie -> toast explicite si non éligible (wideWindows / pas de compte Google)', mainSrc.includes('résultat gardé en local, hors classement en ligne') && mainSrc.includes('apparaître dans le classement en ligne'));
 }
 
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);

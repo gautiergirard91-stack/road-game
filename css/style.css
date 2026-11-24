@@ -704,6 +704,16 @@ canvas.swatch.snd-preview {
   font-weight: 800;
 }
 
+/* v1.3.68 : colonne temps speedrun à côté du score dans le classement */
+.lb-time {
+  color: #9aa6cc;
+  font-size: 12px;
+  font-weight: 600;
+  min-width: 56px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
 .lb-level {
   color: #9aa6cc;
   font-size: 12px;

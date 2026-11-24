@@ -239,11 +239,11 @@ for (const [id, mm] of Object.entries(MODELS)) {
 }
 
 {
-  // v1.3.54 : speedrun = UNE SEULE difficulté, Permis A (forcée quel que soit le mode demandé)
+  // v1.3.68 : speedrun dispo dans TOUTES les difficultés (plus de forçage Permis A)
   const { game, events } = makeGame(LEVELS[0], 'auto', { speedrun: true });
   game.start();
-  assert.equal(game.mode, 'permisA', 'speedrun force Permis A même si auto demandé');
-  assert.equal(makeGame(LEVELS[0], 'pilote', { speedrun: true }).game.mode, 'permisA', 'speedrun en pilote -> permisA quand même');
+  assert.equal(game.mode, 'auto', 'v1.3.68 : speedrun en auto -> mode auto conservé');
+  assert.equal(makeGame(LEVELS[0], 'pilote', { speedrun: true }).game.mode, 'pilote', 'v1.3.68 : speedrun en pilote -> pilote conservé');
   assert.equal(makeGame(LEVELS[0], 'permisA', { speedrun: true }).game.mode, 'permisA', 'speedrun en permisA -> permisA');
   assert.equal(game.bonusSpeed, 0, 'pas de bonus au départ');
   const l1 = game.lines[0];
