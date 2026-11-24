@@ -356,4 +356,17 @@ for (const l of [...LEVELS, ENDLESS_LEVEL]) renderThemePreview(fakeCanvas(), l.t
   assert.equal(game.stats.overtakes, 0, 'swipeLeft sans cible = pas de dépassement');
 }
 
+
+{
+  // v1.3.77 : mode unique — raté = +0,5 s de pénalité, timeMs final inclut les pénalités
+  const { game, events } = makeGame(LEVELS[0], 'auto', { speedrun: true });
+  game.start();
+  game.registerMiss(null, 'rear'); // simule un raté
+  assert.equal(game.penaltyMs, 500, 'raté = +500 ms de pénalité de temps');
+  game.registerMiss(null, 'rear');
+  assert.equal(game.penaltyMs, 1000, '2 ratés = +1000 ms');
+  game.finish(false);
+  assert.ok(events.end.timeMs >= Math.round(game.elapsed * 1000) + 1000, 'timeMs final = chrono + pénalités');
+}
+
 console.log('OK - smoke test moteur : 9 scénarios sans crash, mécaniques vérifiées');

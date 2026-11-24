@@ -1,6 +1,6 @@
 # ✅ Assurance qualité
 
-> **Note (v1.3.76)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.76**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
+> **Note (v1.3.77)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.77**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
 
 ## Processus de test
 
@@ -662,4 +662,14 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] `node tests/break.test.mjs` : section AZ (13 assertions) + MAJ keyToAction/DEFAULT_KEYS/bindKey/zones ; `game.smoke` : 4 nouveaux scénarios (collision de face, danger, garde spawn, swipeRight) — **438 assertions**, 9 scénarios smoke
 - [ ] Test manuel : Pilote → doubler (swipe ←/⬅), la voiture RESTE à gauche ; ⚠ clignote si une voiture de face approche ; swipe →/➡ pour revenir ; rester à gauche jusqu'à la collision = 💥 écran de fin ; PC : Z=AV, S=AR, ⬅/➡ = voies ; musique : chaque ligne = un beat audible
 - [ ] CI verte + CACHE sw bumpé (roadtap-v84) + VERSION 1.3.76 + version.json 1.3.76
+
+## Checklist v1.3.77 (MODE UNIQUE : standard+speedrun fusionnés + pénalités de temps — branche `vibe/mode-unique-264a24`, empilée sur #59)
+
+- [ ] **Plus de sélecteur de mode** : `btn-mode-normal`/`btn-mode-speedrun` supprimés du HTML, handlers + `renderModePicker` supprimés ; label « Mode unique : score 🏁 + chrono ⏱ » ; plus aucun `save.speedrun` dans main.js
+- [ ] **Chrono partout** : `startLevel` passe `speedrun: true` (chrono + bonus vitesse PARFAIT toujours actifs) ; HUD `#hud-time` rafraîchi toutes les 100 ms (elapsed + penaltyMs) ; écran de fin = score (#over-score) + chrono (#over-time, « 🏆 nouveau record » si record)
+- [ ] **Pénalités de temps** : raté = `penaltyMs += 500` (popup « RATÉ +0,5 s ») ; `timeMs final = elapsed + penaltyMs` ; **continuer = +2 s** (`penaltyMs += 2000`, label « Continuer — +2 s ⏱ », plus de coût en pièces, `continueCost` retiré)
+- [ ] **Classement** : score envoyé à chaque fin (si éligible), temps envoyé si niveau terminé ; `#over-rank` affiche les 2 rangs « 🏁 … · ⏱ … » ; gate v1.3.73 supprimée (plus de verrou speedrun) ; `markCleared` sans condition de mode
+- [ ] `node tests/break.test.mjs` : section BA (7 assertions) + MAJ AW/AR — **444 assertions** ; `game.smoke` : +1 scénario pénalités (10 au total)
+- [ ] Test manuel : une seule partie = score + chrono live ; rater une ligne → « RATÉ +0,5 s » et chrono +0,5 s ; 3 ratés → « Continuer — +2 s ⏱ » (gratuit en temps, plus de pièces) ; écran de fin : score + ⏱ temps + 2 rangs ; classement : colonnes 🏁 et ⏱ remplies par la même partie
+- [ ] CI verte + CACHE sw bumpé (roadtap-v85) + VERSION 1.3.77 + version.json 1.3.77
 
