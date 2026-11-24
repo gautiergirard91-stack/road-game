@@ -18,7 +18,7 @@ function key(account) {
 export async function load(account, idToken) {
   if (!isOnline() || !account) return null;
   try {
-    const res = await fetch(url(`/players/${key(account)}`, idToken));
+    const res = await fetch(url(`/players/${key(account)}`, idToken), { cache: 'no-store' }); // v1.3.72 : sauvegarde cloud toujours fraîche
     if (!res.ok) return null;
     return await res.json();
   } catch {

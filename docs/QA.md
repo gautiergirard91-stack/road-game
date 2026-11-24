@@ -1,6 +1,6 @@
 # ✅ Assurance qualité
 
-> **Note (v1.3.71)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.71**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
+> **Note (v1.3.72)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.72**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
 
 ## Processus de test
 
@@ -607,4 +607,15 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] `node tests/break.test.mjs` : section AU (5 assertions) — **395 assertions**
 - [ ] Test manuel : finir un niveau connecté (Auto école, niveau 2) → l'écran de fin affiche directement « 🏁 N pts → #k au classement — Accélération (Auto école) » (plus de « pas encore visible ») ; speedrun → « ⏱ t → #k au classement speedrun » ; si envoi refusé (fenêtres élargies) → ligne ⚠️ explicite
 - [ ] CI verte + CACHE sw bumpé (roadtap-v79) + VERSION 1.3.71 + version.json 1.3.71
+
+## Checklist v1.3.72 (SW ne touche plus au cross-origin + no-store sur les GET Firebase — classement toujours frais — branche `vibe/sw-firebase-bypass-264a24`)
+
+- [ ] `sw.js` : `if (!sameOrigin) return;` **avant** tout `respondWith` (navigate compris) → les requêtes Firebase/gstatic ne passent plus du tout par le SW (DevTools n'affiche plus « service worker » dessus) et ne sont jamais dans le cache SW
+- [ ] `sw.js` : un seul calcul `url`/`sameOrigin` ; `version.json` toujours non intercepté (v1.3.30) ; code toujours network-first (v1.3.24) — non-régression
+- [ ] `js/leaderboard.js` : `cache: 'no-store'` sur les **7 GET RTDB** (ping ×2, scores ×2, challenges, speedrun ×2) → aucune lecture servie depuis le cache HTTP du navigateur
+- [ ] `js/cloudsave.js` : GET `players/<uid>` en `no-store` (sauvegarde cloud fraîche)
+- [ ] `node tests/break.test.mjs` : section AV (6 assertions) — **401 assertions**
+- [ ] Test manuel : DevTools → Réseau → ouvrir le classement : les requêtes `realtime-database-…/*.json` n'ont plus « service worker » dans la colonne transfert et renvoient 200 avec données à jour ; finir un niveau connecté → le rang écran de fin reflète le score qui vient d'être envoyé (v1.3.71 + v1.3.72)
+- [ ] Hors ligne : le classement local s'affiche toujours (repli `isOnline()` inchangé) ; reconnexion → file hors ligne vidée (v1.3.66)
+- [ ] CI verte + CACHE sw bumpé (roadtap-v80) + VERSION 1.3.72 + version.json 1.3.72
 

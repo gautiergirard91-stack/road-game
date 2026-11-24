@@ -168,3 +168,7 @@ Au 1ᵉʳ chargement, le 1ᵉʳ ping partait avant que le jeton reCAPTCHA Enterp
 
 Bug constaté : l'écran de fin affichait « 🏁 score pas encore visible en ligne (local ?) » alors que le score apparaissait ensuite dans le classement — le rang était **lu avant que l'écriture ne soit posée** (envoi fire-and-forget). Fix : le bloc `#over-rank` **attend la fin du POST** (`await submitP`/`submitSrP`), refait une **2e lecture après 1,2 s** si le joueur n'est pas trouvé, affiche « classement local (envoyé à la reconnexion) » hors ligne, et une ligne ⚠️ explicite si le serveur a refusé l'envoi.
 
+## v1.3.72 — le service worker ne gère plus le cross-origin + lectures Firebase en `no-store`
+
+Vu dans DevTools : les requêtes `realtime-database-…/scores/*.json` passaient par le service worker. Même si le SW ne *cache* que le same-origin, toute lecture RTDB passait par lui (et pouvait hériter du cache HTTP). Fix : `if (!sameOrigin) return;` en tête du handler `fetch` du SW (Firebase/gstatic contournent totalement le SW) + `cache: 'no-store'` sur **tous les GET RTDB** (leaderboard ×7, cloudsave players) → le classement et la sauvegarde cloud sont **toujours lus sur le réseau**, jamais depuis un cache. Non-régression : `version.json` toujours non intercepté, code toujours network-first, icônes toujours cache-first offline.
+

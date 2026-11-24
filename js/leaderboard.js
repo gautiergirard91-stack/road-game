@@ -44,14 +44,14 @@ export async function ping(idToken) {
     const q = FIREBASE_DB_SECRET ? `auth=${FIREBASE_DB_SECRET}&shallow=true` : 'shallow=true';
     // la racine n'est volontairement PAS lisible publiquement (règles RTDB) :
     // on pingue un nœud public (scores, ".read": true) pour tester la connexion
-    const res = await fetch(`${base}/scores/.json?${q}`);
+    const res = await fetch(`${base}/scores/.json?${q}`, { cache: 'no-store' }); // v1.3.72 : jamais de cache HTTP
     const ms = Date.now() - t0;
     lastPing = res.ok
       ? { ok: true, status: res.status, reason: 'ok', ms, at: Date.now(), authProbe: null }
       : { ok: false, status: res.status, reason: 'http-' + res.status, ms, at: Date.now(), authProbe: null };
     if (!res.ok && (res.status === 401 || res.status === 403) && idToken) {
       try {
-        const res2 = await fetch(`${base}/scores/.json?auth=${encodeURIComponent(idToken)}&shallow=true`);
+        const res2 = await fetch(`${base}/scores/.json?auth=${encodeURIComponent(idToken)}&shallow=true`, { cache: 'no-store' }); // v1.3.72
         lastPing.authProbe = { status: res2.status, ok: res2.ok, reason: res2.ok ? 'ok' : 'http-' + res2.status };
       } catch (e) {
         lastPing.authProbe = { status: 0, ok: false, reason: 'network', error: String((e && e.message) || e) };
@@ -284,7 +284,7 @@ export async function getTop(mode = 'all', levelFilter = 'all') {
     try {
       const base = FIREBASE_DB_URL.replace(/\/$/, '');
       const auth = FIREBASE_DB_SECRET ? `?auth=${FIREBASE_DB_SECRET}` : ''; // v1.3.22 : nœud entier + tri côté client (orderBy sans .indexOn = 400)
-      const res = await fetch(`${base}/scores/${m}.json${auth}`);
+      const res = await fetch(`${base}/scores/${m}.json${auth}`, { cache: 'no-store' }); // v1.3.72 : lecture toujours fraîche
       if (res.ok) {
         const data = await res.json();
         if (data && typeof data === 'object') all.push(...Object.values(data));
@@ -309,7 +309,7 @@ export async function getAll(mode = 'all') {
   const fetchMode = async (m) => {
     const base = FIREBASE_DB_URL.replace(/\/$/, '');
     const auth = FIREBASE_DB_SECRET ? `?auth=${FIREBASE_DB_SECRET}` : '';
-    const res = await fetch(`${base}/scores/${m}.json${auth}`);
+    const res = await fetch(`${base}/scores/${m}.json${auth}`, { cache: 'no-store' }); // v1.3.72 : lecture toujours fraîche
     if (!res.ok) throw new Error(`HTTP ${res.status} sur scores/${m}`);
     const data = await res.json();
     return data && typeof data === 'object' ? Object.values(data) : [];
@@ -363,7 +363,7 @@ export async function getChallengeTop(dayId) {
   try {
     const base = FIREBASE_DB_URL.replace(/\/$/, '');
     const auth = FIREBASE_DB_SECRET ? `?auth=${FIREBASE_DB_SECRET}` : ''; // v1.3.22 : idem
-    const res = await fetch(`${base}/challenges/${dayId}.json${auth}`);
+    const res = await fetch(`${base}/challenges/${dayId}.json${auth}`, { cache: 'no-store' }); // v1.3.72
     if (res.ok) {
       const data = await res.json();
       if (data && typeof data === 'object') return sortDesc(Object.values(data));
@@ -455,7 +455,7 @@ export async function getSpeedrunAll() {
   const readAll = async () => {
     const base = FIREBASE_DB_URL.replace(/\/$/, '');
     const auth = FIREBASE_DB_SECRET ? `?auth=${FIREBASE_DB_SECRET}` : '';
-    const res = await fetch(`${base}/speedrun.json${auth}`);
+    const res = await fetch(`${base}/speedrun.json${auth}`, { cache: 'no-store' }); // v1.3.72 : lecture toujours fraîche
     if (!res.ok) throw new Error(`HTTP ${res.status} sur speedrun`);
     const data = await res.json();
     const all = [];
@@ -496,7 +496,7 @@ export async function getSpeedrunTop(levelFilter = 'all') {
   try {
     const base = FIREBASE_DB_URL.replace(/\/$/, '');
     const auth = FIREBASE_DB_SECRET ? `?auth=${FIREBASE_DB_SECRET}` : ''; // nœud entier + tri croissant côté client (idem v1.3.22)
-    const res = await fetch(`${base}/speedrun.json${auth}`);
+    const res = await fetch(`${base}/speedrun.json${auth}`, { cache: 'no-store' }); // v1.3.72 : lecture toujours fraîche
     if (res.ok) {
       const data = await res.json();
       if (data && typeof data === 'object') {
