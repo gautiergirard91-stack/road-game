@@ -8,7 +8,7 @@ import { Tutorial } from './tutorial.js';
 import * as leaderboard from './leaderboard.js';
 import * as cloudsave from './cloudsave.js';
 import { restoreGoogleSession, setAuthToken, getAuthToken, signOutGoogle, isGoogleAuthConfigured, signInWithPopupGoogle } from './auth.js';
-import { initAppCheck, installAppCheckFetch, appCheckDebug } from './appcheck.js';
+import { initAppCheck, installAppCheckFetch, appCheckDebug, warmAppCheck } from './appcheck.js';
 import { logEvent } from './analytics.js';
 import { VERSION } from './config.js';
 
@@ -481,6 +481,20 @@ function checkAchievements(stats, level) {
   }
 }
 
+// v1.3.69 : le 1er ping au chargement peut arriver AVANT que le jeton App Check soit prêt
+// (cold start) -> 401 sous Enforce alors que tout va bien. On attend le jeton (warmAppCheck)
+// puis on re-tente UNE fois avant d'afficher l'état.
+async function pingServer() {
+  let ok = await leaderboard.ping(getAuthToken());
+  let p = leaderboard.getPingStatus();
+  if (!ok && p && p.reason === 'http-401') {
+    try { await warmAppCheck(); } catch { /* ignore */ }
+    ok = await leaderboard.ping(getAuthToken());
+    p = leaderboard.getPingStatus();
+  }
+  return { ok, p };
+}
+
 function refreshStatus() {
   $('#version-label').textContent = 'v' + VERSION;
   const el = $('#net-status');
@@ -496,9 +510,8 @@ function refreshStatus() {
   }
   el.textContent = '🟡 Connexion au serveur…';
   el.className = 'net-pill local';
-  leaderboard.ping(getAuthToken()).then((ok) => { // v1.3.59 : sonde auth incluse
+  pingServer().then(({ ok, p }) => { // v1.3.69 : ping + retry 401 si jeton App Check pas encore prêt
     // v1.3.58 : on affiche la CAUSE (HTTP xxx / réseau / ms) et pas juste « injoignable »
-    const p = leaderboard.getPingStatus();
     if (ok && p) {
       el.textContent = `🟢 En ligne — ${p.ms} ms`;
       el.className = 'net-pill on';
@@ -1411,11 +1424,11 @@ async function updateServerStatus() {
     return;
   }
   el.textContent = '🟡 Firebase : connexion au serveur…';
-  const ok = await leaderboard.ping(getAuthToken()); // v1.3.59 : sonde auth pour départager un 401
+  const { ok, p } = await pingServer(); // v1.3.69 : sonde auth + retry 401 si jeton pas prêt
   const st = leaderboard.getLbStatus();
   let ac = null;
   try { ac = appCheckDebug(); } catch { ac = null; }
-  el.textContent = serverStatusText(ok, leaderboard.getPingStatus(), ac) + (ok && st && st.writeError ? ` (⚠ ${st.writeError})` : '');
+  el.textContent = serverStatusText(ok, p, ac) + (ok && st && st.writeError ? ` (⚠ ${st.writeError})` : '');
 }
 
 let settingsFrom = 'menu'; // 'menu' | 'pause' — d'où vient l'ouverture des Paramètres
@@ -1955,6 +1968,7 @@ refreshStatus();
 show('screen-menu');
 initAppCheck(); // v1.3.34 : App Check (reCAPTCHA v3) — dégrade gracieusement si indisponible
 installAppCheckFetch(); // pose le header X-Firebase-AppCheck sur tous les appels REST RTDB
+warmAppCheck(); // v1.3.69 : préchauffe le jeton App Check au boot (fire-and-forget) — évite un faux 401 au 1er ping
 checkServerVersion(); // v1.3.30 : sonde anti-SW-obsolète (démarrage uniquement)
 
 // v1.3.30 : si le serveur sert une version plus récente que la page chargée (vieux SW en cache),

@@ -153,3 +153,7 @@ L'échange de jeton App Check exige l'**ID d'application** de l'app web (`1:…:
 - Le mode **speedrun est disponible dans toutes les difficultés** (Auto école comprise) : le verrou « Permis A seule » (v1.3.54) est levé côté moteur (`game.mode = opts.mode`), UI (picker libre, plus de `setDifficulty('permisA')` forcé) et libellés.
 - Page classement : l'onglet **⏱ Speedrun est supprimé** ; chaque onglet de difficulté affiche **deux colonnes** — score (meilleur, 1 entrée/joueur via v1.3.67) et **⏱ meilleur temps speedrun** du joueur sur ce filtre (niveau/difficulté), `—` sinon. La difficulté active filtre aussi quand un niveau est choisi.
 - Fin de partie : si le résultat n'est **pas** envoyé en ligne (pas de compte Google, ou fenêtres élargies), un toast dit pourquoi (résultat gardé en local / file hors ligne v1.3.66).
+
+## v1.3.69 — faux 401 au chargement (jeton App Check froid)
+
+Au 1ᵉʳ chargement, le 1ᵉʳ ping partait avant que le jeton reCAPTCHA Enterprise soit prêt (cold start) → **401 sous Enforce** affiché en pastille, alors que ⚙️ Paramètres voyait tout vert ensuite. Fix : `warmAppCheck()` au boot (préchauffe le jeton) + `pingServer()` qui, sur un `http-401` initial, attend le jeton et re-tente **une fois** — utilisé par la pastille menu et par Paramètres.
