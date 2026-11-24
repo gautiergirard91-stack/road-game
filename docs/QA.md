@@ -1,6 +1,6 @@
 # ✅ Assurance qualité
 
-> **Note (v1.3.69)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.69**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
+> **Note (v1.3.70)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.70**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
 
 ## Processus de test
 
@@ -585,3 +585,16 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] `node tests/break.test.mjs` : section AS (4 assertions : export, boot, retry 401, pingServer aux 2 endroits + warmAppCheck headless sans throw)
 - [ ] Test manuel : recharger roadtap.uk à froid (cache vidé) → la pastille passe directement 🟢 (plus de « HTTP 401 (mode local) » transitoire) ; ⚙️ Paramètres idem
 - [ ] CI verte + CACHE sw bumpé (roadtap-v77) + VERSION 1.3.69 + version.json 1.3.69
+
+## Checklist v1.3.70 (classement : 2 colonnes triables Score ⇄ Temps + rang du joueur en fin de partie — branche `vibe/classement-2col-264a24`)
+
+- [ ] **Bouton de tri** `#lb-sort` au-dessus de la liste (« Trier : 🏁 Score » ⇄ « ⏱ Temps »), persistant dans `roadtap_lb_filters_v1` (`sort: 'score'|'time'`) : on retrouve le même tri en revenant sur la page
+- [ ] **Deux colonnes visibles en même temps** : chaque ligne affiche `.lb-score` (score) ET `.lb-time` (⏱ meilleur temps speedrun du joueur ou —) — on voit le joueur au meilleur score ET celui au meilleur temps
+- [ ] `sortLbRows(arr, sort, timeByPlayer)` dans leaderboard.js : tri score = décroissant ; tri temps = joueurs AVEC temps d'abord (croissant), puis les autres par score décroissant
+- [ ] `renderLeaderboard` : branches via `getAll(lbFilter)` + `filterLevel(all, lbLevelFilter)` + `dedupeByPlayer`, puis `sortLbRows(top, lbSort, timeByPlayer).slice(0, 50)` hors réaction
+- [ ] **Rang en fin de partie** : bloc `#over-rank` sur l'écran de fin — score → « 🏁 N pts → #i au classement — niveau (mode) » ; speedrun → « ⏱ t → #i au classement speedrun » ; ignoré si non éligible (pas de compte Google / fenêtres élargies)
+- [ ] **Toast si envoi refusé** : après `submitScore`, si `writeError` → toast « ⚠️ Envoi refusé : … » (diagnostique « rien n'apparaît » niveau 2 auto école)
+- [ ] `node tests/break.test.mjs` : section AT (7 assertions : sortLbRows fonctionnel score/temps, HTML #lb-sort/#over-rank, persistance lbSort, câblage renderLeaderboard, bloc over-rank, toast writeError) + MAJ AR (getAll+filterLevel) et lignes 984-986 — **390 assertions**
+- [ ] Test manuel : classement → cliquer « Trier » → l'ordre change (meilleur temps en 1er en tri Temps) et persiste après fermeture/réouverture ; finir le niveau 2 en Auto école connecté → ligne de rang affichée sur l'écran de fin ; si pas connecté ou wideWindows → toast + pas de rang
+- [ ] CI verte + CACHE sw bumpé (roadtap-v78) + VERSION 1.3.70 + version.json 1.3.70
+

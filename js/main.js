@@ -93,6 +93,7 @@ function renderModePicker() {
 
 let lbFilter = 'all';
 let lbLevelFilter = 'all';
+let lbSort = 'score'; // v1.3.70 : tri du classement — 'score' (défaut) ou 'time'
 // v1.3.65 : les filtres du classement (difficulté/mode, niveau, onglet amis) sont MÉMORISÉS et
 // restaurés à la réouverture de la page — le joueur retrouve ses filtres.
 // v1.3.36 : portée du classement — 'all' (tous les joueurs) ou 'friends' (amis par pseudo)
@@ -108,13 +109,14 @@ function loadLbFilters() {
       if (typeof o.filter === 'string') lbFilter = o.filter;
       if (typeof o.level === 'string') lbLevelFilter = o.level;
       if (typeof o.scope === 'string') lbScope = o.scope;
+      if (o.sort === 'score' || o.sort === 'time') lbSort = o.sort; // v1.3.70
       lbFiltersLoaded = true;
     }
   } catch { /* ignore */ }
 }
 function saveLbFilters() {
   try {
-    localStorage.setItem(LB_FILTERS_KEY, JSON.stringify({ filter: lbFilter, level: lbLevelFilter, scope: lbScope }));
+    localStorage.setItem(LB_FILTERS_KEY, JSON.stringify({ filter: lbFilter, level: lbLevelFilter, scope: lbScope, sort: lbSort })); // v1.3.70 : + sort
   } catch { /* ignore */ }
 }
 loadLbFilters();
@@ -223,6 +225,16 @@ function renderLbLevelFilter() {
   }
 }
 
+// v1.3.70 : tri du classement Score ⇄ Temps (persisté)
+on('lb-sort', 'click', () => {
+  lbSort = lbSort === 'score' ? 'time' : 'score';
+  saveLbFilters();
+  sfx.click();
+  const b = $('#lb-sort');
+  if (b) b.textContent = lbSort === 'time' ? 'Trier : ⏱ Temps' : 'Trier : 🏁 Score';
+  renderLeaderboard();
+});
+
 function renderLbFilter() {
   const el = $('#lb-filter');
   if (!el) return;
@@ -261,19 +273,23 @@ async function renderLeaderboard() {
       let arr = all.filter((e) => typeof e.avgMs === 'number' && Number.isFinite(e.avgMs));
       arr = leaderboard.filterLevel(arr, lbLevelFilter);
       if (lbScope === 'friends') arr = filterFriendsByPseudo(arr, save.friends);
-      top = leaderboard.dedupeByPlayer(arr.sort((a, b) => a.avgMs - b.avgMs), 'reaction').slice(0, 50); // v1.3.67
+      top = leaderboard.dedupeByPlayer(arr, 'reaction').sort((a, b) => a.avgMs - b.avgMs); // v1.3.67
     } else if (lbScope === 'friends') {
       // v1.3.36 : on récupère TOUT le classement (sans limite) puis on filtre par pseudos d'amis côté client
-      const all = isSr ? await leaderboard.getSpeedrunAll() : await leaderboard.getAll(lbLevelFilter !== 'all' ? 'all' : lbFilter); // v1.3.50 : idem pour les amis
-      top = leaderboard.dedupeByPlayer(filterFriendsByPseudo(leaderboard.filterLevel(all, lbLevelFilter), save.friends), isSr ? 'speedrun' : 'score').slice(0, 50); // v1.3.67
+      const all = await leaderboard.getAll(lbFilter); // v1.3.70 : mode = onglet actif
+      top = leaderboard.dedupeByPlayer(filterFriendsByPseudo(leaderboard.filterLevel(all, lbLevelFilter), save.friends), 'score'); // v1.3.67
     } else {
-      // v1.3.68 : la difficulté active filtre AUSSI quand un niveau est choisi (colonnes score+temps cohérentes)
-      top = await leaderboard.getTop(lbFilter, lbLevelFilter);
+      // v1.3.68/70 : la difficulté active filtre (même avec un niveau choisi) ; on garde TOUT pour trier après
+      const all = await leaderboard.getAll(lbFilter);
+      top = leaderboard.dedupeByPlayer(leaderboard.filterLevel(all, lbLevelFilter), 'score');
       // v1.3.68 : colonne temps — meilleur temps speedrun de chaque joueur (même difficulté, même filtre niveau)
       try {
         timeByPlayer = leaderboard.buildTimeMap(await leaderboard.getSpeedrunAll(), lbFilter, lbLevelFilter);
       } catch { timeByPlayer = null; }
     }
+    // v1.3.70 : tri Score (défaut) ou Temps — on voit le meilleur score ET le meilleur temps
+    if (!isReact) top = leaderboard.sortLbRows(top, lbSort, timeByPlayer);
+    top = top.slice(0, 50);
   } catch {
     top = [];
   }
@@ -1153,6 +1169,11 @@ function onGameEnd(stats, level) {
     leaderboard
       // v1.3.32 : uid + jeton -> règles RTDB vérifient uid == auth.uid (anti-usurpation)
       .submitScore({ pseudo: save.pseudo, uid: save.uid || '', score: stats.score, level: level.name, levelId: level.id, mode: save.difficulty, date: Date.now(), avgMs: avgReaction(stats) ?? undefined }, getAuthToken()) // v1.3.48 : avgMs envoyé au classement
+      .then(() => {
+        // v1.3.70 : si le serveur refuse l'écriture (403…), on le dit tout de suite
+        const st2 = leaderboard.getLbStatus();
+        if (st2 && st2.writeError) toast(`⚠️ Envoi refusé : ${st2.writeError}`);
+      })
       .catch(() => {});
   }
   // v1.3.68 : si le résultat n'est PAS envoyé au classement en ligne, on dit POURQUOI (sinon « mon score n'apparaît pas »)
@@ -1166,6 +1187,28 @@ function onGameEnd(stats, level) {
       .submitSpeedrun(level.id, { pseudo: save.pseudo, uid: save.uid || '', timeMs: stats.timeMs || 0, level: level.name, levelId: level.id, mode: runMode, date: Date.now() }, getAuthToken()) // v1.3.54 : mode réel (permisA en speedrun)
       .catch(() => {});
   }
+  // v1.3.70 : place du joueur au classement avec le score/temps du run (affiché sur l'écran de fin)
+  (async () => {
+    const el = $('#over-rank');
+    if (!el) return;
+    el.textContent = '';
+    if (!canSubmitToLeaderboard(save)) return; // le toast d'éligibilité (v1.3.68) explique déjà pourquoi
+    try {
+      const key = leaderboard.playerKey({ uid: save.uid, pseudo: save.pseudo });
+      const modeName = (DIFFICULTIES.find((d) => d.id === runMode) || {}).name || runMode;
+      if (sr && stats.completed) {
+        const all = await leaderboard.getSpeedrunAll();
+        const arr = leaderboard.dedupeByPlayer(leaderboard.filterLevel(all, String(level.id)).filter((e) => !e.mode || e.mode === runMode), 'speedrun').sort((a, b) => a.timeMs - b.timeMs);
+        const i = arr.findIndex((e) => leaderboard.playerKey(e) === key);
+        el.textContent = i >= 0 ? `⏱ ${fmtTime((stats.timeMs || 0) / 1000)} → #${i + 1} au classement speedrun — ${level.name} (${modeName})` : '⏱ temps pas encore visible en ligne…';
+      } else {
+        const all = await leaderboard.getAll(runMode);
+        const arr = leaderboard.dedupeByPlayer(leaderboard.filterLevel(all, String(level.id)), 'score').sort((a, b) => (b.score || 0) - (a.score || 0));
+        const i = arr.findIndex((e) => leaderboard.playerKey(e) === key);
+        el.textContent = i >= 0 ? `🏁 ${stats.score} pts → #${i + 1} au classement — ${level.name} (${modeName})` : '🏁 score pas encore visible en ligne (local ?) — ouvre le classement';
+      }
+    } catch { /* lecture KO -> on laisse vide */ }
+  })();
   pushCloud();
   let coins = coinsForResult(stats, level, stats.completed);
   let clearBonus = 0;
@@ -1490,6 +1533,8 @@ on('btn-leaderboard', 'click', () => {
     saveLbFilters();
   }
   if (lbFilter === 'speedrun') { lbFilter = save.difficulty; saveLbFilters(); } // v1.3.68 : onglet speedrun supprimé -> on retombe sur la difficulté courante
+  const sortBtn = $('#lb-sort'); // v1.3.70 : label du tri courant
+  if (sortBtn) sortBtn.textContent = lbSort === 'time' ? 'Trier : ⏱ Temps' : 'Trier : 🏁 Score';
   leaderboard.flushQueue(getAuthToken(), save.uid); // v1.3.66 : file hors ligne vidée si possible
   renderLbScope(); // v1.3.36 : onglets 🌍 Tous / 👥 Amis
   renderFriends();

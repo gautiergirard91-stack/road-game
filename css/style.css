@@ -676,6 +676,10 @@ canvas.swatch.snd-preview {
   align-items: center;
 }
 
+#lb-sort {
+  margin: 4px 0 8px;
+}
+
 .lb-row {
   gap: 10px;
 }

@@ -979,9 +979,9 @@ console.log('AB. v1.3.50 : « Photo réaliste » supprimé, tagline supprimée, 
   ok('access-modal retiré du HTML (v1.3.56 : modale morte nettoyée, accessibilité uniquement dans ⚙️ Paramètres)', !html.includes('id="access-modal"'));
   ok('CSS : options accessibilité lisibles dans Paramètres (16px + fond + case agrandie)', css.includes('.settings-panel label.lb-optin') && css.includes('font-size: 16px') && css.includes('scale(1.3)'));
 
-  ok('main.js : plus d\'option « Tous » ni « Tous niveaux » dans les filtres LB', !mainSrc.includes("name: 'Tous niveaux'") && !mainSrc.includes("{ id: 'all', name: 'Tous' }"));
-  ok('main.js : ouverture du classement = difficulté courante + aucun filtre niveau', mainSrc.includes('lbFilter = save.difficulty;') && mainSrc.includes("lbLevelFilter = 'all';"));
-  ok('main.js : filtre par niveau => fetch de TOUS les modes (bug testeur niveau 2)', mainSrc.includes("lbLevelFilter !== 'all' ? 'all' : lbFilter"));
+  ok('main.js : « 🌐 Tous niveaux » ré-ajouté pour le filtre NIVEAU (v1.3.67), pas d\'option « Tous » pour la difficulté', mainSrc.includes("{ id: 'all', name: '🌐 Tous niveaux' }") && !mainSrc.includes("{ id: 'all', name: 'Tous' }"));
+  ok('main.js : ouverture = filtres mémorisés (v1.3.65), sinon défaut difficulté courante + tous niveaux', mainSrc.includes('if (!lbFiltersLoaded)') && mainSrc.includes('lbFilter = save.difficulty;') && mainSrc.includes("lbLevelFilter = 'all';"));
+  ok('main.js : filtre par niveau => getAll(lbFilter) + filterLevel côté client (v1.3.70, la difficulté filtre toujours)', mainSrc.includes('await leaderboard.getAll(lbFilter)') && mainSrc.includes('leaderboard.filterLevel(all, lbLevelFilter)'));
   ok('leaderboard.js : filterLevel tolérant (levelId string ou number)', lbSrc.includes('Number(e.levelId) === id'));
 
   // fonctionnel : filterLevel avec levelId en string fonctionne (cause possible du bug testeur)
@@ -1438,7 +1438,7 @@ console.log('AR. v1.3.68 : speedrun en Auto école (toutes difficultés), onglet
   ok('main.js : plus d\'onglet speedrun dans le filtre difficulté du classement', !mainSrc.includes("{ id: 'speedrun', name: '⏱ Speedrun' }"));
   ok("main.js : filtre persisté 'speedrun' remis à la difficulté courante à l'ouverture", mainSrc.includes("if (lbFilter === 'speedrun') { lbFilter = save.difficulty; saveLbFilters(); }"));
 
-  ok('main.js : getTop(lbFilter, lbLevelFilter) — la difficulté filtre même avec un niveau choisi', mainSrc.includes('await leaderboard.getTop(lbFilter, lbLevelFilter)'));
+  ok('main.js : getAll(lbFilter) + filterLevel(all, lbLevelFilter) (v1.3.70)', mainSrc.includes('await leaderboard.getAll(lbFilter)') && mainSrc.includes('leaderboard.filterLevel(all, lbLevelFilter)'));
   ok('main.js : buildTimeMap(getSpeedrunAll(), lbFilter, lbLevelFilter) appelé dans renderLeaderboard', mainSrc.includes('leaderboard.buildTimeMap(await leaderboard.getSpeedrunAll(), lbFilter, lbLevelFilter)'));
   ok('main.js : cellule lb-time (⏱… ou —) ajoutée à chaque ligne hors réaction', mainSrc.includes('class="lb-time"') && mainSrc.includes('timeByPlayer.get(leaderboard.playerKey(e))'));
   ok('css : .lb-time stylé (colonne temps)', css.includes('.lb-time'));
@@ -1461,6 +1461,36 @@ console.log('AS. v1.3.69 : faux 401 au 1er ping (jeton App Check pas encore prê
   // fonctionnel : warmAppCheck ne plante pas headless (gstatic injoignable -> {} proprement)
   const dbg = await ac.warmAppCheck();
   ok('warmAppCheck() headless -> renvoie appCheckDebug() sans throw (tokenOk false ou null, lastError renseigné ou null)', typeof dbg === 'object' && 'tokenOk' in dbg && 'appIdMissing' in dbg);
+}
+
+console.log('AT. v1.3.70 : classement en 2 colonnes triables (Score ⇄ Temps persisté), rang du joueur affiché en fin de partie, toast si l\'envoi est refusé (403)');
+{
+  const fsR = await import('node:fs');
+  const mainSrc = fsR.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  const lbSrc = fsR.readFileSync(new URL('../js/leaderboard.js', import.meta.url), 'utf8');
+  const html = fsR.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+
+  // sortLbRows fonctionnel
+  const timeMap = new Map([['u:u1', 60000], ['u:u2', 45000]]);
+  const rows = [
+    { pseudo: 'A', uid: 'u1', score: 9000 },   // meilleur score, temps 60s
+    { pseudo: 'B', uid: 'u2', score: 100 },    // meilleur temps 45s
+    { pseudo: 'C', uid: 'u3', score: 500 },    // pas de temps
+  ];
+  const byScore = lb.sortLbRows(rows, 'score', timeMap);
+  const byTime = lb.sortLbRows(rows, 'time', timeMap);
+  ok('sortLbRows score : tri desc (A, C, B)', byScore.map((r) => r.pseudo).join(',') === 'A,C,B');
+  ok('sortLbRows time : joueurs avec temps d\'abord (asc), puis les autres par score (B, A, C)', byTime.map((r) => r.pseudo).join(',') === 'B,A,C');
+  ok('sortLbRows sans map de temps en mode time -> repli tri score', lb.sortLbRows(rows, 'time', null).map((r) => r.pseudo).join(',') === 'A,C,B');
+
+  // UI : bouton tri + persistance + colonnes
+  ok('index.html : bouton #lb-sort + ligne #over-rank (écran de fin)', html.includes('id="lb-sort"') && html.includes('id="over-rank"'));
+  ok('main.js : lbSort persisté dans roadtap_lb_filters_v1 + handler on(\'lb-sort\') + label MAJ à l\'ouverture', mainSrc.includes("let lbSort = 'score'") && mainSrc.includes('sort: lbSort') && mainSrc.includes("on('lb-sort', 'click'") && mainSrc.includes("$('#lb-sort')"));
+  ok('main.js : renderLeaderboard trie via sortLbRows(top, lbSort, timeByPlayer) puis slice(0,50), branche normale = getAll(lbFilter)+dedupe', mainSrc.includes('leaderboard.sortLbRows(top, lbSort, timeByPlayer)') && mainSrc.includes('await leaderboard.getAll(lbFilter)') && mainSrc.includes("dedupeByPlayer(leaderboard.filterLevel(all, lbLevelFilter), 'score')"));
+
+  // rang en fin de partie + toast si refus d'écriture
+  ok('main.js : #over-rank rempli en fin de partie (getAll/getSpeedrunAll + playerKey + « #N au classement »)', mainSrc.includes("$('#over-rank')") && mainSrc.includes('au classement —') && mainSrc.includes('au classement speedrun —'));
+  ok('main.js : toast « ⚠️ Envoi refusé » si writeError après submitScore', mainSrc.includes('Envoi refusé :'));
 }
 
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);

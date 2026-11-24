@@ -104,6 +104,22 @@ export function buildTimeMap(srArr, mode, levelFilter = 'all') {
   return map;
 }
 
+// v1.3.70 : tri des lignes — 'score' (défaut, desc) ou 'time' (joueurs avec un temps d'abord, temps asc)
+export function sortLbRows(arr, sort = 'score', timeByPlayer = null) {
+  const rows = [...(arr || [])];
+  if (sort === 'time' && timeByPlayer) {
+    return rows.sort((a, b) => {
+      const ta = timeByPlayer.get(playerKey(a));
+      const tb = timeByPlayer.get(playerKey(b));
+      if (typeof ta === 'number' && typeof tb === 'number') return ta - tb;
+      if (typeof ta === 'number') return -1;
+      if (typeof tb === 'number') return 1;
+      return (b.score || 0) - (a.score || 0);
+    });
+  }
+  return rows.sort((a, b) => (b.score || 0) - (a.score || 0));
+}
+
 export function dedupeByPlayer(arr, kind = 'score') {
   const best = new Map();
   for (const e of arr || []) {
