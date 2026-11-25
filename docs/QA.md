@@ -1,6 +1,6 @@
 # ✅ Assurance qualité
 
-> **Note (v1.3.77)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.84**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
+> **Note (v1.3.77)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.85**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
 
 ## Processus de test
 
@@ -745,3 +745,11 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - « Jouer » exige désormais **compte Google connecté (uid) + pseudo** : la modale pseudo bloque le bouton Enregistrer tant que pas connecté (texte 🔑 explicite), pré-remplie le pseudo depuis l'email Google, et `btn-pseudo-save` refuse hors connexion.
 - Le **tutoriel ne se lance qu'une fois** (`setTutorialDone` au lancement, plus à la fin) — rejouable à volonté via le bouton 👶 Tutoriel du menu.
 - Tests : break section BH (518 assertions) ; audit OK ; triple bump v1.3.84/roadtap-v92.
+
+
+## v1.3.85 — jeu libre sans compte/pseudo ; connexion demandée seulement pour le classement
+
+- « Jouer » et le tutoriel ne demandent plus rien : partie directe (tutoriel une seule fois, rejouable via 👶).
+- Le **classement** (bouton 🏆) déclenche la modale connexion Google + pseudo ; à la connexion, `flushQueue(uid, pseudo)` envoie les scores/temps faits en local et les **rattache au compte** (uid + pseudo posés sur les entrées anonymes, y compris les payload speedrun/challenge).
+- Toast de fin de partie (anonyme) : « ce résultat sera envoyé à ta connexion et lié à ton compte ».
+- Tests : break section BI (525 assertions, dont test fonctionnel flushQueue uid+pseudo) ; audit OK ; triple bump v1.3.85/roadtap-v93.

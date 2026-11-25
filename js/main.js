@@ -554,7 +554,7 @@ function refreshStatus() {
     if (ok && p) {
       el.textContent = `🟢 En ligne — ${p.ms} ms`;
       el.className = 'net-pill on';
-      leaderboard.flushQueue(getAuthToken(), save.uid); // v1.3.66 : en ligne -> on vide la file
+      leaderboard.flushQueue(getAuthToken(), save.uid, save.pseudo); // v1.3.66 : en ligne -> on vide la file
     } else {
       el.textContent = p && p.reason && p.reason.startsWith('http-') ? `🟠 HTTP ${p.status} (mode local)` : '🔴 Injoignable (mode local)';
       el.className = 'net-pill local';
@@ -588,7 +588,7 @@ function show(id) {
 
 window.addEventListener('online', () => { // v1.3.66 : de retour en ligne -> on vide la file hors ligne vers le serveur (si connecté)
   refreshStatus();
-  leaderboard.flushQueue(getAuthToken(), save.uid).then((n) => {
+  leaderboard.flushQueue(getAuthToken(), save.uid, save.pseudo).then((n) => {
     if (n > 0) toast(`☁️ ${n} résultat(s) hors ligne envoyé(s) au classement`);
   });
 });
@@ -1281,7 +1281,7 @@ async function onGameEnd(stats, level) {
     else if (save.windowLevel && save.windowLevel !== 'standard') toast('♿ Fenêtres ' + save.windowLevel + ' actives : hors classement en ligne');
     else if (save.latencyOffsetMs) toast('🎚️ Calibration latence active : hors classement en ligne');
     else if (save.wideWindows) toast('♿ Fenêtres élargies actives : résultat gardé en local, hors classement en ligne');
-    else if (!save.uid) toast('🔒 Connecte Google (« ✏️ Mon pseudo ») pour apparaître dans le classement en ligne — résultat gardé en local');
+    else if (!save.uid) toast('🏆 Pour apparaître dans le classement, connecte Google depuis le bouton Classement — ce résultat y sera envoyé et lié à ton compte');
   }
   let submitSrP = null;
   if (stats.completed && !isReplay && canSubmitToLeaderboard(save)) { // v1.3.77 : le temps aussi, dès que le niveau est terminé ; v1.3.79 : pas en replay
@@ -1488,16 +1488,15 @@ window.addEventListener('error', (e) => {
 
 on('btn-play', 'click', () => {
   sfx.click();
-  ensurePseudoThen(() => { // v1.3.84 : connexion Google + pseudo requis avant de jouer
-    if (!save.tutorialDone) {
-      store.setTutorialDone(); // v1.3.84 : le tutoriel ne se lance qu'UNE FOIS (rejouable via le bouton 👶 Tutoriel)
-      startTutorial();
-      return;
-    }
-    renderDifficultyPicker();
-    renderLevels();
-    show('screen-levels');
-  });
+  // v1.3.85 : on joue SANS compte ni pseudo — la connexion n'est demandée que pour le classement (btn-leaderboard)
+  if (!save.tutorialDone) {
+    store.setTutorialDone(); // v1.3.84 : le tutoriel ne se lance qu'UNE FOIS (rejouable via le bouton 👶 Tutoriel)
+    startTutorial();
+    return;
+  }
+  renderDifficultyPicker();
+  renderLevels();
+  show('screen-levels');
 });
 on('btn-achievements', 'click', () => {
   sfx.click();
@@ -1766,6 +1765,9 @@ for (const [btnId, action] of [['btn-key-front', 'front'], ['btn-key-rear', 'rea
 
 on('btn-leaderboard', 'click', () => {
   sfx.click();
+  // v1.3.85 : apparaître dans le classement = connexion Google + pseudo — c'est à ce moment que les scores/temps
+  // faits en local (file hors-ligne) sont envoyés et rattachés au compte (flushQueue avec uid + pseudo)
+  ensurePseudoThen(() => {
   // v1.3.65 : on RESTAURE les filtres mémorisés ; sinon (1re fois) défaut = difficulté courante
   if (!lbFiltersLoaded) {
     lbFilter = save.difficulty;
@@ -1775,13 +1777,14 @@ on('btn-leaderboard', 'click', () => {
   if (lbFilter === 'speedrun') { lbFilter = save.difficulty; saveLbFilters(); } // v1.3.68 : onglet speedrun supprimé -> on retombe sur la difficulté courante
   const sortBtn = $('#lb-sort'); // v1.3.70 : label du tri courant
   if (sortBtn) sortBtn.textContent = lbSortLabel(); // v1.3.73
-  leaderboard.flushQueue(getAuthToken(), save.uid); // v1.3.66 : file hors ligne vidée si possible
+  leaderboard.flushQueue(getAuthToken(), save.uid, save.pseudo); // v1.3.66 : file hors ligne vidée si possible
   renderLbScope(); // v1.3.36 : onglets 🌍 Tous / 👥 Amis
   renderFriends();
   renderLbFilter();
   renderLbLevelFilter();
   renderLeaderboard();
   show('screen-leaderboard');
+  });
 });
 // v1.3.36 : ajout d'un ami par pseudo (la liste est synchronisée avec le cloud)
 on('btn-friend-add', 'click', () => {
@@ -1863,7 +1866,7 @@ async function completeGoogleSignIn(sess) {
   }
   pushCloud();
   store.backupKeysForAccount(); // v1.3.57 : les touches fusionnées (cloud) sont aussi calées sur le compte en local
-  leaderboard.flushQueue(getAuthToken(), save.uid).then((n) => { // v1.3.66 : résultats hors ligne -> serveur
+  leaderboard.flushQueue(getAuthToken(), save.uid, save.pseudo).then((n) => { // v1.3.66 : résultats hors ligne -> serveur
     if (n > 0) toast(`☁️ ${n} résultat(s) hors ligne envoyé(s) au classement`);
   });
 }
@@ -2014,7 +2017,7 @@ on('btn-shop', 'click', () => {
 // v1.3.77 : plus de sélecteur Standard/Speedrun — un seul mode (score + chrono + pénalités de temps)
 on('btn-help', 'click', () => {
   sfx.click();
-  ensurePseudoThen(() => startTutorial()); // v1.3.29 : pseudo obligatoire avant le tuto aussi
+  startTutorial(); // v1.3.85 : le tutoriel se rejoue sans compte ni pseudo
 });
 // v1.3.22 : replier/déplier la bannière du tutoriel (le texte ne bloque plus le haut de l'écran)
 on('tut-fold', 'click', () => {

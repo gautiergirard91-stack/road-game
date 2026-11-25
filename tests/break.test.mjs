@@ -1441,7 +1441,7 @@ console.log('AR. v1.3.68 : speedrun en Auto école (toutes difficultés), onglet
   ok('main.js : cellule lb-time (⏱… ou —) ajoutée à chaque ligne hors réaction', mainSrc.includes('class="lb-time"') && mainSrc.includes('timeByPlayer.get(leaderboard.playerKey(e))'));
   ok('css : .lb-time stylé (colonne temps)', css.includes('.lb-time'));
 
-  ok('main.js : fin de partie -> toast explicite si non éligible (wideWindows / pas de compte Google)', mainSrc.includes('résultat gardé en local, hors classement en ligne') && mainSrc.includes('apparaître dans le classement en ligne'));
+  ok('main.js : fin de partie -> toast explicite si non éligible (wideWindows / pas de compte Google — v1.3.85 : envoyé à la connexion)', mainSrc.includes('résultat gardé en local, hors classement en ligne') && mainSrc.includes('ce résultat y sera envoyé et lié à ton compte')); // v1.3.85 toast anonyme
 }
 
 console.log('AS. v1.3.69 : faux 401 au 1er ping (jeton App Check pas encore prêt au chargement) -> warmAppCheck au boot + pingServer() avec retry 401 une fois');
@@ -1939,6 +1939,38 @@ console.log('BH. v1.3.84 : pseudo uniquement APRÈS connexion Google + tutoriel 
   ok("openPseudoModal pré-remplit depuis l'email Google si connecté sans pseudo", mainSrc.includes("save.googleEmail || '').split('@')[0]"));
   ok('btn-play : login+pseudo puis tutoriel UNE SEULE FOIS (setTutorialDone au lancement)', mainSrc.includes('store.setTutorialDone(); // v1.3.84') && mainSrc.includes('startTutorial();'));
   ok('abandon tuto : commentaire MAJ (ne se relance plus)', mainSrc.includes('tutorialDone est posé au LANCEMENT'));
+}
+
+
+console.log('BI. v1.3.85 : jeu libre sans compte/pseudo — connexion+pseudo demandées seulement pour le classement, scores locaux rattachés au compte');
+{
+  const fsB9 = await import('node:fs');
+  const mainSrc = fsB9.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  const lbSrc = fsB9.readFileSync(new URL('../js/leaderboard.js', import.meta.url), 'utf8');
+
+  const playBlock = (mainSrc.match(/on\('btn-play'[\s\S]*?\}\);/) || [''])[0];
+  const lbBlock = (mainSrc.match(/on\('btn-leaderboard'[\s\S]*?show\('screen-leaderboard'\);\s*\}\);/) || [''])[0];
+  const helpBlock = (mainSrc.match(/on\('btn-help'[\s\S]*?\}\);/) || [''])[0];
+  ok('btn-play joue SANS ensurePseudoThen (tutoriel une fois puis niveaux directement)', !playBlock.includes('ensurePseudoThen') && playBlock.includes('setTutorialDone()') && playBlock.includes("show('screen-levels')"));
+  ok('btn-help (tutoriel) sans pseudo non plus', !helpBlock.includes('ensurePseudoThen') && helpBlock.includes('startTutorial();'));
+  ok("btn-leaderboard : ensurePseudoThen (connexion Google + pseudo) AVANT d'ouvrir le classement", lbBlock.includes('ensurePseudoThen(() => {') && lbBlock.includes('flushQueue'));
+  ok('toast anonyme : le résultat local sera envoyé à la connexion et lié au compte', mainSrc.includes('ce résultat y sera envoyé et lié à ton compte'));
+  ok('flushQueue(idToken, uid, pseudo) : rattache uid ET pseudo (y compris payload .entry) aux entrées anonymes', lbSrc.includes("export async function flushQueue(idToken, uid, pseudo = '')") && lbSrc.includes('if (pseudo && tgt && !tgt.pseudo) tgt.pseudo = pseudo;'));
+  ok('main.js : les 4 appels flushQueue passent save.pseudo', (mainSrc.match(/flushQueue\(getAuthToken\(\), save\.uid, save\.pseudo\)/g) || []).length === 4);
+  {
+    const posts = [];
+    globalThis.fetch = async (url, opts) => { if (opts && opts.method === 'POST') posts.push({ url: String(url), body: JSON.parse(opts.body) }); return { ok: true, json: async () => null }; };
+    lb._setWriteGap(0);
+    localStorage.setItem('roadtap_lb_queue_v1', JSON.stringify([
+      { kind: 'score', payload: { pseudo: '', uid: '', score: 500, level: 'L', levelId: 1, mode: 'auto', date: 1, lines: 10 }, at: 1 },
+      { kind: 'speedrun', payload: { levelId: 1, entry: { pseudo: '', uid: '', timeMs: 20000, level: 'L', date: 2, lines: 10 } }, at: 2 },
+    ]));
+    const sent = await lb.flushQueue('TOK', 'uid-42', 'MonPseudo');
+    const scorePost = posts.find((p) => p.url.includes('/scores/'));
+    const srPost = posts.find((p) => p.url.includes('/speedrun/'));
+    ok('fonctionnel : 2 entrées anonymes -> 2 POST avec uid=uid-42 ET pseudo=MonPseudo rattachés, file vidée', sent === 2 && lb.queueSize() === 0 && scorePost.body.uid === 'uid-42' && scorePost.body.pseudo === 'MonPseudo' && srPost.body.uid === 'uid-42' && srPost.body.pseudo === 'MonPseudo');
+    delete globalThis.fetch;
+  }
 }
 
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);
