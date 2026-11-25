@@ -51,6 +51,7 @@ const defaults = () => ({
   googleRefresh: '',
   friends: [], // v1.3.36 : pseudos des amis pour le classement « amis » (voir core.filterFriendsByPseudo)
   deletedFriends: [], // v1.3.75 : tombstones — pseudos d'amis SUPPRIMÉS (ne doivent pas revenir via le cloud)
+  friendRequestsOut: {}, // v1.3.86 : demandes d'amis envoyées — { toUid: { pseudo, date } } (statut relu côté serveur)
   bigTargets: false, // v1.3.80 : #6 gros doigts — zones 60/40 + seuil de swipe 25 px
   reduceAnims: false, // v1.3.80 : #15 animations réduites (photosensibilité) — pas de shake/particules/flash
   highContrast: false, // v1.3.80 : #16 thème contraste élevé (fond noir, lignes blanches)
@@ -71,6 +72,16 @@ const num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const str = (v, d = '') => (typeof v === 'string' ? v : d);
 const bool = (v, d = false) => (typeof v === 'boolean' ? v : d);
 const arrStr = (v) => (Array.isArray(v) ? v.filter((x) => typeof x === 'string') : []);
+// v1.3.86 : { toUid: { pseudo, date } }
+function strObjMap(v) {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return {};
+  const out = {};
+  for (const k of Object.keys(v).slice(0, 200)) {
+    const o = v[k];
+    if (o && typeof o === 'object' && typeof o.pseudo === 'string' && o.pseudo) out[k] = { pseudo: str(o.pseudo).slice(0, 16), date: num(o.date, 0) };
+  }
+  return out;
+}
 // v1.3.79 : sanitizer des replays — objets valides uniquement, taps plafonnés
 function replayMap(v) {
   if (!v || typeof v !== 'object' || Array.isArray(v)) return {};
@@ -113,6 +124,7 @@ function sanitize(s) {
   s.best = numMap(s.best);
   s.bestTime = numMap(s.bestTime);
   s.replays = replayMap(s.replays); // v1.3.79
+  s.friendRequestsOut = strObjMap(s.friendRequestsOut); // v1.3.86
   s.medals = numMap(s.medals); // v1.3.81 #22
   s.training = bool(s.training); // v1.3.82
   s.trainSpeed = [0.5, 0.75, 1].includes(Number(s.trainSpeed)) ? Number(s.trainSpeed) : 1;
@@ -653,6 +665,19 @@ export function addFriend(p) {
   return true;
 }
 
+// v1.3.86 : demandes d'amis envoyées (en attente de réponse)
+export function getOutgoingFriendRequests() { return save.friendRequestsOut || {}; }
+export function addOutgoingFriendRequest(toUid, pseudo) {
+  save.friendRequestsOut = save.friendRequestsOut || {};
+  save.friendRequestsOut[String(toUid)] = { pseudo: str(pseudo).slice(0, 16), date: Date.now() };
+  persist();
+}
+export function removeOutgoingFriendRequest(toUid) {
+  if (save.friendRequestsOut && save.friendRequestsOut[String(toUid)]) {
+    delete save.friendRequestsOut[String(toUid)];
+    persist();
+  }
+}
 export function removeFriend(p) {
   const v = str(p).trim();
   const i = save.friends.findIndex((f) => f.toLowerCase() === v.toLowerCase());
@@ -712,6 +737,7 @@ export function snapshot() {
     uid: save.uid,
     googleEmail: save.googleEmail,
     friends: save.friends, // v1.3.36 : liste d'amis synchronisée avec le cloud
+    friendRequestsOut: save.friendRequestsOut, // v1.3.86
     deletedFriends: save.deletedFriends, // v1.3.75 : tombstones synchronisées avec le cloud
     // googleRefresh volontairement EXCLU du snapshot cloud (credential)
   };
@@ -750,6 +776,7 @@ function mergeRemoteBody(remote) {
     }
   }
   save.unlockedLevels = [...new Set([...save.unlockedLevels, ...arr(remote.unlockedLevels)])];
+  save.friendRequestsOut = { ...(remote.friendRequestsOut && typeof remote.friendRequestsOut === 'object' ? remote.friendRequestsOut : {}), ...save.friendRequestsOut }; // v1.3.86
   // v1.3.36 : union des listes d'amis, dédupliquée sans tenir compte de la casse
   // v1.3.75 : tombstones — un ami supprimé (en local OU sur un autre appareil) ne revient JAMAIS
   {

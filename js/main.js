@@ -142,11 +142,12 @@ function renderLbScope() {
 
 // v1.3.36 : puces des amis (✕ = retirer) — amis = pseudos, PAS les contacts Google du téléphone
 function renderFriends() {
+  renderFriendRequests(); // v1.3.86 : demandes reçues/envoyées affichées même sans ami
   const el = $('#friends-list');
   if (!el) return;
   el.innerHTML = '';
   if (!save.friends.length) {
-    el.innerHTML = '<div class="card-sub">Aucun ami pour l\'instant — ajoute un pseudo ci-dessus.</div>';
+    el.innerHTML = '<div class="card-sub">Aucun ami pour l\'instant — envoie une demande ci-dessus (le pseudo doit exister en ligne).</div>';
     return;
   }
   for (const f of save.friends) {
@@ -166,28 +167,128 @@ function renderFriends() {
   }
 }
 
-function addFriendFromInput() {
+// v1.3.86 : demandes d'amis — reçues (✅ accepter / ❌ refuser) et envoyées (statut relu côté serveur)
+async function renderFriendRequests() {
+  const elIn = $('#friend-requests-in');
+  const elOut = $('#friend-requests-out');
+  if (elIn) elIn.innerHTML = '';
+  if (elOut) elOut.innerHTML = '';
+  if (!save.uid) return; // pas connecté -> pas de demandes (la connexion est demandée à l'ouverture du classement)
+  try {
+    const reqs = await leaderboard.getIncomingFriendRequests(save.uid, getAuthToken());
+    if (elIn) {
+      if (!reqs.length) elIn.innerHTML = '<div class="card-sub">Aucune demande en attente.</div>';
+      for (const r of reqs) {
+        const row = document.createElement('div');
+        row.className = 'card lb-row';
+        row.innerHTML = `<span class="lb-rank">📨</span><div class="card-body"><div class="card-title">${escapeHtml(r.fromPseudo || '?')}</div><div class="card-sub">veut t'ajouter comme ami</div></div>`;
+        const yes = document.createElement('button');
+        yes.className = 'btn small';
+        yes.textContent = '✅';
+        yes.title = 'Accepter';
+        const no = document.createElement('button');
+        no.className = 'btn small';
+        no.textContent = '❌';
+        no.title = 'Refuser';
+        yes.addEventListener('click', async () => {
+          await leaderboard.respondFriendRequest(save.uid, r.fromUid, 'accepted', getAuthToken());
+          store.addFriend(r.fromPseudo); // ami ajouté localement + cloud
+          await leaderboard.deleteFriendRequest(save.uid, r.fromUid, getAuthToken());
+          sfx.coin();
+          toast(`✅ ${r.fromPseudo} est maintenant ton ami !`);
+          pushCloud();
+          renderFriends();
+          renderLeaderboard();
+        });
+        no.addEventListener('click', async () => {
+          await leaderboard.respondFriendRequest(save.uid, r.fromUid, 'refused', getAuthToken());
+          await leaderboard.deleteFriendRequest(save.uid, r.fromUid, getAuthToken());
+          toast(`❌ Demande de ${r.fromPseudo} refusée`);
+          renderFriendRequests();
+        });
+        row.appendChild(yes);
+        row.appendChild(no);
+        elIn.appendChild(row);
+      }
+    }
+  } catch {
+    if (elIn) elIn.innerHTML = '<div class="card-sub">Demandes indisponibles (hors ligne ?)</div>';
+  }
+  const out = store.getOutgoingFriendRequests();
+  const keys = Object.keys(out);
+  if (elOut) {
+    for (const toUid of keys) {
+      const o = out[toUid];
+      let status = 'pending';
+      try { status = (await leaderboard.getOutgoingRequestStatus(toUid, save.uid, getAuthToken())) || 'pending'; } catch { /* garde pending */ }
+      if (status === 'accepted') {
+        store.addFriend(o.pseudo);
+        store.removeOutgoingFriendRequest(toUid);
+        pushCloud();
+        toast(`✅ ${o.pseudo} a accepté ta demande — vous êtes amis !`);
+        renderFriends();
+        renderLeaderboard();
+        continue;
+      }
+      if (status === 'refused') {
+        store.removeOutgoingFriendRequest(toUid);
+        toast(`❌ ${o.pseudo} a refusé ta demande`);
+        continue;
+      }
+      const row = document.createElement('div');
+      row.className = 'card lb-row';
+      row.innerHTML = `<span class="lb-rank">📤</span><div class="card-body"><div class="card-title">${escapeHtml(o.pseudo || '?')}</div><div class="card-sub">demande en attente…</div></div>`;
+      elOut.appendChild(row);
+    }
+    if (!elOut.innerHTML) elOut.innerHTML = '<div class="card-sub">Aucune demande envoyée.</div>';
+  }
+}
+
+async function addFriendFromInput() { // v1.3.86 : envoie une DEMANDE d'ami — le pseudo doit exister (résolu via scores/speedrun publics)
   const inp = $('#friend-input');
   const v = String(inp && inp.value || '').trim();
   if (!v) {
-    toast('Entre le pseudo d\'un ami 👥');
+    toast("Entre le pseudo d'un ami 👥");
     return;
   }
   if (save.pseudo && v.toLowerCase() === save.pseudo.toLowerCase()) {
-    toast('Tu ne peux pas t\'ajouter toi-même 😉');
+    toast("Tu ne peux pas t'ajouter toi-même 😉");
     inp.value = '';
     return;
   }
-  if (store.addFriend(v)) {
-    sfx.coin();
-    toast(`👥 ${v} ajouté à tes amis — retrouve-le dans l'onglet Amis`);
-    pushCloud();
+  if (!save.uid) {
+    toast('🔑 Connecte Google d\'abord (ouvre le classement 🏆) pour envoyer des demandes d\'amis');
+    return;
+  }
+  if (save.friends.some((f) => f.toLowerCase() === v.toLowerCase())) {
+    toast(`${v} est déjà dans tes amis`);
     inp.value = '';
-    renderLbScope();
-    renderFriends();
-    renderLeaderboard();
+    return;
+  }
+  if (Object.values(store.getOutgoingFriendRequests()).some((o) => String(o.pseudo || '').toLowerCase() === v.toLowerCase())) {
+    toast(`📤 Demande déjà envoyée à ${v}`);
+    inp.value = '';
+    return;
+  }
+  toast('🔍 Recherche du joueur…');
+  const found = await leaderboard.resolveUidByPseudo(v);
+  if (!found) {
+    toast(`❌ « ${v} » n'existe pas — aucun score en ligne sous ce pseudo`);
+    return;
+  }
+  if (found.uid === save.uid) {
+    toast("Tu ne peux pas t'ajouter toi-même 😉");
+    return;
+  }
+  const okSend = await leaderboard.sendFriendRequest(save.uid, save.pseudo, found.uid, found.pseudo, getAuthToken());
+  if (okSend) {
+    store.addOutgoingFriendRequest(found.uid, found.pseudo);
+    sfx.coin();
+    toast(`📤 Demande envoyée à ${found.pseudo} — elle la verra dans ses demandes reçues`);
+    inp.value = '';
+    renderFriendRequests();
   } else {
-    toast('Ce pseudo est déjà dans ta liste d\'amis');
+    toast('❌ Envoi impossible (hors ligne ou refus serveur) — réessaie plus tard');
   }
 }
 
@@ -433,7 +534,7 @@ function startTutorial() {
     mode: 'auto',
     tutorial: true,
     windows: effWindows(),
-    access: { colorblind: save.colorblind, horizontalZones: !save.verticalZones, hitMarker: !!save.hitMarker, reduceAnims: !!save.reduceAnims, vibrate: save.vibrate !== false, latencyOffsetMs: save.latencyOffsetMs || 0, ghost: (store.getReplay(save.difficulty, level.id) || {}).taps }, // v1.3.80 #27/#15 + v1.3.82 #3/#5/#7
+    access: { colorblind: save.colorblind, horizontalZones: !save.verticalZones, hitMarker: !!save.hitMarker, reduceAnims: !!save.reduceAnims, vibrate: save.vibrate !== false, latencyOffsetMs: save.latencyOffsetMs || 0, ghost: (store.getReplay(save.difficulty, TUT_LEVEL.id) || {}).taps }, // v1.3.80 #27/#15 + v1.3.82 #3/#5/#7 + v1.3.86 fix : TUT_LEVEL.id (level n'existe pas dans ce scope -> ReferenceError au clic 👶)
     effects: save.selectedEffects,
     audio: { tap: sfx.tap, perfect: sfx.perfect, good: sfx.good, passable: sfx.passable, fail: sfx.fail, win: sfx.win, miss: sfx.miss, lineBeat: scheduleLineBeat, musicAnchor: musicLineAnchor }, // v1.3.46 : beat GD calé sur chaque ligne
     onJudge: (e) => {
@@ -1125,7 +1226,9 @@ on('btn-share', 'click', async () => { // v1.3.81 #18 : carte de score partageab
 function startLevel(level, replayRep = null) {
   currentLevel = level;
   const lvl = save.training ? { ...level, speed: Math.max(60, Math.round(level.speed * (save.trainSpeed || 1))) } : level; // v1.3.82 #1 : entraînement = vitesse réglable
-  setMusicCombo(0); // v1.3.42 : nouvelle partie -> intensité musicale à 0  unlockAudio(); // v1.3.65 : contexte audio repris ici (geste « Jouer ») -> pas de freeze au 1er tap
+  setMusicCombo(0); // v1.3.42 : nouvelle partie -> intensité musicale à 0
+  unlockAudio(); // v1.3.86 fix : l'appel était noyé dans le commentaire ci-dessus (jamais exécuté) — restauré sur sa propre ligne
+  // v1.3.65 : contexte audio repris ici (geste « Jouer ») -> pas de freeze au 1er tap
   setMusicEnabled(save.music && save.sound); // v1.3.65 : musique ON dès le début de la partie
   musicKick(); // v1.3.65 : resynchronise le séquenceur -> la musique démarre immédiatement
 
@@ -1151,7 +1254,6 @@ function startLevel(level, replayRep = null) {
     mode: save.difficulty, // v1.3.68 : speedrun dans la difficulté choisie (plus de verrou Permis A)
     speedrun: true, // v1.3.77 : mode unique — chrono + pénalités + vitesse bonus TOUJOURS actifs
     replay: replayRep || undefined, // v1.3.79 : mode lecture d'un replay enregistré (hors classement)
-    training: !!save.training, // v1.3.82 #1
     themeOverride: save.highContrast ? 'highcontrast' : (save.themeOverride || undefined), // v1.3.80 #16 : contraste élevé prioritaire
     windows: effWindows(),
     access: { colorblind: save.colorblind, horizontalZones: !save.verticalZones, hitMarker: !!save.hitMarker, reduceAnims: !!save.reduceAnims, vibrate: save.vibrate !== false, latencyOffsetMs: save.latencyOffsetMs || 0, ghost: (store.getReplay(save.difficulty, level.id) || {}).taps }, // v1.3.80 #27/#15 + v1.3.82 #3/#5/#7

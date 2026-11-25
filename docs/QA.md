@@ -1,6 +1,6 @@
 # ✅ Assurance qualité
 
-> **Note (v1.3.77)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.85**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
+> **Note (v1.3.77)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.86**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
 
 ## Processus de test
 
@@ -753,3 +753,15 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - Le **classement** (bouton 🏆) déclenche la modale connexion Google + pseudo ; à la connexion, `flushQueue(uid, pseudo)` envoie les scores/temps faits en local et les **rattache au compte** (uid + pseudo posés sur les entrées anonymes, y compris les payload speedrun/challenge).
 - Toast de fin de partie (anonyme) : « ce résultat sera envoyé à ta connexion et lié à ton compte ».
 - Tests : break section BI (525 assertions, dont test fonctionnel flushQueue uid+pseudo) ; audit OK ; triple bump v1.3.85/roadtap-v93.
+
+## v1.3.86 — demandes d'amis (envoyer / accepter / refuser) + sweep de cohérence post-fusion
+
+- **Amis = demandes vérifiées** : le pseudo saisi doit exister en ligne (résolu en uid via les scores/speedrun publics), puis envoi d'une demande (`POST /friendRequests/<toUid>/<fromUid>`, statut `pending`). Le destinataire voit 📨 avec ✅ accepter / ❌ refuser (`PATCH status`) ; l'émetteur suit le statut de ses demandes envoyées 📤 (accepted → ami ajouté des deux côtés, refused → retirée).
+- Nœud `friendRequests` ajouté à `database.rules.json` (read destinataire+émetteur, write create pending / PATCH accepted|refused / delete par le destinataire) — **⚠ à re-publier dans la console Firebase (Database → Règles → Publier)** après merge.
+- Demandes envoyées persistées localement (`friendRequestsOut`) et synchronisées avec le cloud (union au merge).
+- **Sweep de cohérence** (bugs du gros batch v1.3.78–v1.3.84, rapportés après les merges) :
+  - fix crash **Tutoriel** : `startTutorial` lisait `level.id` (variable inexistante dans ce scope → `ReferenceError: level is not defined`, main.js:436 au clic 👶) → `TUT_LEVEL.id`.
+  - fix `unlockAudio();` noyé dans un commentaire `//` dans `startLevel` (jamais exécuté) → restauré sur sa propre ligne.
+  - fix clé `training:` dupliquée dans les options `Game` de `startLevel` → une seule occurrence.
+  - vérifié SANS bug : suppression d'ami qui revenait (tombstones `deletedFriends`, v1.3.75), saisie du pseudo (garde champ INPUT, v1.3.75), ids HTML↔JS, handlers en double, assets du SW, triple bump — 6 tests + audit 0 problème sur main ET sur la branche.
+- Tests : break sections BJ (demandes d'amis, dont fonctionnel resolve/envoi/PATCH avec fetch mocké) + BK (sweep) → 540 assertions ; audit OK ; triple bump v1.3.86/roadtap-v94.

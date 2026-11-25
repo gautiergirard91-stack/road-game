@@ -253,3 +253,9 @@ Les deux modes ne différaient que par le chrono/bonus de vitesse : **un seul mo
 ## v1.3.85 — jeu anonyme par défaut, compte Google uniquement pour le classement
 
 - Jouer/tutoriel sans compte ni pseudo ; 🏆 Classement → connexion + pseudo → la file hors-ligne (scores/temps faits en anonyme) est envoyée avec uid+pseudo du compte.
+
+
+## v1.3.86 — demandes d'amis vérifiées (accepter/refuser) + correctifs de cohérence
+
+- Ajouter un ami = **envoyer une demande** : le pseudo doit exister en ligne (résolu en uid via scores/speedrun publics, sinon « ❌ n'existe pas »), `POST /friendRequests/<to>/<from>` en `pending` ; le destinataire répond ✅/❌ (PATCH `accepted`/`refused`) ; l'émetteur suit le statut de ses demandes 📤 (acceptée → ami des deux côtés). Nœud `friendRequests` dans les règles RTDB (**à re-publier dans la console Firebase** après merge).
+- Correctifs du batch v1.3.78–v1.3.84 : crash au clic sur **Tutoriel** (`TUT_LEVEL.id` au lieu de `level.id` dans `startTutorial`), `unlockAudio()` noyé dans un commentaire `//` dans `startLevel`, doublon de la clé `training:`.

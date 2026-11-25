@@ -1302,7 +1302,7 @@ console.log('AO. v1.3.65 : liste du joueur — tuto raccourci (9 étapes, ❤ r�
 
   // musique au lancement
   ok('audio.js : musicKick() exporté (reprend le contexte + resync séquenceur)', audioSrc.includes('export function musicKick()'));
-  ok('main.js : startLevel -> unlockAudio + setMusicEnabled + musicKick (musique dès le début)', /function startLevel[\s\S]{0,700}unlockAudio\(\);[\s\S]{0,120}setMusicEnabled\(save\.music && save\.sound\);[\s\S]{0,80}musicKick\(\);/.test(mainSrc));
+  ok('main.js : startLevel -> unlockAudio + setMusicEnabled + musicKick (musique dès le début)', /function startLevel[\s\S]{0,700}unlockAudio\(\);[\s\S]{0,300}setMusicEnabled\(save\.music && save\.sound\);[\s\S]{0,80}musicKick\(\);/.test(mainSrc));
 
   // anti-freeze : plus de shadowBlur dans le rendu des lignes en jeu (pulse/glow/néon remplacés par alpha)
   const renderZone = gameSrc.slice(gameSrc.indexOf('drawLines'), gameSrc.indexOf('drawLineShape(type'));
@@ -1519,7 +1519,7 @@ console.log('AV. v1.3.72 : le service worker ne touche plus aux requêtes cross-
 
   // GET RTDB en no-store
   const n = (lbSrc.match(/cache: 'no-store'/g) || []).length;
-  ok('leaderboard.js : cache: \'no-store\' sur les 9 GET RTDB (v1.3.81 seasons, v1.3.82 duels) (ping x2, scores x2, challenges, speedrun x2)', n === 9);
+  ok('leaderboard.js : cache: \'no-store\' sur les 11 GET RTDB (v1.3.81 seasons, v1.3.82 duels, v1.3.86 friendRequests x2) (ping x2, scores x2, challenges, speedrun x2)', n === 11);
   ok('leaderboard.js : les POST (submitScore/submitSpeedrun) restent des POST (non concernés par le cache)', (lbSrc.match(/method: 'POST'/g) || []).length >= 3);
   ok('cloudsave.js : GET players/<uid> en no-store (sauvegarde cloud fraîche)', csSrc.includes("fetch(url(`/players/${key(account)}`, idToken), { cache: 'no-store' })"));
 }
@@ -1969,6 +1969,57 @@ console.log('BI. v1.3.85 : jeu libre sans compte/pseudo — connexion+pseudo dem
     const scorePost = posts.find((p) => p.url.includes('/scores/'));
     const srPost = posts.find((p) => p.url.includes('/speedrun/'));
     ok('fonctionnel : 2 entrées anonymes -> 2 POST avec uid=uid-42 ET pseudo=MonPseudo rattachés, file vidée', sent === 2 && lb.queueSize() === 0 && scorePost.body.uid === 'uid-42' && scorePost.body.pseudo === 'MonPseudo' && srPost.body.uid === 'uid-42' && srPost.body.pseudo === 'MonPseudo');
+    delete globalThis.fetch;
+  }
+}
+
+console.log('BK. v1.3.86 : sweep de cohérence post-fusion — crash Tutoriel (TUT_LEVEL.id), unlockAudio noyé dans un //, clé training dupliquée');
+{
+  const fsBK = await import('node:fs');
+  const mainSrc = fsBK.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  ok('startTutorial : le fantôme lit TUT_LEVEL.id (fin du ReferenceError "level is not defined" au clic 👶)', mainSrc.includes('ghost: (store.getReplay(save.difficulty, TUT_LEVEL.id) || {}).taps'));
+  ok('exactement 2 sites getReplay(save.difficulty, level|TUT_LEVEL .id) : startTutorial + startLevel', (mainSrc.match(/getReplay\(save\.difficulty, (?:level|TUT_LEVEL)\.id\)/g) || []).length === 2);
+  ok('plus aucun "unlockAudio();" noyé après un // sur la même ligne', !mainSrc.split('\n').some((l) => { const c = l.indexOf('//'); return c >= 0 && l.slice(c + 2).includes('unlockAudio();'); }));
+  ok('unlockAudio(); restauré sur sa propre ligne dans startLevel (fix anti-freeze v1.3.65)', mainSrc.includes('\n  unlockAudio(); //'));
+  ok('clé training : UNE SEULE occurrence dans les options Game de startLevel (doublon supprimé)', (mainSrc.match(/training: !!save\.training/g) || []).length === 1);
+}
+
+console.log('BJ. v1.3.86 : demandes d\'amis — pseudo vérifié (existe en ligne), envoi, recevoir, accepter/refuser, statut côté émetteur');
+{
+  const fsB10 = await import('node:fs');
+  const mainSrc = fsB10.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  const lbSrc = fsB10.readFileSync(new URL('../js/leaderboard.js', import.meta.url), 'utf8');
+  const storeSrc = fsB10.readFileSync(new URL('../js/store.js', import.meta.url), 'utf8');
+  const html = fsB10.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const rules = JSON.parse(fsB10.readFileSync(new URL('../database.rules.json', import.meta.url), 'utf8')).rules;
+
+  ok('rules : nœud friendRequests — read destinataire+émetteur, write create pending (fromUid==auth) / PATCH statut accepted|refused (toUid) / delete (toUid)',
+    !!rules.friendRequests && rules.friendRequests['$toUid']['.read'].includes('auth.uid == $toUid') && rules.friendRequests['$toUid']['$fromUid']['.read'].includes('$fromUid') && rules.friendRequests['$toUid']['$fromUid']['.write'].includes("'pending'") && rules.friendRequests['$toUid']['$fromUid']['.write'].includes("['accepted','refused']"));
+  ok('leaderboard : resolveUidByPseudo + sendFriendRequest + getIncomingFriendRequests + respondFriendRequest + getOutgoingRequestStatus + deleteFriendRequest', ['resolveUidByPseudo', 'sendFriendRequest', 'getIncomingFriendRequests', 'respondFriendRequest', 'getOutgoingRequestStatus', 'deleteFriendRequest'].every((f) => lbSrc.includes('export async function ' + f)));
+  ok('store : friendRequestsOut (defaults + strObjMap + snapshot + mergeRemote union + add/get/remove)', storeSrc.includes('friendRequestsOut: {}') && storeSrc.includes('function strObjMap') && storeSrc.includes('friendRequestsOut: save.friendRequestsOut') && storeSrc.includes('export function addOutgoingFriendRequest') && storeSrc.includes('export function removeOutgoingFriendRequest'));
+  ok('main.js : addFriendFromInput async — guards (vide/soi-même/pas connecté/déjà ami/déjà demandé) + resolveUidByPseudo + sendFriendRequest + addOutgoingFriendRequest', mainSrc.includes('async function addFriendFromInput()') && mainSrc.includes('leaderboard.resolveUidByPseudo(v)') && mainSrc.includes('leaderboard.sendFriendRequest(') && mainSrc.includes("n'existe pas — aucun score en ligne"));
+  ok('main.js : renderFriendRequests — reçues ✅/❌ (respond+addFriend+delete) et envoyées (statut accepted->ami / refused->retiré)', mainSrc.includes('async function renderFriendRequests()') && mainSrc.includes("respondFriendRequest(save.uid, r.fromUid, 'accepted'") && mainSrc.includes("'refused'") && mainSrc.includes('getOutgoingRequestStatus(toUid, save.uid'));
+  ok('index.html : #friend-requests-in + #friend-requests-out dans la barre amis', html.includes('id="friend-requests-in"') && html.includes('id="friend-requests-out"'));
+  {
+    // fonctionnel : resolveUidByPseudo via scores mockés + sendFriendRequest POST + respond PATCH
+    const calls = [];
+    globalThis.fetch = async (url, opts) => {
+      calls.push({ url: String(url), method: opts && opts.method, body: opts && opts.body ? JSON.parse(opts.body) : null });
+      if (String(url).includes('/scores/')) return { ok: true, json: async () => ({ a: { pseudo: 'Bob', uid: 'uidBob', score: 10 }, b: { pseudo: 'Alice', uid: 'uidAlice', score: 20 } }) };
+      if (String(url).includes('/speedrun/')) return { ok: true, json: async () => null };
+      return { ok: true, json: async () => null };
+    };
+    lb._setWriteGap(0);
+    const found = await lb.resolveUidByPseudo('bob');
+    ok('resolveUidByPseudo("bob") -> uidBob (insensible à la casse, via scores publics)', !!found && found.uid === 'uidBob');
+    const none = await lb.resolveUidByPseudo('PersonneIci');
+    ok('resolveUidByPseudo("PersonneIci") -> null (pseudo inexistant)', none === null);
+    const okSend = await lb.sendFriendRequest('uidMe', 'Moi', 'uidBob', 'Bob', 'TOK');
+    const post = calls.find((c) => c.method === 'POST' && c.url.includes('/friendRequests/uidBob/uidMe.json'));
+    ok('sendFriendRequest -> POST /friendRequests/<to>/<from> avec status pending + fromUid==auth', okSend === true && !!post && post.body.status === 'pending' && post.body.fromUid === 'uidMe' && post.url.includes('auth=TOK'));
+    const okResp = await lb.respondFriendRequest('uidBob', 'uidMe', 'accepted', 'TOK');
+    const patch = calls.find((c) => c.method === 'PATCH' && c.url.includes('/friendRequests/uidBob/uidMe.json'));
+    ok('respondFriendRequest -> PATCH {status:accepted} sur /friendRequests/<me>/<from>', okResp === true && !!patch && patch.body.status === 'accepted');
     delete globalThis.fetch;
   }
 }
