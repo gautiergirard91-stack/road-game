@@ -279,3 +279,8 @@ Les deux modes ne différaient que par le chrono/bonus de vitesse : **un seul mo
 ## v1.3.90 — avance manuelle entre niveaux + menu 🎞 Replays
 
 - Le compte à rebours auto « niveau suivant » est supprimé → bouton manuel « ▶ Niveau suivant » sur l'écran de fin. Les replays se terminent proprement (« ▶ Replay terminé », aucun effet de bord : records/pièces/succès intacts) et un **menu 🎞 Replays** liste les 10 dernières parties avec lecture (▶) et téléchargement .json (💾).
+
+
+## v1.3.91 — audio : bip 0 ms fiable et optionnel, musique au démarrage ; fix crash calibration
+
+- Crash calibration (`calib.beats`, calib=null) corrigé. Bip 0 ms : latence de sortie audio compensée (`outputLatency`), déclenchement garanti même si une frame saute le 0, plus doux, et **désactivé par défaut** (case « 🔔 Bip sonore au 0 ms », hors classement comme le flash visuel). `musicKick()` resynchronise proprement à chaque niveau (resume explicite + restart) → la musique démarre dès le début du niveau, tutoriel compris.

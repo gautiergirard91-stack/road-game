@@ -537,13 +537,16 @@ function startTutorial() {
   continuesThisRun = 0;
   updateLives(0);
   logEvent('tutorial_start', {});
+  unlockAudio(); // v1.3.91 : reprise du contexte audio au geste « 👶 »
+  setMusicEnabled(save.music && save.sound); // v1.3.91 : la musique démarre aussi dans le tutoriel
+  musicKick(TUT_LEVEL.id); // v1.3.92 : thème du tutoriel
   game = new Game($('#game'), {
     level: TUT_LEVEL,
     skinId: save.skin,
     mode: 'auto',
     tutorial: true,
     windows: effWindows(),
-    access: { colorblind: save.colorblind, horizontalZones: !save.verticalZones, hitMarker: !!save.hitMarker, reduceAnims: !!save.reduceAnims, vibrate: save.vibrate !== false, latencyOffsetMs: save.latencyOffsetMs || 0, ghost: (store.getReplay(save.difficulty, TUT_LEVEL.id) || {}).taps }, // v1.3.80 #27/#15 + v1.3.82 #3/#5/#7 + v1.3.86 fix : TUT_LEVEL.id (level n'existe pas dans ce scope -> ReferenceError au clic 👶)
+    access: { colorblind: save.colorblind, horizontalZones: !save.verticalZones, hitMarker: !!save.hitMarker, lineBeat: true, reduceAnims: !!save.reduceAnims, vibrate: save.vibrate !== false, latencyOffsetMs: save.latencyOffsetMs || 0, ghost: (store.getReplay(save.difficulty, TUT_LEVEL.id) || {}).taps }, // v1.3.80 #27/#15 + v1.3.82 #3/#5/#7 + v1.3.86 fix + v1.3.91 lineBeat
     effects: save.selectedEffects,
     audio: { tap: sfx.tap, perfect: sfx.perfect, good: sfx.good, passable: sfx.passable, fail: sfx.fail, win: sfx.win, miss: sfx.miss, lineBeat: scheduleLineBeat, musicAnchor: musicLineAnchor }, // v1.3.46 : beat GD calé sur chaque ligne
     onJudge: (e) => {
@@ -1239,7 +1242,7 @@ function startLevel(level, replayRep = null) {
   unlockAudio(); // v1.3.86 fix : l'appel était noyé dans le commentaire ci-dessus (jamais exécuté) — restauré sur sa propre ligne
   // v1.3.65 : contexte audio repris ici (geste « Jouer ») -> pas de freeze au 1er tap
   setMusicEnabled(save.music && save.sound); // v1.3.65 : musique ON dès le début de la partie
-  musicKick(); // v1.3.65 : resynchronise le séquenceur -> la musique démarre immédiatement
+  musicKick(level.id); // v1.3.65 + v1.3.92 : resync + thème musical du niveau -> la musique démarre immédiatement
 
   clearLineBeats(); // v1.3.46 : on annule les beats de ligne de la partie précédente
   show('screen-game');
@@ -1265,7 +1268,7 @@ function startLevel(level, replayRep = null) {
     replay: replayRep || undefined, // v1.3.79 : mode lecture d'un replay enregistré (hors classement)
     themeOverride: save.highContrast ? 'highcontrast' : (save.themeOverride || undefined), // v1.3.80 #16 : contraste élevé prioritaire
     windows: effWindows(),
-    access: { colorblind: save.colorblind, horizontalZones: !save.verticalZones, hitMarker: !!save.hitMarker, reduceAnims: !!save.reduceAnims, vibrate: save.vibrate !== false, latencyOffsetMs: save.latencyOffsetMs || 0, ghost: (store.getReplay(save.difficulty, level.id) || {}).taps }, // v1.3.80 #27/#15 + v1.3.82 #3/#5/#7
+    access: { colorblind: save.colorblind, horizontalZones: !save.verticalZones, hitMarker: !!save.hitMarker, lineBeat: true, reduceAnims: !!save.reduceAnims, vibrate: save.vibrate !== false, latencyOffsetMs: save.latencyOffsetMs || 0, ghost: (store.getReplay(save.difficulty, level.id) || {}).taps }, // v1.3.80 #27/#15 + v1.3.82 #3/#5/#7 + v1.3.91 lineBeat
     effects: save.selectedEffects,
     audio: { tap: sfx.tap, perfect: sfx.perfect, good: sfx.good, passable: sfx.passable, fail: sfx.fail, win: sfx.win, miss: sfx.miss, lineBeat: scheduleLineBeat, musicAnchor: musicLineAnchor }, // v1.3.46 : beat GD calé sur chaque ligne
     onJudge: (e) => {
@@ -1646,13 +1649,16 @@ on('s-opt-windowlevel', 'change', (e) => { // v1.3.82 #11
 });
 // v1.3.82 #5 : calibration de la latence tactile — 4 pulsations, le joueur tape au rythme, offset moyen stocké localement
 let calib = null;
+let calibTimer = null; // v1.3.91 : intervalle du métronome de calibration (pour l'arrêter proprement)
 on('btn-calibrate', 'click', () => {
+  if (calibTimer) clearInterval(calibTimer); // v1.3.91 : une calibration en cours est remplacée
   calib = { beats: [], taps: [] };
   let n = 0;
   const z = $('#calib-zone');
   const hint = $('#calib-hint');
   if (hint) hint.textContent = 'Prépare-toi… 4 pulsations à 600 ms.';
   const iv = setInterval(() => {
+    if (!calib) { clearInterval(iv); calibTimer = null; return; } // v1.3.91 : calibration déjà terminée (4 taps) -> stoppe le métronome (sinon TypeError calib.beats, calib=null)
     n++;
     calib.beats.push(performance.now());
     sfx.tap();
@@ -1662,6 +1668,7 @@ on('btn-calibrate', 'click', () => {
       if (hint) hint.textContent = 'Tape 4 fois EN RYTHME sur la zone quand elle pulse.';
     }
   }, 600);
+  calibTimer = iv; // v1.3.91
 });
 on('calib-zone', 'pointerdown', () => {
   if (!calib || !calib.beats.length || calib.taps.length >= 4) return;
@@ -1671,6 +1678,7 @@ on('calib-zone', 'pointerdown', () => {
     const off = Math.max(-100, Math.min(100, Math.round(offs.reduce((a, b) => a + b, 0) / offs.length)));
     store.setLatencyOffsetMs(off);
     toast(`🎚️ Latence mesurée : ${off >= 0 ? '+' : ''}${off} ms (hors classement si ≠ 0)`);
+    if (calibTimer) { clearInterval(calibTimer); calibTimer = null; } // v1.3.91 : stoppe le métronome à la fin
     calib = null;
     const hint = $('#calib-hint');
     if (hint) hint.textContent = 'Calibration terminée.';

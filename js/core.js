@@ -312,7 +312,7 @@ export function weekendCoinMultiplier(d = new Date()) {
 export function canSubmitToLeaderboard(s) {
   // v1.3.80 : #27 marqueur 0 ms = aide -> hors classement en ligne (comme wideWindows)
   // v1.3.82 : #1 entraînement, #11 fenêtres adaptatives, #5 calibration latence -> idem (aides = hors LB)
-  return Boolean(s && s.pseudo && s.uid && !s.wideWindows && !s.hitMarker && !s.training && (!s.windowLevel || s.windowLevel === 'standard') && !(s.latencyOffsetMs));
+  return Boolean(s && s.pseudo && s.uid && !s.wideWindows && !s.hitMarker && !s.training && (!s.windowLevel || s.windowLevel === 'standard') && !(s.latencyOffsetMs)); // v1.3.92 : le bip à l'oreille (−45 ms) est une feature intégrante -> jamais exclu du classement
 }
 
 // v1.3.82 : #2 buffer d'input (coyote time) — garde les derniers taps (ms) pour pardonner la latence, sans widen les fenêtres
