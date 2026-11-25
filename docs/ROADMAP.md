@@ -264,3 +264,8 @@ Les deux modes ne différaient que par le chrono/bonus de vitesse : **un seul mo
 ## v1.3.87 — correctif règles RTDB (opérateur `in` interdit)
 
 - La règle `friendRequests` de v1.3.86 utilisait `in [...]` → refusée à la publication (line 54). Corrigé en `== 'accepted' || == 'refused'` + contrôle anti-régression dans l'audit §12. **Re-publier les règles après merge.**
+
+
+## v1.3.88 — diagnostic classement + erreurs de demandes d'amis explicites
+
+- Le compteur « chargé(s) » du classement n'est plus écrasé par la lecture speedrun (snapshot `stScores`), et « 0 affiché(s) ici » dit pourquoi (onglet Amis vide / niveau filtré). Les refus d'envoi de demande d'ami affichent le code HTTP (401/403 = règles `friendRequests` pas encore publiées → publier la v1.3.87 des règles dans la console).

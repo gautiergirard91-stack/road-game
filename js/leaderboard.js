@@ -458,8 +458,10 @@ export async function resolveUidByPseudo(pseudo) { // pseudo -> uid via les entr
     return hit ? { uid: hit.uid, pseudo: hit.pseudo } : null;
   } catch { return null; }
 }
+let lastFrError = ''; // v1.3.88 : détail de la dernière erreur de demande d'ami (HTTP xxx / réseau / hors ligne) pour le toast
+export function getLastFrError() { return lastFrError; }
 export async function sendFriendRequest(fromUid, fromPseudo, toUid, toPseudo, idToken) {
-  if (!isOnline() || !hasAuth(idToken) || !fromUid || !toUid) return false;
+  if (!isOnline() || !hasAuth(idToken) || !fromUid || !toUid) { lastFrError = 'hors ligne'; return false; }
   try {
     const base = FIREBASE_DB_URL.replace(/\/$/, '');
     const res = await fetch(`${base}/friendRequests/${encodeURIComponent(toUid)}/${encodeURIComponent(fromUid)}.json${authQuery(idToken)}`, {
@@ -467,8 +469,9 @@ export async function sendFriendRequest(fromUid, fromPseudo, toUid, toPseudo, id
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ fromPseudo: String(fromPseudo || '').slice(0, 16), fromUid, status: 'pending', date: Date.now() }),
     });
+    lastFrError = res.ok ? '' : `HTTP ${res.status}`; // v1.3.88
     return res.ok;
-  } catch { return false; }
+  } catch { lastFrError = 'réseau'; return false; } // v1.3.88
 }
 export async function getIncomingFriendRequests(uid, idToken) { // demandes reçues en attente
   if (!isOnline() || !hasAuth(idToken) || !uid) return [];
@@ -489,8 +492,9 @@ export async function respondFriendRequest(myUid, fromUid, status, idToken) { //
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status }),
     });
+    lastFrError = res.ok ? '' : `HTTP ${res.status}`; // v1.3.88
     return res.ok;
-  } catch { return false; }
+  } catch { lastFrError = 'réseau'; return false; } // v1.3.88
 }
 export async function getOutgoingRequestStatus(toUid, fromUid, idToken) { // l'émetteur relit le statut de sa demande
   if (!isOnline() || !hasAuth(idToken) || !toUid || !fromUid) return null;
@@ -507,8 +511,9 @@ export async function deleteFriendRequest(myUid, fromUid, idToken) { // le desti
   try {
     const base = FIREBASE_DB_URL.replace(/\/$/, '');
     const res = await fetch(`${base}/friendRequests/${encodeURIComponent(myUid)}/${encodeURIComponent(fromUid)}.json${authQuery(idToken)}`, { method: 'DELETE' });
+    lastFrError = res.ok ? '' : `HTTP ${res.status}`; // v1.3.88
     return res.ok;
-  } catch { return false; }
+  } catch { lastFrError = 'réseau'; return false; } // v1.3.88
 }
 
 export async function getAll(mode = 'all') {
