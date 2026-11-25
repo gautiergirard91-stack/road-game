@@ -242,3 +242,9 @@ Les deux modes ne différaient que par le chrono/bonus de vitesse : **un seul mo
 ## v1.3.83 — pseudo récupéré du cloud à la reconnexion
 
 - Le pseudo est inclus dans le snapshot cloud (`players/<uid>`) et restauré par `mergeRemote` quand il manque en local ; la modale pseudo se ferme toute seule si le cloud le fournit.
+
+
+## v1.3.84 — connexion Google obligatoire avant le pseudo + tutoriel unique
+
+- Jouer requiert uid + pseudo ; la modale guide : 🔑 Connexion Google d'abord, puis pseudo (pré-rempli depuis l'email / récupéré du cloud v1.3.83).
+- Tutoriel lancé une seule fois automatiquement (bouton 👶 pour le rejouer).
