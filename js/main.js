@@ -468,7 +468,7 @@ function startTutorial() {
       show('screen-levels');
     },
     () => {
-      // quitter avant la fin : tutorialDone reste false -> le tutoriel reviendra à la prochaine partie
+      // v1.3.84 : tutorialDone est posé au LANCEMENT -> quitter en cours ne relance pas le tutoriel (rejouable via 👶)
       tutActive = false;
       tut = null;
       $('#tut-banner').classList.add('hidden');
@@ -1488,13 +1488,16 @@ window.addEventListener('error', (e) => {
 
 on('btn-play', 'click', () => {
   sfx.click();
-  if (!save.tutorialDone) {
-    ensurePseudoThen(() => startTutorial()); // v1.3.29 : pseudo obligatoire avant la 1ʳᵉ partie
-    return;
-  }
-  renderDifficultyPicker();
-  renderLevels();
-  show('screen-levels');
+  ensurePseudoThen(() => { // v1.3.84 : connexion Google + pseudo requis avant de jouer
+    if (!save.tutorialDone) {
+      store.setTutorialDone(); // v1.3.84 : le tutoriel ne se lance qu'UNE FOIS (rejouable via le bouton 👶 Tutoriel)
+      startTutorial();
+      return;
+    }
+    renderDifficultyPicker();
+    renderLevels();
+    show('screen-levels');
+  });
 });
 on('btn-achievements', 'click', () => {
   sfx.click();
@@ -1887,6 +1890,10 @@ let pendingAfterPseudo = null;
 function openPseudoModal(forced) {
   pseudoForced = !!forced;
   $('#pseudo-input').value = save.pseudo;
+  if (save.uid && !save.pseudo) { // v1.3.84 : pré-rempli depuis le compte Google si pas encore de pseudo
+    const pin = $('#pseudo-input');
+    if (pin && !pin.value) pin.value = String(save.googleEmail || '').split('@')[0].replace(/\s+/g, '').slice(0, 16) || 'Joueur';
+  }
   updateGoogleStatus();
   const cancel = $('#btn-pseudo-cancel');
   if (cancel) cancel.classList.toggle('hidden', pseudoForced); // pas d'annulation si obligatoire
@@ -1903,7 +1910,8 @@ function openPseudoModal(forced) {
 // et (b) apparaître dans le classement (règles RTDB auth != null, envois réservés aux comptes liés).
 // Le pseudo reste obligatoire avant de jouer.
 function ensurePseudoThen(fn) {
-  if (save.pseudo) {
+  // v1.3.84 : le pseudo n'est choisi QU'APRÈS la connexion Google (uid + pseudo requis pour jouer)
+  if (save.uid && save.pseudo) {
     fn();
     return;
   }
@@ -1916,14 +1924,17 @@ function ensurePseudoThen(fn) {
 function updatePseudoSaveState() {
   const btn = $('#btn-pseudo-save');
   const inp = $('#pseudo-input');
-  if (btn) btn.disabled = Boolean(pseudoForced && !String(inp && inp.value || '').trim());
+  // v1.3.84 : en mode forcé, il faut ETRE connecté (uid) ET avoir un pseudo pour enregistrer
+  if (btn) btn.disabled = Boolean(pseudoForced && !(save.uid && String(inp && inp.value || '').trim()));
   const hint = $('#pseudo-hint');
   if (hint) {
     hint.textContent = pseudoForced
-      ? save.uid
-        ? '✔ Compte Google lié — choisis un pseudo (16 car. max) pour apparaître dans le classement 🌍'
-        : 'Choisis un pseudo (16 car. max) pour jouer. Facultatif : « 🔑 Connexion Google » ci-dessus pour garder ta progression dans le cloud (téléphone ↔ PC) et apparaître dans le classement 🌍.'
-      : 'Ton pseudo est public dans le classement 🌍 — connecte ton compte Google (« 🔑 Connexion Google » ci-dessus) pour y figurer et synchroniser ta progression.';
+      ? !save.uid
+        ? "🔑 Connecte d'abord ton compte Google (bouton ci-dessus), PUIS choisis ton pseudo (16 car. max) — il sert au classement en ligne 🏆"
+        : save.pseudo
+          ? '✔ Pseudo déjà défini — tu peux enregistrer.'
+          : '✔ Compte Google lié — choisis un pseudo (16 car. max) pour apparaître dans le classement 🏆'
+      : 'Ton pseudo est public dans le classement 🏆 — connecte ton compte Google (« 🔑 Connexion Google » ci-dessus) pour y figurer et synchroniser ta progression.';
   }
 }
 
@@ -1973,6 +1984,12 @@ on('pseudo-input', 'input', () => updatePseudoSaveState()); // v1.3.37 : réacti
 on('btn-pseudo-save', 'click', () => {
   // v1.3.40 : plus besoin de Google pour jouer — seul le pseudo est obligatoire en mode forcé
   const p = $('#pseudo-input').value.trim().slice(0, 16);
+  // v1.3.84 : le pseudo n'est enregistrable QU'APRÈS connexion Google
+  if (!save.uid) {
+    toast("🔑 Connecte ton compte Google d'abord (bouton ci-dessus), puis choisis ton pseudo 🏆");
+    sfx.miss?.();
+    return;
+  }
   if (pseudoForced && !p) {
     toast('Choisis un pseudo pour jouer 🙂 (16 caractères max)');
     sfx.miss?.();
