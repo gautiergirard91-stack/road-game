@@ -225,9 +225,11 @@ function startMusic() {
 export function musicKick() {
   const c = ac(); // crée/reprend le contexte (autorisé car appelé depuis un geste)
   if (!c) return;
+  if (c.state === 'suspended') c.resume(); // v1.3.91 : reprise explicite — sinon le 1er niveau démarre muet/en retard
+  stopMusic(); // v1.3.91 : restart propre à chaque niveau -> la musique démarre EXACTEMENT au début du niveau
   musicStep = 0;
   musicNext = c.currentTime + 0.06;
-  if (musicOn && enabled && !musicTimer) startMusic();
+  if (musicOn && enabled) startMusic();
 }
 
 function stopMusic() {
@@ -267,27 +269,31 @@ export function musicSting() {
 const beatSched = new Map(); // key -> { osc, at }
 export function scheduleLineBeat(tSec, key) {
   if (!enabled || !hasAudio()) return;
-  if (!(tSec > -0.05 && tSec < 0.7)) return;
+  if (!(tSec < 0.7)) return; // v1.3.91 : plus de borne basse — le bip part même si une frame saute le 0 (haute vitesse / bas fps)
+  const c = ac();
+  if (!c) return;
+  // v1.3.91 : compense la latence de SORTIE audio (outputLatency, souvent 20-150 ms sur mobile) :
+  // sans ça, le bip sonne en RETARD par rapport au moment visuel où la ligne passe sous la roue
+  const lat = (typeof c.outputLatency === 'number' && isFinite(c.outputLatency) && c.outputLatency > 0) ? c.outputLatency : 0;
   const prev = beatSched.get(key);
-  if (prev && Math.abs(prev.at - tSec) < 0.06) return; // déjà calé à peu près juste
   if (prev) {
+    if (prev.at <= 0.02) return; // v1.3.91 : bip déjà tiré (0 ms atteint ou passé) — on ne reprogramme pas (anti double-bip)
+    if (Math.abs(prev.at - tSec) < 0.06) return; // déjà calé à peu près juste
     try { prev.osc.stop(); } catch { /* déjà arrêté */ }
     beatSched.delete(key);
   }
-  const c = ac();
-  if (!c) return;
-  const t0 = c.currentTime + Math.max(0, tSec);
+  const t0 = c.currentTime + Math.max(0, tSec - lat);
   const o = c.createOscillator();
   const g = c.createGain();
   o.type = 'square';
   o.frequency.setValueAtTime(1250, t0);
   o.frequency.exponentialRampToValueAtTime(620, t0 + 0.045);
   g.gain.setValueAtTime(0.0001, t0);
-  g.gain.exponentialRampToValueAtTime(0.22, t0 + 0.004);
-  g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.09);
+  g.gain.exponentialRampToValueAtTime(0.13, t0 + 0.004); // v1.3.91 : plus doux (0.22 -> 0.13) — moins « métronome » agressif
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.07); // v1.3.91 : plus court
   o.connect(g).connect(c.destination);
   o.start(t0);
-  o.stop(t0 + 0.12);
+  o.stop(t0 + 0.1);
   beatSched.set(key, { osc: o, at: tSec });
 }
 export function clearLineBeats() {

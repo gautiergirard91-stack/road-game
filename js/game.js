@@ -946,7 +946,7 @@ export class Game {
             if (typeof this.audio.musicAnchor === 'function') this.audio.musicAnchor();
           }
           if (line.hits[axle]) continue;
-          if (typeof this.audio.lineBeat === 'function' && t > -0.05 && t < 0.7) this.audio.lineBeat(t, line.dist + ':' + axle);
+          if (this.access.lineBeat && typeof this.audio.lineBeat === 'function' && t < 0.7) this.audio.lineBeat(t, line.dist + ':' + axle); // v1.3.91 : fenêtre sans borne basse (frame sautée = bip quand même) + optionnel (access.lineBeat)
           if (this.access.hitMarker) { // v1.3.80 : #27 — flash quand la ligne passe EXACTEMENT sous l'essieu (0 ms)
             const ad = this.distance - line.dist + this.axleDelta(axle);
             line._hmAd = line._hmAd || {};

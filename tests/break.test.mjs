@@ -61,7 +61,7 @@ function makeGame(level, mode, extra = {}) {
     effects: [],
     audio: {},
     windows: WINDOWS,
-    access: {},
+    access: { lineBeat: true }, // v1.3.91 : bip 0 ms activé dans les tests (optionnel côté joueur)
     onJudge() {},
     onMiss() {},
     onThreshold() {},
@@ -2111,6 +2111,35 @@ console.log('BO. v1.3.90 : plus de délai auto « niveau suivant » (bouton manu
     const l = store.listReplays();
     ok('pushReplay x12 -> listReplays() = 10, le plus récent en tête (score 12), le plus vieux (score 3) en queue', l.length === 10 && l[0].score === 12 && l[9].score === 3);
     ok('getReplayById retrouve la tête + deleteReplay la retire (reste 9)', !!store.getReplayById(l[0].id) && (store.deleteReplay(l[0].id), store.listReplays().length === 9));
+  }
+}
+console.log('BP. v1.3.91 : fix crash calibration (calib null) ; bip 0 ms : timing corrigé (outputLatency), garanti même si frame sautée, plus doux, optionnel (hors classement) ; musique : démarrage propre au début de chaque niveau');
+{
+  const fsBP = await import('node:fs');
+  const mainSrc = fsBP.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  const gameSrc = fsBP.readFileSync(new URL('../js/game.js', import.meta.url), 'utf8');
+  const audioSrc = fsBP.readFileSync(new URL('../js/audio.js', import.meta.url), 'utf8');
+  const storeSrc = fsBP.readFileSync(new URL('../js/store.js', import.meta.url), 'utf8');
+  const coreSrc = fsBP.readFileSync(new URL('../js/core.js', import.meta.url), 'utf8');
+  const html = fsBP.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  ok('calibration : guard "if (!calib)" dans l’intervalle + calibTimer nettoyé à la fin (plus de TypeError calib.beats)', mainSrc.includes('if (!calib) { clearInterval(iv); calibTimer = null; return; }') && mainSrc.includes('calibTimer = iv;') && mainSrc.includes('if (calibTimer) { clearInterval(calibTimer); calibTimer = null; }'));
+  ok('bip 0 ms : fenêtre élargie (tSec < 0.7 sans borne basse) + latence de sortie compensée (outputLatency) + plus de reprogrammation après le 0 + volume 0.22 -> 0.13', audioSrc.includes('if (!(tSec < 0.7)) return;') && audioSrc.includes('c.outputLatency') && audioSrc.includes('if (prev.at <= 0.02) return;') && audioSrc.includes('exponentialRampToValueAtTime(0.13, t0 + 0.004)'));
+  ok('game.js : lineBeat appelé dès t < 0.7 (plus de t > -0.05 -> le bip part même à haute vitesse/bas fps) et géré par access.lineBeat', gameSrc.includes('this.access.lineBeat && typeof this.audio.lineBeat') && gameSrc.includes('t < 0.7) this.audio.lineBeat(t,') && !gameSrc.includes('t > -0.05 && t < 0.7'));
+  ok('bip 0 ms optionnel : save.lineBeatSound (défaut false) + setLineBeatSound + sanitize + case à cocher s-opt-linebeat + ACCESS_OPTS opt-linebeat + access.lineBeat aux 2 sites', storeSrc.includes('lineBeatSound: false,') && storeSrc.includes('s.lineBeatSound = bool(s.lineBeatSound);') && storeSrc.includes('export function setLineBeatSound') && html.includes('id="s-opt-linebeat"') && mainSrc.includes("id: 'opt-linebeat', key: 'lineBeatSound'") && (mainSrc.match(/lineBeat: !!save\.lineBeatSound/g) || []).length === 2);
+  ok('aide sonore = hors classement comme le marqueur visuel : canSubmitToLeaderboard exclut lineBeatSound', coreSrc.includes('!s.lineBeatSound'));
+  ok('musique : musicKick fait stopMusic + resume explicite + musicNext = currentTime + 0.06 -> démarrage propre au début de chaque niveau', audioSrc.includes('if (c.state === \'suspended\') c.resume();') && (audioSrc.match(/stopMusic\(\);/g) || []).length >= 2 && audioSrc.includes('musicNext = c.currentTime + 0.06;'));
+  ok('tutoriel : unlockAudio + setMusicEnabled + musicKick au lancement (la musique démarre aussi dans le 👶)', mainSrc.includes('unlockAudio(); // v1.3.91') && mainSrc.includes('setMusicEnabled(save.music && save.sound); // v1.3.91'));
+  {
+    const audio = await import('../js/audio.js');
+    audio.setEnabled(true);
+    audio.setMusicEnabled(true);
+    audio.musicKick(); // headless : ac() -> null, aucun crash
+    audio.scheduleLineBeat(0.1, 'k1');
+    audio.scheduleLineBeat(-0.2, 'k1');
+    audio.clearLineBeats();
+    audio.setMusicEnabled(false);
+    ok('headless : musicKick/scheduleLineBeat/clearLineBeats sans crash (pas de WebAudio en Node)', true);
+    ok('canSubmitToLeaderboard : lineBeatSound=true -> hors LB ; false -> éligible (avec pseudo+uid)', core.canSubmitToLeaderboard({ pseudo: 'a', uid: 'b', lineBeatSound: true }) === false && core.canSubmitToLeaderboard({ pseudo: 'a', uid: 'b', lineBeatSound: false }) === true);
   }
 }
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);

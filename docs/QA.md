@@ -1,6 +1,6 @@
 # ✅ Assurance qualité
 
-> **Note (v1.3.77)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.90**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
+> **Note (v1.3.77)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.91**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
 
 ## Processus de test
 
@@ -792,3 +792,11 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - **Replay corrigé** : à la fin d'un replay, plus de redémarrage auto — titre « ▶ Replay terminé » ; un replay ne touche plus à RIEN (records, totaux, étoiles, cleared, pièces, défi du jour, quêtes, succès — guards `!isReplay`) ; pas d'overlay « continuer » ni de vitesse entraînement pendant un replay ; le mode rejoué est celui d'origine (`replayRep.mode`).
 - **Menu 🎞 Replays** (bouton accueil) : les **10 dernières parties** (clé `roadtap_replays_v1`, plus récente en tête) avec ▶ voir (mode lecture), 💾 télécharger en `.json` (`roadtap-replay-<date>-nivX-<score>pts.json` via Blob), ✕ supprimer.
 - Tests : section BO (suppression countdown, guards, cap 10 fonctionnel, ids HTML) ; audit OK ; triple bump v1.3.90/roadtap-v98.
+
+## v1.3.91 — fix crash calibration + audio : bip 0 ms corrigé/optionnel + musique au démarrage du niveau
+
+- **Fix crash Paramètres** (capture : `TypeError: can't access property "beats", calib is null`) : si le joueur tape ses 4 taps avant la fin des 4 pulsations, `calib` passait à null pendant que l'intervalle du métronome tournait encore → guard `if (!calib)` + `calibTimer` module-level nettoyé à la fin.
+- **Bip 0 ms** : (a) la latence de sortie audio (`AudioContext.outputLatency`, 20–150 ms sur mobile) est maintenant **compensée** → le bip sonne au vrai moment visuel 0 ms ; (b) fenêtre élargie (`t < 0.7` sans borne basse, côté game.js aussi) → le bip part **même si une frame saute le 0** (haute vitesse/bas fps) ; (c) anti double-bip (`prev.at <= 0.02`) ; (d) plus doux (0.22 → 0.13, plus court).
+- **Métronome dérangeant** : le bip sonore devient **optionnel** — case « 🔔 Bip sonore au 0 ms » dans Accessibilité, **off par défaut**, et **hors classement** (comme le marqueur visuel 0 ms : `canSubmitToLeaderboard` exclut `lineBeatSound`). Le marqueur visuel (flash) reste l'aide par défaut disponible.
+- **Musique au début du niveau** : `musicKick()` fait maintenant `stopMusic()` + `resume()` explicite + `musicNext = currentTime + 0.06` → redémarrage propre à **chaque** niveau, la musique démarre immédiatement (plus de démarrage muet/en retard au 1er niveau) ; idem dans le tutoriel (`unlockAudio` + `setMusicEnabled` + `musicKick`).
+- Tests : section BP (guards, timing, option, LB, headless no-crash, canSubmitToLeaderboard fonctionnel) ; audit OK ; triple bump v1.3.91/roadtap-v99.
