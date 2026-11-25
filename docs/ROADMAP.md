@@ -274,3 +274,8 @@ Les deux modes ne différaient que par le chrono/bonus de vitesse : **un seul mo
 ## v1.3.89 — le pseudo revient à la reconnexion (push cloud sécurisé)
 
 - `pushCloud()` ne pousse plus après un pull en échec (le PUT écrasait `players/<uid>` et perdait le pseudo) : nouveau `cloudsave.loadRaw()` (ok/data/error). Relecture avec 2e essai (1,2 s) à la connexion et au boot pour attendre le jeton App Check ; toast « ✏️ Pseudo « … » récupéré du cloud » quand il revient.
+
+
+## v1.3.90 — avance manuelle entre niveaux + menu 🎞 Replays
+
+- Le compte à rebours auto « niveau suivant » est supprimé → bouton manuel « ▶ Niveau suivant » sur l'écran de fin. Les replays se terminent proprement (« ▶ Replay terminé », aucun effet de bord : records/pièces/succès intacts) et un **menu 🎞 Replays** liste les 10 dernières parties avec lecture (▶) et téléchargement .json (💾).

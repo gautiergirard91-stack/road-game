@@ -55,6 +55,7 @@
     <button class="btn" id="btn-garage">🚗 Garage</button>
     <button class="btn" id="btn-leaderboard">🏆 Classement</button>
     <button class="btn" id="btn-challenges">🎯 Défis</button>
+    <button class="btn" id="btn-replays">🎞 Replays</button> <!-- v1.3.90 : 10 dernières parties, ▶ voir / 💾 télécharger -->
     <button class="btn secondary" id="btn-help">👶 Tutoriel</button>
     <button class="btn secondary" id="btn-achievements">🏅 Succès</button>
     <button class="btn secondary" id="btn-settings">⚙️ Paramètres</button>
@@ -177,6 +178,16 @@
     <div id="leaderboard-list" class="cards"></div>
   </section>
 
+  <section id="screen-replays" class="screen">
+    <header class="topbar">
+      <button class="btn back" id="btn-replays-back">←</button>
+      <h2>🎞 Replays</h2>
+      <div class="coins-display">🪙 0</div>
+    </header>
+    <p class="card-sub">Tes 10 dernières parties — regarde-les (▶) ou télécharge-les sur ton PC (💾 .json).</p>
+    <div id="replays-list" class="cards"></div>
+  </section>
+
   <section id="screen-challenges" class="screen">
     <h3 class="picker-label">⚔️ Duels reçus</h3>
     <div id="duels-list" class="cards"></div> <!-- v1.3.82 #24 -->
@@ -244,11 +255,7 @@
       <div id="over-rank" class="card-sub"></div> <!-- v1.3.70 : place au classement avec le score/temps du run -->
       <button id="btn-replay" class="btn small hidden">▶ Voir mon replay</button> <!-- v1.3.79 : rejoue le meilleur run (mode lecture, hors classement) -->
       <button id="btn-share" class="btn secondary">📤 Partager mon score</button> <!-- v1.3.81 #18 : carte de score partageable -->
-      <div id="over-next" class="hidden">
-        <div class="over-next-label">⏭ Niveau suivant dans <b id="over-count">10</b> s</div>
-        <div class="countdown-bar"><div id="over-count-bar"></div></div>
-        <button class="btn big" id="btn-over-next">▶ Continuer maintenant</button>
-      </div>
+      <button class="btn big hidden" id="btn-over-next">▶ Niveau suivant</button> <!-- v1.3.90 : avance MANUELLE (le compte à rebours auto est supprimé) -->
       <button class="btn big" id="btn-retry">↻ Rejouer</button>
       <button class="btn" id="btn-over-levels">Niveaux</button>
       <button class="btn secondary" id="btn-over-menu">Menu</button>

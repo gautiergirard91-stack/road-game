@@ -1234,7 +1234,7 @@ on('btn-share', 'click', async () => { // v1.3.81 #18 : carte de score partageab
 
 function startLevel(level, replayRep = null) {
   currentLevel = level;
-  const lvl = save.training ? { ...level, speed: Math.max(60, Math.round(level.speed * (save.trainSpeed || 1))) } : level; // v1.3.82 #1 : entraînement = vitesse réglable
+  const lvl = (save.training && !replayRep) ? { ...level, speed: Math.max(60, Math.round(level.speed * (save.trainSpeed || 1))) } : level; // v1.3.82 #1 + v1.3.90 : pas de vitesse entraînement en replay
   setMusicCombo(0); // v1.3.42 : nouvelle partie -> intensité musicale à 0
   unlockAudio(); // v1.3.86 fix : l'appel était noyé dans le commentaire ci-dessus (jamais exécuté) — restauré sur sa propre ligne
   // v1.3.65 : contexte audio repris ici (geste « Jouer ») -> pas de freeze au 1er tap
@@ -1260,7 +1260,7 @@ function startLevel(level, replayRep = null) {
     level: lvl, // v1.3.82 #1
     training: !!save.training, // v1.3.82 #1 : vies infinies
     skinId: save.skin,
-    mode: save.difficulty, // v1.3.68 : speedrun dans la difficulté choisie (plus de verrou Permis A)
+    mode: replayRep && replayRep.mode ? replayRep.mode : save.difficulty, // v1.3.68 + v1.3.90 : un replay rejoue le mode d'origine
     speedrun: true, // v1.3.77 : mode unique — chrono + pénalités + vitesse bonus TOUJOURS actifs
     replay: replayRep || undefined, // v1.3.79 : mode lecture d'un replay enregistré (hors classement)
     themeOverride: save.highContrast ? 'highcontrast' : (save.themeOverride || undefined), // v1.3.80 #16 : contraste élevé prioritaire
@@ -1278,7 +1278,7 @@ function startLevel(level, replayRep = null) {
       musicSting(); // v1.3.42 : raté = sting + retour au calme
       setMusicCombo(0);
     },
-    onThreshold: showContinue,
+    onThreshold: replayRep ? () => {} : showContinue, // v1.3.90 : pas d'overlay « continuer » pendant un replay
     onEnd: onGameEnd,
   });
   game.start();
@@ -1287,37 +1287,8 @@ function startLevel(level, replayRep = null) {
   rafId = requestAnimationFrame(loop);
 }
 
-// v1.3.19 : speedrun — compte à rebours de 10 s avant le niveau suivant
-let nextTimer = null;
-function cancelNextCountdown() {
-  if (nextTimer) {
-    clearInterval(nextTimer);
-    nextTimer = null;
-  }
-  const el = $('#over-next');
-  if (el) el.classList.add('hidden');
-}
-function startNextCountdown(nextLevel) {
-  cancelNextCountdown();
-  const el = $('#over-next');
-  if (!el || !nextLevel) return;
-  el.classList.remove('hidden');
-  let left = 10;
-  const countEl = $('#over-count');
-  const barEl = $('#over-count-bar');
-  if (countEl) countEl.textContent = '10';
-  if (barEl) barEl.style.width = '100%';
-  nextTimer = setInterval(() => {
-    left -= 0.1;
-    const s = Math.max(0, left);
-    if (countEl) countEl.textContent = String(Math.ceil(s));
-    if (barEl) barEl.style.width = `${(s / 10) * 100}%`;
-    if (s <= 0) {
-      cancelNextCountdown();
-      startLevel(nextLevel);
-    }
-  }, 100);
-}
+// v1.3.90 : la mécanique de compte à rebours auto « niveau suivant » est RETIRÉE —
+// le joueur avance quand il veut via le bouton « ▶ Niveau suivant » (btn-over-next) ou Niveaux/Menu.
 
 async function onGameEnd(stats, level) {
   hideContinue();
@@ -1339,17 +1310,20 @@ async function onGameEnd(stats, level) {
     store.setReplay(runMode, level.id, rep); // v1.3.79 : replay local du meilleur run
     lastRun = { mode: runMode, levelId: level.id };
   }
+  if (!isReplay && game && game.replay) { // v1.3.90 : historique des 10 dernières parties (menu 🎞 Replays)
+    store.pushReplay({ seed: levelSeed(level.id, runMode), mode: runMode, levelId: level.id, levelName: level.name, score: stats.score, timeMs: stats.timeMs || 0, completed: !!stats.completed, reason: stats.reason || '', lines: linesCount, taps: (game.replay.taps || []).slice(0, 10000) });
+  }
   const firstClear = !!stats.completed && !store.getBest(runMode, level.id);
-  const isRecord = store.setBest(runMode, level.id, stats.score);
-  const isTimeRecord = stats.completed ? store.setBestTime(runMode, level.id, stats.timeMs || 0) : false; // v1.3.77 : record de temps à chaque niveau terminé
-  store.addTotals({ runs: 1, perfects: stats.perfects, overtakes: stats.overtakes || 0 });
+  const isRecord = !isReplay ? store.setBest(runMode, level.id, stats.score) : false; // v1.3.90 : un replay ne modifie aucun record
+  const isTimeRecord = stats.completed && !isReplay ? store.setBestTime(runMode, level.id, stats.timeMs || 0) : false; // v1.3.77 + v1.3.90 : pas en replay
+  if (!isReplay) store.addTotals({ runs: 1, perfects: stats.perfects, overtakes: stats.overtakes || 0 }); // v1.3.90
   // v1.3.17 : niveau "terminé" = partie complétée en entier (débloque l'achat du suivant)
-  if (stats.completed) store.markCleared(level.id); // v1.3.77 : un seul mode — terminé = terminé
+  if (stats.completed && !isReplay) store.markCleared(level.id); // v1.3.77 + v1.3.90
   // v1.3.35 : étoiles du niveau (1 terminé / 2 si >=60% PARFAIT / 3 full parfait) — on garde le max
   const stars = stats.completed ? starsFor(stats) : 0;
-  if (stars > (save.stars[level.id] || 0)) store.setStars(level.id, stars);
+  if (!isReplay && stars > (save.stars[level.id] || 0)) store.setStars(level.id, stars); // v1.3.90
   // v1.3.35 : paliers Survie ∞ — pièces à chaque palier de lignes, skin or + médaille à 50
-  if (level.endless) {
+  if (!isReplay && level.endless) { // v1.3.90
     const prevBest = save.endlessBest || 0;
     const nowLines = Math.max(prevBest, stats.lines || 0);
     if (nowLines > prevBest) {
@@ -1366,7 +1340,7 @@ async function onGameEnd(stats, level) {
       refreshCoins();
     }
   }
-  checkAchievements(stats, level);
+  if (!isReplay) checkAchievements(stats, level); // v1.3.90
   logEvent('game_over', { score: stats.score, level: level.id, mode: save.difficulty, completed: !!stats.completed, reason: stats.reason });
   // v1.3.37 : envoi UNIQUEMENT si compte Google lié (uid) — l'accès anonyme au classement est retiré
   // (règles RTDB v1.3.37 : auth != null requis ; leaderboard.submitScore refuse sinon et garde en local)
@@ -1469,15 +1443,15 @@ async function onGameEnd(stats, level) {
   const rb = reactionBonus(coins, stats);
   if (rb.coins > 0) coins += rb.coins;
   const perfectClear = !!stats.completed && isPerfectClear(stats);
-  if (perfectClear) store.setTrophy(level.id);
-  if (coins > 0) {
+  if (!isReplay && perfectClear) store.setTrophy(level.id); // v1.3.90
+  if (!isReplay && coins > 0) { // v1.3.90
     store.addCoins(save.difficulty, coins);
     sfx.coin();
   }
   $('#hud-coins').textContent = `${cur(save.difficulty).icon} ${store.getWallet(save.difficulty)}`;
   // défi du jour (même défi pour tous, dérivé de la date)
   const dc = dailyChallenge();
-  if (!store.isChallengeDone(dc.id) && save.difficulty === dc.mode && level.id === dc.levelId) {
+  if (!isReplay && !store.isChallengeDone(dc.id) && save.difficulty === dc.mode && level.id === dc.levelId) { // v1.3.90
     let ok = false;
     if (dc.kind === 'score') ok = stats.score >= dc.target;
     else if (dc.kind === 'perfects') ok = stats.perfects >= dc.target;
@@ -1499,7 +1473,7 @@ async function onGameEnd(stats, level) {
     }
   }
   // quêtes de la semaine (progression cumulée)
-  const doneQuests = store.addQuestProgress({
+  const doneQuests = isReplay ? [] : store.addQuestProgress({ // v1.3.90
     runs: 1,
     perfects: stats.perfects,
     overtakes: stats.overtakes || 0,
@@ -1542,7 +1516,7 @@ async function onGameEnd(stats, level) {
       ? `<div><b>${stats.lines || 0}</b><span>Lignes (record ${Math.max(save.endlessBest || 0, stats.lines || 0)})</span></div>`
       : `<div><b>${stars > 0 ? '⭐'.repeat(stars) : '—'}</b><span>Étoiles du niveau</span></div>`}`;
   const btnReplay = $('#btn-replay'); // v1.3.79 : bouton « voir le replay » si un replay existe pour ce niveau
-  if (btnReplay) btnReplay.classList.toggle('hidden', !(stats.completed && lastRun && store.getReplay(lastRun.mode, lastRun.levelId)));
+  if (btnReplay) btnReplay.classList.toggle('hidden', isReplay || !(stats.completed && lastRun && store.getReplay(lastRun.mode, lastRun.levelId))); // v1.3.90 : pas de bouton replay pendant un replay
   const ci = cur(save.difficulty).icon;
   $('#over-coins').textContent =
     `+${coins} ${ci} gagnées` +
@@ -1553,13 +1527,12 @@ async function onGameEnd(stats, level) {
   setTimeout(() => {
     refreshCoins();
     show('screen-over');
-    // v1.3.19 : speedrun + niveau terminé -> compte à rebours 10 s vers le niveau suivant
-    if (stats.completed) {
+    // v1.3.90 : plus de compte à rebours auto — avance manuelle via « ▶ Niveau suivant » (bouton) ou Niveaux/Menu
+    if (isReplay) $('#over-title').textContent = '▶ Replay terminé';
+    else {
       const next = LEVELS.find((l) => l.id === level.id + 1);
-      if (next) startNextCountdown(next);
-      else $('#over-title').textContent = '🏁 Bravo, niveau terminé !';
-    } else {
-      cancelNextCountdown();
+      const bn = $('#btn-over-next');
+      if (bn) bn.classList.toggle('hidden', !(stats.completed && next));
     }
   }, 650);
 }
@@ -2181,29 +2154,24 @@ on('btn-quit', 'click', () => {
 on('btn-pause-retry', 'click', () => {
   sfx.click();
   togglePause(false);
-  cancelNextCountdown();
   if (currentLevel) startLevel(currentLevel);
 });
 on('btn-retry', 'click', () => {
   sfx.click();
-  cancelNextCountdown();
   if (currentLevel) startLevel(currentLevel);
 });
 on('btn-over-levels', 'click', () => {
   sfx.click();
-  cancelNextCountdown(); // v1.3.19 : on quitte sans attendre le compte à rebours
   renderLevels();
   show('screen-levels');
 });
 on('btn-over-menu', 'click', () => {
   sfx.click();
-  cancelNextCountdown();
   show('screen-menu');
 });
-on('btn-over-next', 'click', () => {
+on('btn-over-next', 'click', () => { // v1.3.90 : avance MANUELLE vers le niveau suivant (plus de délai auto)
   sfx.click();
   const next = currentLevel ? LEVELS.find((l) => l.id === currentLevel.id + 1) : null;
-  cancelNextCountdown();
   if (next) startLevel(next);
 });
 on('btn-continue-restart', 'click', () => {
@@ -2257,6 +2225,76 @@ on('btn-replay', 'click', () => { // v1.3.79 : rejoue le meilleur run enregistr�
   if (level) startLevel(level, rep);
 });
 
+// v1.3.90 : menu 🎞 Replays — 10 dernières parties : ▶ voir, 💾 télécharger (.json), ✕ supprimer
+on('btn-replays', 'click', () => { sfx.click(); renderReplays(); show('screen-replays'); });
+on('btn-replays-back', 'click', () => { sfx.click(); show('screen-menu'); });
+
+function levelById(id) {
+  return LEVELS.find((l) => l.id === id)
+    || (ENDLESS_LEVEL.id === id ? ENDLESS_LEVEL : null)
+    || (WEEKEND_LEVEL.id === id ? WEEKEND_LEVEL : null)
+    || (WEEKLY_LEVEL.id === id ? WEEKLY_LEVEL : null);
+}
+
+function renderReplays() {
+  const el = $('#replays-list');
+  if (!el) return;
+  const list = store.listReplays();
+  el.innerHTML = '';
+  if (!list.length) {
+    el.innerHTML = '<div class="card-sub">Aucune partie enregistrée pour l’instant — joue une partie ! ▶</div>';
+    return;
+  }
+  const pad = (n) => String(n).padStart(2, '0');
+  for (const r of list) {
+    const d = new Date(r.date || Date.now());
+    const when = `${pad(d.getDate())}/${pad(d.getMonth() + 1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    const row = document.createElement('div');
+    row.className = 'card lb-row';
+    row.innerHTML = `<span class="lb-rank">${r.completed ? '🏁' : '💥'}</span><div class="card-body"><div class="card-title">${escapeHtml(r.levelName || ('Niv. ' + r.levelId))} — ${escapeHtml(String(r.mode || ''))}</div><div class="card-sub">${when} · ${r.score} pts · ⏱ ${fmtTime((r.timeMs || 0) / 1000)}</div></div>`;
+    const watch = document.createElement('button');
+    watch.className = 'btn small';
+    watch.textContent = '▶';
+    watch.title = 'Voir ce replay (mode lecture, hors classement)';
+    watch.addEventListener('click', () => {
+      const lvl = levelById(r.levelId);
+      if (!lvl) { toast('⚠️ Niveau introuvable pour ce replay'); return; }
+      if (!r.taps || !r.taps.length) { toast('⚠️ Ce replay n’a pas de taps enregistrés'); return; }
+      sfx.click();
+      startLevel(lvl, r); // v1.3.90 : r sert de replayPlay (taps rejoués à leur instant)
+    });
+    const dl = document.createElement('button');
+    dl.className = 'btn small';
+    dl.textContent = '💾';
+    dl.title = 'Télécharger ce replay (.json)';
+    dl.addEventListener('click', () => downloadReplay(r));
+    const del = document.createElement('button');
+    del.className = 'btn small';
+    del.textContent = '✕';
+    del.title = 'Supprimer ce replay';
+    del.addEventListener('click', () => { store.deleteReplay(r.id); sfx.click(); renderReplays(); });
+    row.appendChild(watch);
+    row.appendChild(dl);
+    row.appendChild(del);
+    el.appendChild(row);
+  }
+}
+
+function downloadReplay(r) { // v1.3.90 : export .json téléchargeable sur le PC/ téléphone
+  const payload = { app: 'roadtap-racer', version: VERSION, exportedAt: new Date().toISOString(), ...r };
+  const blob = new Blob([JSON.stringify(payload, null, 1)], { type: 'application/json' });
+  const a = document.createElement('a');
+  const d = new Date(r.date || Date.now());
+  const pad = (n) => String(n).padStart(2, '0');
+  a.download = `roadtap-replay-${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}-niv${r.levelId}-${r.score | 0}pts.json`;
+  a.href = URL.createObjectURL(blob);
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  toast('💾 Replay téléchargé (.json)');
+}
+
 function trySwipe(x) {
   if (!pointerStart || swipeFired) return;
   let dx = x - pointerStart.x;
@@ -2298,7 +2336,7 @@ window.addEventListener('pointerdown', (e) => {
       e.stopImmediatePropagation(); // évite le double tap via le handler de zones ci-dessous
       if (action === 'swipe') game.swipeLeft();
       else if (action === 'swipeRight') game.swipeRight(); // v1.3.76 : retour manuel à droite
-      else if (action === 'retry') { cancelNextCountdown(); if (currentLevel) startLevel(currentLevel); }
+      else if (action === 'retry') { if (currentLevel) startLevel(currentLevel); }
       else game.tap(action);
     }
   }
@@ -2381,7 +2419,6 @@ window.addEventListener('keydown', (e) => {
     if (action === 'retry') {
       // v1.3.49/v1.3.53 : touche « recommencer » — en jeu (même en pause) ET sur l'écran de fin
       if ((currentScreen === 'screen-game' || currentScreen === 'screen-over') && currentLevel) {
-        cancelNextCountdown();
         startLevel(currentLevel);
       }
     } else if (canPlay) {
