@@ -199,6 +199,12 @@ try {
     console.log('❌ database.rules.json: scores.$mode doit avoir .indexOn ["score"]');
     problems++;
   }
+  // v1.3.87 : RTDB interdit l'opérateur "in" dans les expressions de règles
+  // (« Rule expressions may not contain 'in' operator » à la publication) -> remplacer "x in [a,b]" par "x == a || x == b"
+  if (fs.readFileSync(path.join(root, 'database.rules.json'), 'utf8').includes(' in [')) {
+    console.log('❌ database.rules.json: opérateur "in" interdit dans les règles RTDB — remplacer par des == (v1.3.87)');
+    problems++;
+  }
 } catch (e) {
   console.log(`❌ database.rules.json illisible/invalide: ${e.message}`);
   problems++;

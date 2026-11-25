@@ -1,6 +1,6 @@
 # ✅ Assurance qualité
 
-> **Note (v1.3.77)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.86**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
+> **Note (v1.3.77)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.87**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
 
 ## Processus de test
 
@@ -765,3 +765,10 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
   - fix clé `training:` dupliquée dans les options `Game` de `startLevel` → une seule occurrence.
   - vérifié SANS bug : suppression d'ami qui revenait (tombstones `deletedFriends`, v1.3.75), saisie du pseudo (garde champ INPUT, v1.3.75), ids HTML↔JS, handlers en double, assets du SW, triple bump — 6 tests + audit 0 problème sur main ET sur la branche.
 - Tests : break sections BJ (demandes d'amis, dont fonctionnel resolve/envoi/PATCH avec fetch mocké) + BK (sweep) → 540 assertions ; audit OK ; triple bump v1.3.86/roadtap-v94.
+
+## v1.3.87 — fix règles RTDB : l'opérateur `in` est interdit (erreur de publication)
+
+- `database.rules.json` (nœud `friendRequests`, v1.3.86) utilisait `status in ['accepted','refused']` → la console refuse : **« Erreur lors de l'enregistrement des règles - Line 54: Rule expressions may not contain 'in' operator »**. Remplacé par `(status == 'accepted' || status == 'refused')`.
+- Garde-fou : `tools/audit.mjs` §12 bloque désormais toute règle contenant ` in [` ; test BJ mis à jour + section BL ajoutée.
+- **⚠ re-publier les règles** dans la console Firebase après merge (le nœud `friendRequests` n'est donc PAS encore actif en ligne côté serveur).
+- Tests : 6/6 OK (break 543 assertions) ; audit OK ; triple bump v1.3.87/roadtap-v95.
