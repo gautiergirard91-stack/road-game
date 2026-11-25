@@ -383,6 +383,38 @@ export async function getTop(mode = 'all', levelFilter = 'all') {
 
 // --- v1.3.36 : classement « amis » — TOUTES les entrées (sans limite TOP), triées, pour
 // filtrage client par pseudo (core.filterFriendsByPseudo). Utilise le même nœud /scores/<mode>.
+// v1.3.81 : #25 — saison hebdomadaire (reset lundi via weekKey) : nœud /seasons/<week>/<mode>, mêmes règles que scores
+export async function submitSeason(week, entry, idToken) {
+  if (!isOnline() || !hasAuth(idToken)) return;
+  if (Date.now() - lastOnlineWriteAt < MIN_WRITE_GAP_MS) return; // rate-limit partagé avec submitScore
+  try {
+    const base = FIREBASE_DB_URL.replace(/\/$/, '');
+    const res = await fetch(`${base}/seasons/${week}/${modeOf(entry)}.json${authQuery(idToken)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...entry, uid: entry.uid || '' }),
+    });
+    if (res.ok) lastOnlineWriteAt = Date.now();
+  } catch { /* saison = best effort, jamais bloquant */ }
+}
+export async function getSeasonAll(week, mode = 'all') {
+  if (!isOnline()) return [];
+  const base = FIREBASE_DB_URL.replace(/\/$/, '');
+  const auth = FIREBASE_DB_SECRET ? `?auth=${FIREBASE_DB_SECRET}` : '';
+  const modes = mode === 'all' ? MODES : [mode];
+  const all = [];
+  for (const m of modes) {
+    try {
+      const res = await fetch(`${base}/seasons/${week}/${m}.json${auth}`, { cache: 'no-store' });
+      if (res.ok) {
+        const data = await res.json();
+        if (data && typeof data === 'object') all.push(...Object.values(data).map(cleanEntry).filter(Boolean));
+      }
+    } catch { /* ignore */ }
+  }
+  return all.sort((a, b) => (b.score || 0) - (a.score || 0));
+}
+
 export async function getAll(mode = 'all') {
   const fetchMode = async (m) => {
     const base = FIREBASE_DB_URL.replace(/\/$/, '');

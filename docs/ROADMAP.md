@@ -219,3 +219,13 @@ Les deux modes ne différaient que par le chrono/bonus de vitesse : **un seul mo
 - Gros doigts (zones 60/40 + swipe 25 px), animations réduites, thème contraste élevé, taille de texte réglable, annonces ARIA (sr-live).
 - Marqueur du 0 ms (flash sous la roue) — option **hors classement** (règle `aids`).
 - Infobulle « 0 ms » avec schéma SVG (fenêtre symétrique ±45 ms, beat à t=0).
+
+
+## v1.3.81 — compétition visible + niveaux (rapport #22/#23/#25/#18/#14/#13/#20/#21/#10/#9/#12)
+
+- Médailles 🥇🥈🥉 (rang top 3) par niveau + tiers Bronze→Légende affichés dans le menu.
+- Saison hebdomadaire (onglet 🗓️, nœud `/seasons/<semaine>` — redéployer les règles).
+- Écran de fin : rang animé + partage de la carte de score.
+- Défis du jour : + « 0 raté sur N lignes » et « combo max xN ».
+- Niveau hebdo 🗓️ « Orage hebdo » le week-end ; thèmes saisonniers cosmétiques (Halloween/Noël/Été) ; icône PWA saisonnière.
+- Cartes de niveaux : bonus 1er clear et paliers Survie visibles ; courbe lissée (gapMin ≥ 260, pDouble ≤ 0,35) ; boss 👹 niveaux 5/10/15.

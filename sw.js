@@ -1,4 +1,4 @@
-const CACHE = 'roadtap-v88';
+const CACHE = 'roadtap-v89';
 
 const ASSETS = [
   './',
@@ -24,6 +24,9 @@ const ASSETS = [
   './icons/icon-512.png',
   './icons/icon-maskable-512.png',
   './icons/apple-touch-icon.png',
+  './icons/icon-halloween.svg', // v1.3.81 #21
+  './icons/icon-noel.svg',
+  './icons/icon-ete.svg',
 ];
 
 self.addEventListener('install', (e) => {
