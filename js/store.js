@@ -345,6 +345,43 @@ export function setReplay(mode, levelId, rep) {
   }
   return save.replays[k];
 }
+
+// v1.3.90 : historique des 10 dernières parties (menu 🎞 Replays) — clé localStorage dédiée
+const REPLAYS_KEY = 'roadtap_replays_v1';
+function readReplays() {
+  try {
+    const a = JSON.parse(localStorage.getItem(REPLAYS_KEY) || '[]');
+    return Array.isArray(a) ? a.filter((r) => r && typeof r === 'object' && Array.isArray(r.taps)) : [];
+  } catch { return []; }
+}
+export function listReplays() { return readReplays(); } // plus récent d'abord
+export function getReplayById(id) { return readReplays().find((r) => r.id === id) || null; }
+export function pushReplay(rep) { // ajoute en tête, garde 10 max
+  if (!rep || !Array.isArray(rep.taps)) return null;
+  const a = readReplays();
+  const entry = {
+    id: 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    date: Date.now(),
+    mode: String(rep.mode || 'auto'),
+    levelId: rep.levelId,
+    levelName: String(rep.levelName || ('Niv. ' + rep.levelId)),
+    score: rep.score | 0,
+    timeMs: rep.timeMs || 0,
+    completed: !!rep.completed,
+    reason: String(rep.reason || ''),
+    seed: rep.seed,
+    lines: rep.lines,
+    taps: rep.taps.slice(0, 10000),
+  };
+  a.unshift(entry);
+  while (a.length > 10) a.pop(); // v1.3.90 : 10 dernières parties max
+  try { localStorage.setItem(REPLAYS_KEY, JSON.stringify(a)); } catch { /* quota plein : on ignore */ }
+  return entry;
+}
+export function deleteReplay(id) {
+  const a = readReplays().filter((r) => r.id !== id);
+  try { localStorage.setItem(REPLAYS_KEY, JSON.stringify(a)); } catch { /* ignore */ }
+}
 export function setTraining(on) { save.training = Boolean(on); persist(); } // v1.3.82 #1
 export function setTrainSpeed(v) { save.trainSpeed = [0.5, 0.75, 1].includes(Number(v)) ? Number(v) : 1; persist(); } // v1.3.82 #1
 export function setVibrate(on) { save.vibrate = on === undefined ? true : Boolean(on); persist(); } // v1.3.82 #7

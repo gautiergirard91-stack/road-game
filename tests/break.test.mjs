@@ -1546,7 +1546,7 @@ console.log('AW. v1.3.73 : speedrun d\'un niveau verrouillé tant qu\'il n\'a pa
   ok('main.js : persistance accepte sort=\'reaction\' + label appliqué à l\'ouverture du classement', mainSrc.includes("o.sort === 'score' || o.sort === 'time' || o.sort === 'reaction'") && mainSrc.includes('sortBtn.textContent = lbSortLabel()'));
 
   // verrou speedrun : terminé = mode normal uniquement
-  ok('main.js : v1.3.77 — markCleared sans condition de mode (un seul mode)', mainSrc.includes('if (stats.completed) store.markCleared(level.id);') && !mainSrc.includes('!sr) store.markCleared'));
+  ok('main.js : v1.3.77 — markCleared sans condition de mode (un seul mode) + guard !isReplay (v1.3.90)', mainSrc.includes('if (stats.completed && !isReplay) store.markCleared(level.id);') && !mainSrc.includes('!sr) store.markCleared'));
   ok('main.js : v1.3.77 — gate speedrun SUPPRIMÉE (plus de srLocked / « Speedrun verrouillé » / save.speedrun)', !mainSrc.includes('srLocked') && !mainSrc.includes('Speedrun verrouillé') && !mainSrc.includes('save.speedrun'));
   ok('main.js : v1.3.77 — gate speedrun SUPPRIMÉE (plus de srLocked / « Speedrun verrouillé » / save.speedrun)', !mainSrc.includes('srLocked') && !mainSrc.includes('Speedrun verrouillé') && !mainSrc.includes('save.speedrun'));
 }
@@ -1668,7 +1668,7 @@ console.log('BA. v1.3.77 : MODE UNIQUE (standard+speedrun fusionnés) — chrono
   ok('index.html : plus de btn-mode-* + label « Mode unique » + HUD #hud-time + écran fin #over-time', !html.includes('btn-mode-speedrun') && !html.includes('btn-mode-normal') && html.includes('Mode unique') && html.includes('id="hud-time"') && html.includes('id="over-time"'));
   ok('main.js : plus de save.speedrun / srLocked / btn-mode / continueCost', !mainSrc.includes('save.speedrun') && !mainSrc.includes('srLocked') && !mainSrc.includes('btn-mode') && !mainSrc.includes('continueCost'));
   ok('main.js : startLevel passe speedrun: true (chrono + bonus vitesse actifs) + chrono live dans le HUD (setInterval #hud-time)', mainSrc.includes('speedrun: true,') && mainSrc.includes('hudTimer = setInterval') && mainSrc.includes("$('#hud-time')"));
-  ok('main.js : onGameEnd envoie le score (toujours) ET le temps (si terminé) + markCleared sans !sr', mainSrc.includes('if (!isReplay && canSubmitToLeaderboard(save)) {') && mainSrc.includes('if (stats.completed && !isReplay && canSubmitToLeaderboard(save)) {') && mainSrc.includes('if (stats.completed) store.markCleared(level.id);'));
+  ok('main.js : onGameEnd envoie le score (toujours) ET le temps (si terminé) + markCleared sans !sr', mainSrc.includes('if (!isReplay && canSubmitToLeaderboard(save)) {') && mainSrc.includes('if (stats.completed && !isReplay && canSubmitToLeaderboard(save)) {') && mainSrc.includes('if (stats.completed && !isReplay) store.markCleared(level.id);'));
   ok('main.js : over-rank = rang score + rang temps (readRank + readTimeRank, join « · »), écran fin score + #over-time avec record', mainSrc.includes('readTimeRank') && mainSrc.includes("parts.join(' · ')") && mainSrc.includes("$('#over-time')") && mainSrc.includes('nouveau record'));
   ok('main.js : continuer = +2 s au chrono (penaltyMs += 2000, label « +2 s », plus de store.spend)', mainSrc.includes('game.penaltyMs = (game.penaltyMs || 0) + 2000') && mainSrc.includes('+2 s') && !mainSrc.includes('store.spend(save.difficulty, cost)'));
   ok('game.js : raté = +0,5 s (penaltyMs += 500, popup « RATÉ +0,5 s ») + timeMs final = elapsed + pénalités', gameSrc.includes('this.penaltyMs += 500;') && gameSrc.includes('RATÉ +0,5 s') && gameSrc.includes('(this.elapsed + this.penaltyMs / 1000)'));
@@ -2088,6 +2088,29 @@ console.log('BN. v1.3.89 : reconnexion — le pseudo revient du cloud (loadRaw +
     const changed = store.mergeRemote({ pseudo: 'Siebeile', wallets: { auto: 42 } });
     ok('mergeRemote({pseudo:"Siebeile"}) -> true et save.pseudo restauré du cloud', changed === true && store.get().pseudo === 'Siebeile');
     ok('snapshot() conserve le pseudo restauré (le prochain push ne l\'efface pas)', store.snapshot().pseudo === 'Siebeile');
+  }
+}
+console.log('BO. v1.3.90 : plus de délai auto « niveau suivant » (bouton manuel ▶) ; replay : fin propre + guards !isReplay ; menu 🎞 Replays (10 dernières, ▶ voir, 💾 télécharger .json)');
+{
+  const fsBO = await import('node:fs');
+  const mainSrc = fsBO.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  const storeSrc = fsBO.readFileSync(new URL('../js/store.js', import.meta.url), 'utf8');
+  const html = fsBO.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const css = fsBO.readFileSync(new URL('../css/style.css', import.meta.url), 'utf8');
+  ok('compte à rebours auto supprimé : plus de startNextCountdown/cancelNextCountdown dans main.js, plus de over-next/over-count/countdown-bar dans HTML/CSS', !mainSrc.includes('startNextCountdown') && !mainSrc.includes('cancelNextCountdown') && !html.includes('id="over-next"') && !html.includes('over-count') && !css.includes('#over-next') && !css.includes('.countdown-bar'));
+  ok('bouton manuel « ▶ Niveau suivant » conservé (btn-over-next, affiché seulement si terminé + suivant existe)', html.includes('id="btn-over-next"') && mainSrc.includes("on('btn-over-next', 'click'") && mainSrc.includes("bn.classList.toggle('hidden', !(stats.completed && next))"));
+  ok('écran de fin d’un replay : titre « ▶ Replay terminé » + bouton replay caché pendant un replay', mainSrc.includes('▶ Replay terminé') && mainSrc.includes('btnReplay.classList.toggle(\'hidden\', isReplay ||'));
+  ok('onGameEnd : guards !isReplay sur records/totaux/cleared/étoiles/endless/trophée/pièces/défi/quêtes/succès (>= 8)', (mainSrc.match(/!isReplay/g) || []).length >= 8);
+  ok('onGameEnd : pushReplay dans l’historique des 10 dernières parties (hors replay)', mainSrc.includes('store.pushReplay({') && mainSrc.includes('if (!isReplay && game && game.replay)'));
+  ok('startLevel : mode du replay d’origine + pas de vitesse entraînement + pas d’overlay continuer en replay', mainSrc.includes('replayRep && replayRep.mode ? replayRep.mode : save.difficulty') && mainSrc.includes('save.training && !replayRep') && mainSrc.includes('onThreshold: replayRep ? () => {} : showContinue'));
+  ok('store.js : roadtap_replays_v1 + listReplays/pushReplay (cap 10)/getReplayById/deleteReplay', storeSrc.includes("const REPLAYS_KEY = 'roadtap_replays_v1';") && storeSrc.includes('export function listReplays') && storeSrc.includes('while (a.length > 10) a.pop()') && storeSrc.includes('export function getReplayById') && storeSrc.includes('export function deleteReplay'));
+  ok('index.html : écran #screen-replays + #replays-list + boutons #btn-replays/#btn-replays-back', html.includes('id="screen-replays"') && html.includes('id="replays-list"') && html.includes('id="btn-replays"') && html.includes('id="btn-replays-back"'));
+  ok('main.js : renderReplays (▶/💾/✕) + downloadReplay (Blob + a.download roadtap-replay-*.json + createObjectURL) + levelById (LEVELS + ENDLESS/WEEKEND/WEEKLY)', mainSrc.includes('function renderReplays()') && mainSrc.includes('function downloadReplay(r)') && mainSrc.includes('new Blob([') && mainSrc.includes('a.download = `roadtap-replay-') && mainSrc.includes('URL.createObjectURL') && mainSrc.includes('WEEKEND_LEVEL.id === id'));
+  {
+    for (let i = 1; i <= 12; i++) store.pushReplay({ mode: 'auto', levelId: 1, levelName: 'L1', score: i, timeMs: i * 1000, completed: true, seed: 42, lines: 10, taps: [{ a: 'front', t: 100 }] });
+    const l = store.listReplays();
+    ok('pushReplay x12 -> listReplays() = 10, le plus récent en tête (score 12), le plus vieux (score 3) en queue', l.length === 10 && l[0].score === 12 && l[9].score === 3);
+    ok('getReplayById retrouve la tête + deleteReplay la retire (reste 9)', !!store.getReplayById(l[0].id) && (store.deleteReplay(l[0].id), store.listReplays().length === 9));
   }
 }
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);

@@ -1,6 +1,6 @@
 # ✅ Assurance qualité
 
-> **Note (v1.3.77)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.89**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
+> **Note (v1.3.77)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.90**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
 
 ## Processus de test
 
@@ -785,3 +785,10 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - Nouveau `cloudsave.loadRaw()` ({ok, data, error}) qui distingue « nœud vide » d'une erreur ; `pushCloud()` **ne pousse plus après un pull en échec**.
 - `completeGoogleSignIn` + restauration au boot : **2e essai de lecture après 1,2 s** si la 1re échoue ; si le pseudo revient du cloud → toast « ✏️ Pseudo « … » récupéré du cloud », champ pré-rempli, modale fermée (v1.3.83) via `noteRestoredPseudo()`.
 - Tests : section BN (loadRaw fonctionnel 401 / 200-null / 200-data ; mergeRemote restaure le pseudo après resetProgress ; snapshot le conserve) ; audit OK ; triple bump v1.3.89/roadtap-v97.
+
+## v1.3.90 — plus de délai auto « niveau suivant » + menu 🎞 Replays (10 dernières parties, téléchargeables)
+
+- **Délai auto supprimé** : plus de compte à rebours de 10 s vers le niveau suivant (`startNextCountdown`/`cancelNextCountdown`, bloc `#over-next`, CSS retirés). Avance **manuelle** via le bouton « ▶ Niveau suivant » (affiché seulement si niveau terminé + suivant existe), Rejouer, Niveaux ou Menu.
+- **Replay corrigé** : à la fin d'un replay, plus de redémarrage auto — titre « ▶ Replay terminé » ; un replay ne touche plus à RIEN (records, totaux, étoiles, cleared, pièces, défi du jour, quêtes, succès — guards `!isReplay`) ; pas d'overlay « continuer » ni de vitesse entraînement pendant un replay ; le mode rejoué est celui d'origine (`replayRep.mode`).
+- **Menu 🎞 Replays** (bouton accueil) : les **10 dernières parties** (clé `roadtap_replays_v1`, plus récente en tête) avec ▶ voir (mode lecture), 💾 télécharger en `.json` (`roadtap-replay-<date>-nivX-<score>pts.json` via Blob), ✕ supprimer.
+- Tests : section BO (suppression countdown, guards, cap 10 fonctionnel, ids HTML) ; audit OK ; triple bump v1.3.90/roadtap-v98.
