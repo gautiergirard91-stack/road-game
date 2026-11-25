@@ -128,9 +128,9 @@ export function axleDelta(wheelY, frontAxleY, axle) {
 
 // v1.3.28 : mapping zone de tap, pur et testable.
 // horizontal = option "zones gauche/droite" (gauche = AV, droite = AR), sinon haut/bas.
-export function zoneFromPoint(x, y, w, h, horizontal) {
+export function zoneFromPoint(x, y, w, h, horizontal, ratio = 0.5) { // v1.3.80 : #6 ratio réglable (gros doigts = 0,6)
   if (!Number.isFinite(x) || !Number.isFinite(y) || !(w > 0) || !(h > 0)) return 'rear';
-  return horizontal ? (x < w / 2 ? 'front' : 'rear') : y < h / 2 ? 'front' : 'rear';
+  return horizontal ? (x < w * ratio ? 'front' : 'rear') : y < h * ratio ? 'front' : 'rear';
 }
 
 // v1.3.30 : comparaison de versions "x.y.z" (sonde anti-SW-obsolète, voir main.js)
@@ -290,7 +290,8 @@ export function weekendCoinMultiplier(d = new Date()) {
 // et PAS de fenêtres de timing élargies (option accessibilité wideWindows) : un joueur qui
 // joue avec des fenêtres allongées ne doit pas apparaître dans le classement.
 export function canSubmitToLeaderboard(s) {
-  return Boolean(s && s.pseudo && s.uid && !s.wideWindows);
+  // v1.3.80 : #27 marqueur 0 ms = aide -> hors classement en ligne (comme wideWindows)
+  return Boolean(s && s.pseudo && s.uid && !s.wideWindows && !s.hitMarker);
 }
 
 export function filterFriendsByPseudo(entries, friends) {

@@ -1629,7 +1629,7 @@ console.log('AZ. v1.3.76 : voies manuelles (swipe → / ➡ pour revenir, plus d
   ok('game.js : collision frontale finish(\'oncoming\') si joueur à gauche + voiture de face au même niveau', gameSrc.includes("this.finish('oncoming')") && gameSrc.includes('Math.abs(this.distance - c.p) < 58'));
   ok('game.js : indicateur danger (0..1) + spawn sens inverse avec lead ≥1050 px si joueur à gauche (fenêtre d\'action)', gameSrc.includes('this.danger = 0;') && gameSrc.includes('const lead = playerLeft ? 1050 + this.rand() * 800') && gameSrc.includes('tOncoming, 1.4'));
   ok('game.js : alerte visuelle ⚠ dessinée + jamais 2 voitures d\'affilée < 520 px même file', gameSrc.includes('⚠ VOITURE DE FACE') && gameSrc.includes('c.p < this.distance + 520'));
-  ok('main.js : trySwipe gère GAUCHE (swipeLeft) et DROITE (swipeRight) + branches swipeRight clavier/souris', mainSrc.includes('dx > 40') && mainSrc.includes('game.swipeRight()') && (mainSrc.match(/swipeRight\(\)/g) || []).length >= 3);
+  ok('main.js : trySwipe gère GAUCHE (swipeLeft) et DROITE (swipeRight) + branches swipeRight clavier/souris', mainSrc.includes('dx > minSwipe') && mainSrc.includes('dx < -minSwipe') && mainSrc.includes('game.swipeRight()') && (mainSrc.match(/swipeRight\(\)/g) || []).length >= 3); // v1.3.80 : seuil réglable (bigTargets)
   ok('main.js : raison oncoming affichée à l\'écran de fin', mainSrc.includes("reason === 'oncoming'") && mainSrc.includes('Voiture de face'));
 
   // zones tactiles : défaut gauche/droite, option = haut/bas
@@ -1797,6 +1797,40 @@ console.log('BC. v1.3.79 : replays vérifiables (#30) — enregistrement taps, h
     const hex = [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
     ok('contrat hash : SHA-256 -> 64 hex (règle RTDB matches(/^[0-9a-f]{64}$/))', /^[0-9a-f]{64}$/.test(hex));
   }
+}
+
+
+console.log('BD. v1.3.80 : accessibilité P0 — #6 gros doigts/swipe, #15 anims réduites, #16 contraste élevé, #17 taille texte, #19 ARIA, #27 marqueur 0 ms (hors LB), #29 infobulle');
+{
+  const fsB4 = await import('node:fs');
+  const mainSrc = fsB4.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  const gameSrc = fsB4.readFileSync(new URL('../js/game.js', import.meta.url), 'utf8');
+  const coreSrc = fsB4.readFileSync(new URL('../js/core.js', import.meta.url), 'utf8');
+  const storeSrc = fsB4.readFileSync(new URL('../js/store.js', import.meta.url), 'utf8');
+  const dataSrc = fsB4.readFileSync(new URL('../js/data.js', import.meta.url), 'utf8');
+  const html = fsB4.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const css = fsB4.readFileSync(new URL('../css/style.css', import.meta.url), 'utf8');
+  const rules = JSON.parse(fsB4.readFileSync(new URL('../database.rules.json', import.meta.url), 'utf8')).rules;
+
+  ok('core.zoneFromPoint : paramètre ratio (défaut 0,5 ; gros doigts 0,6 -> zone AV élargie)', core.zoneFromPoint(10, 500, 100, 1000, true, 0.6) === 'front' && core.zoneFromPoint(59, 500, 100, 1000, true, 0.6) === 'front' && core.zoneFromPoint(61, 500, 100, 1000, true, 0.6) === 'rear' && core.zoneFromPoint(10, 500, 100, 1000, true) === 'front');
+  ok('main.js : ratio 0,6 transmis si bigTargets + seuil swipe 25 px (trySwipe minSwipe)', mainSrc.includes('save.bigTargets ? 0.6 : 0.5') && mainSrc.includes('save.bigTargets ? 25 : 40') && mainSrc.includes('dx < -minSwipe') && mainSrc.includes('dx > minSwipe'));
+  ok('store : bigTargets dans defaults + sanitize + setBigTargets', storeSrc.includes('bigTargets: false') && storeSrc.includes('s.bigTargets = bool(s.bigTargets)') && storeSrc.includes('export function setBigTargets'));
+
+  ok('game.js : reduceAnims coupe shake/particules/flash', (gameSrc.match(/!this\.access\.reduceAnims/g) || []).length >= 5 && gameSrc.includes("this.access.reduceAnims ? 0 : 0.3"));
+  ok('main.js : applyUiPrefs (dataset.textsize + body.reduce-anims) appelé au boot + select #s-opt-textsize câblé', mainSrc.includes('function applyUiPrefs()') && mainSrc.includes('applyUiPrefs();') && mainSrc.includes("on('s-opt-textsize', 'change'"));
+  ok('css : body.reduce-anims coupe transitions/animations + html[data-textsize] règle la taille', css.includes('body.reduce-anims *') && css.includes("html[data-textsize='large'] body"));
+
+  ok('data.js : THEMES.highcontrast (fond #000, ligne #fff) + prioritaire dans startLevel', dataSrc.includes("id: 'highcontrast'") && mainSrc.includes("save.highContrast ? 'highcontrast'"));
+
+  ok('game.js : hitMarker — flash au franchissement dy=0 + access passé dans startLevel (2 sites)', gameSrc.includes('if (this.access.hitMarker)') && gameSrc.includes('(prev < 0 && ad >= 0)') && (mainSrc.match(/hitMarker: !!save\.hitMarker/g) || []).length === 2);
+  ok('core.canSubmitToLeaderboard : hitMarker -> hors classement (comme wideWindows)', core.canSubmitToLeaderboard({ pseudo: 'a', uid: 'u', hitMarker: true }) === false && core.canSubmitToLeaderboard({ pseudo: 'a', uid: 'u' }) === true);
+  ok("rules : clause aids != true ajoutée aux 3 noeuds écrits", rules.scores['$mode']['$id']['.write'].includes('aids') && rules.speedrun['$level']['$id']['.write'].includes('aids') && rules.challenges['$day']['$id']['.write'].includes('aids'));
+
+  ok('main.js : toast() écrit aussi dans #sr-live (aria-live) + index.html : #sr-live + dialog aria-modal', mainSrc.includes("$('#sr-live')") && html.includes('id="sr-live"') && html.includes('aria-live="polite"') && html.includes('role="dialog"'));
+
+  ok('index.html : modal-timing avec SVG explicatif (0 ms, ±45/100/160 symétrique) + 3 boutons + fermeture', html.includes('id="modal-timing"') && html.includes('<svg viewBox="0 0 320 200"') && html.includes('symétrique') && html.includes('id="btn-help-timing"') && html.includes('id="btn-help-timing-levels"') && html.includes('id="btn-hud-help"') && html.includes('id="btn-timing-close"'));
+  ok('main.js : handlers modal (3 ouvertures + close + clic extérieur) + nouvelles options s-opt-* présentes dans le HTML',
+    mainSrc.includes("on('btn-help-timing', 'click'") && mainSrc.includes("on('btn-hud-help', 'click'") && mainSrc.includes("on('btn-timing-close', 'click'") && ['s-opt-bigtargets', 's-opt-reduceanims', 's-opt-highcontrast', 's-opt-hitmarker', 's-opt-textsize'].every((id) => (mainSrc.includes(`'${id}'`) || mainSrc.includes(`'${id.replace('s-', '')}'`)) && html.includes(`id="${id}"`))); // v1.3.80 ACCESS_OPTS (préfixe 's-' ajouté au câblage)
 }
 
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);

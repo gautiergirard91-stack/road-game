@@ -44,6 +44,11 @@ const defaults = () => ({
   googleRefresh: '',
   friends: [], // v1.3.36 : pseudos des amis pour le classement « amis » (voir core.filterFriendsByPseudo)
   deletedFriends: [], // v1.3.75 : tombstones — pseudos d'amis SUPPRIMÉS (ne doivent pas revenir via le cloud)
+  bigTargets: false, // v1.3.80 : #6 gros doigts — zones 60/40 + seuil de swipe 25 px
+  reduceAnims: false, // v1.3.80 : #15 animations réduites (photosensibilité) — pas de shake/particules/flash
+  highContrast: false, // v1.3.80 : #16 thème contraste élevé (fond noir, lignes blanches)
+  textSize: 'medium', // v1.3.80 : #17 'small' | 'medium' | 'large'
+  hitMarker: false, // v1.3.80 : #27 flash de la ligne au moment 0 ms — HORS classement (aids)
 });
 
 let save;
@@ -101,6 +106,11 @@ function sanitize(s) {
   s.best = numMap(s.best);
   s.bestTime = numMap(s.bestTime);
   s.replays = replayMap(s.replays); // v1.3.79
+  s.bigTargets = bool(s.bigTargets); // v1.3.80
+  s.reduceAnims = bool(s.reduceAnims);
+  s.highContrast = bool(s.highContrast);
+  s.textSize = ['small', 'medium', 'large'].includes(s.textSize) ? s.textSize : 'medium';
+  s.hitMarker = bool(s.hitMarker);
   // v1.3.44 : migration — anciennes clés "levelId" (partagées entre difficultés) copiées dans chaque mode
   for (const field of ['best', 'bestTime']) {
     const m = s[field];
@@ -283,6 +293,11 @@ export function setSpeedrun(on) {
 }
 
 // v1.3.76 : zones de tap verticales haut/bas (défaut = gauche/droite)
+export function setBigTargets(on) { save.bigTargets = Boolean(on); persist(); } // v1.3.80 #6
+export function setReduceAnims(on) { save.reduceAnims = Boolean(on); persist(); } // v1.3.80 #15
+export function setHighContrast(on) { save.highContrast = Boolean(on); persist(); } // v1.3.80 #16
+export function setTextSize(v) { save.textSize = ['small', 'medium', 'large'].includes(v) ? v : 'medium'; persist(); } // v1.3.80 #17
+export function setHitMarker(on) { save.hitMarker = Boolean(on); persist(); } // v1.3.80 #27 (hors classement)
 export function setVerticalZones(on) {
   save.verticalZones = Boolean(on);
   persist();

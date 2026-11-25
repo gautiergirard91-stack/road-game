@@ -409,7 +409,7 @@ function startTutorial() {
     mode: 'auto',
     tutorial: true,
     windows: effWindows(),
-    access: { colorblind: save.colorblind, horizontalZones: !save.verticalZones },
+    access: { colorblind: save.colorblind, horizontalZones: !save.verticalZones, hitMarker: !!save.hitMarker, reduceAnims: !!save.reduceAnims }, // v1.3.80 #27/#15
     effects: save.selectedEffects,
     audio: { tap: sfx.tap, perfect: sfx.perfect, good: sfx.good, passable: sfx.passable, fail: sfx.fail, win: sfx.win, miss: sfx.miss, lineBeat: scheduleLineBeat, musicAnchor: musicLineAnchor }, // v1.3.46 : beat GD calé sur chaque ligne
     onJudge: (e) => {
@@ -585,6 +585,7 @@ function toast(msg) {
   el.classList.add('show');
   clearTimeout(toast._t);
   toast._t = setTimeout(() => el.classList.remove('show'), 2200);
+  const live = $('#sr-live'); if (live) live.textContent = msg; // v1.3.80 #19 : annonce lecteur d'écran
 }
 
 function updateSoundBtn() {
@@ -1095,9 +1096,9 @@ function startLevel(level, replayRep = null) {
     mode: save.difficulty, // v1.3.68 : speedrun dans la difficulté choisie (plus de verrou Permis A)
     speedrun: true, // v1.3.77 : mode unique — chrono + pénalités + vitesse bonus TOUJOURS actifs
     replay: replayRep || undefined, // v1.3.79 : mode lecture d'un replay enregistré (hors classement)
-    themeOverride: save.themeOverride || undefined,
+    themeOverride: save.highContrast ? 'highcontrast' : (save.themeOverride || undefined), // v1.3.80 #16 : contraste élevé prioritaire
     windows: effWindows(),
-    access: { colorblind: save.colorblind, horizontalZones: !save.verticalZones },
+    access: { colorblind: save.colorblind, horizontalZones: !save.verticalZones, hitMarker: !!save.hitMarker, reduceAnims: !!save.reduceAnims }, // v1.3.80 #27/#15
     effects: save.selectedEffects,
     audio: { tap: sfx.tap, perfect: sfx.perfect, good: sfx.good, passable: sfx.passable, fail: sfx.fail, win: sfx.win, miss: sfx.miss, lineBeat: scheduleLineBeat, musicAnchor: musicLineAnchor }, // v1.3.46 : beat GD calé sur chaque ligne
     onJudge: (e) => {
@@ -1432,6 +1433,10 @@ const ACCESS_OPTS = [
   { id: 'opt-widewindows', key: 'wideWindows', set: (v) => store.setWideWindows(v), on: 'Fenêtres de timing élargies (accessibilité)', off: 'Fenêtres de timing standard' },
   { id: 'opt-colorblind', key: 'colorblind', set: (v) => store.setColorblind(v), on: 'Symboles ajoutés sur les lignes (mode daltonien)', off: 'Mode standard' },
   { id: 'opt-zones-h', key: 'verticalZones', set: (v) => store.setVerticalZones(v), on: '⬆⬇ Zones haut/bas : haut = roues AV, bas = roues AR', off: '🔀 Zones gauche/droite (défaut) : gauche = roues AV ⬅, droite = roues AR ➡' },
+  { id: 'opt-bigtargets', key: 'bigTargets', set: (v) => store.setBigTargets(v), on: '👆 Gros doigts : zones 60/40 + swipe 25 px', off: 'Zones/swipe standard (50/50, 40 px)' }, // v1.3.80 #6
+  { id: 'opt-reduceanims', key: 'reduceAnims', set: (v) => store.setReduceAnims(v), on: '✨ Animations réduites (pas de shake/particules/flash)', off: 'Animations standard' }, // v1.3.80 #15
+  { id: 'opt-highcontrast', key: 'highContrast', set: (v) => store.setHighContrast(v), on: '◼️ Contraste élevé (fond noir, lignes blanches épaisses)', off: 'Thème du niveau' }, // v1.3.80 #16
+  { id: 'opt-hitmarker', key: 'hitMarker', set: (v) => store.setHitMarker(v), on: '🎯 Marqueur du 0 ms (flash sous la roue) — HORS classement', off: 'Pas de marqueur 0 ms' }, // v1.3.80 #27
 ];
 function syncAccessCheckboxes(prefix) {
   for (const o of ACCESS_OPTS) {
@@ -1449,6 +1454,28 @@ function wireAccessCheckboxes(prefix) {
   }
 }
 wireAccessCheckboxes('s-'); // v1.3.47 : menu Paramètres (seul endroit depuis v1.3.56)
+
+// v1.3.80 : applique les préférences UI (#15/#17) au chargement et à chaque changement
+function applyUiPrefs() {
+  const ts = save.textSize === 'large' || save.textSize === 'small' ? save.textSize : 'medium';
+  document.documentElement.dataset.textsize = ts;
+  document.body.classList.toggle('reduce-anims', !!save.reduceAnims);
+  const sel = $('#s-opt-textsize');
+  if (sel) sel.value = ts;
+}
+applyUiPrefs();
+on('s-opt-textsize', 'change', (e) => {
+  store.setTextSize(e.target.value); // v1.3.80 #17
+  applyUiPrefs();
+  toast(`Taille du texte : ${e.target.value === 'large' ? 'grand' : e.target.value === 'small' ? 'petit' : 'moyen'}`);
+});
+// v1.3.80 : #29 — infobulle « 0 ms » (schéma)
+function openTimingHelp() { const m = $('#modal-timing'); if (m) m.classList.remove('hidden'); }
+on('btn-help-timing', 'click', openTimingHelp);
+on('btn-help-timing-levels', 'click', openTimingHelp);
+on('btn-hud-help', 'click', openTimingHelp);
+on('btn-timing-close', 'click', () => { const m = $('#modal-timing'); if (m) m.classList.add('hidden'); });
+on('modal-timing', 'click', (e) => { if (e.target && e.target.id === 'modal-timing') e.target.classList.add('hidden'); });
 
 // --- v1.3.47 : menu Paramètres (accessibilité + audio + touches + version + serveur) ---
 const ACTION_NAMES = { front: 'Roues AV', rear: 'Roues AR', swipe: 'Dépasser (swipe)', retry: 'Recommencer le niveau' }; // v1.3.49 : retry
@@ -1924,10 +1951,11 @@ on('btn-replay', 'click', () => { // v1.3.79 : rejoue le meilleur run enregistr�
 function trySwipe(x) {
   if (!pointerStart || swipeFired) return;
   const dx = x - pointerStart.x;
-  if (dx < -40) {
+  const minSwipe = save.bigTargets ? 25 : 40; // v1.3.80 #6 : seuil de swipe réglable
+  if (dx < -minSwipe) {
     swipeFired = true;
     if (canPlayNow()) game.swipeLeft();
-  } else if (dx > 40) {
+  } else if (dx > minSwipe) {
     swipeFired = true; // v1.3.76 : swipe → = retour manuel à droite
     if (canPlayNow()) game.swipeRight();
   }
@@ -1981,7 +2009,7 @@ window.addEventListener('pointerdown', (e) => {
   if (e.target.closest('button, input, select, textarea, a, label')) return; // ne pas taper le jeu quand on touche un contrôle
   if (game && game.replayPlay) return; // v1.3.79 : replay = lecture seule
   // v1.3.21/v1.3.28 : option zones gauche/droite (gauche = AV, droite = AR) au lieu de haut/bas
-  const zone = zoneFromPoint(e.clientX, e.clientY, window.innerWidth, window.innerHeight, !save.verticalZones);
+  const zone = zoneFromPoint(e.clientX, e.clientY, window.innerWidth, window.innerHeight, !save.verticalZones, save.bigTargets ? 0.6 : 0.5); // v1.3.80 #6 : zones 60/40 si gros doigts
   game.tap(zone);
 });
 

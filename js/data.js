@@ -39,6 +39,11 @@ export const THEMES = {
     skyTop: '#9fc6e8', skyBottom: '#eef7ff', shoulder: '#f6fbff',
     road: '#8fa3bd', edge: '#ffffff', line: '#ffffff', lineEdge: '#5c7186', centerLine: '#dfe9f5',
   },
+  highcontrast: { // v1.3.80 : #16 — fond noir pur, lignes blanches épaisses (basse vision)
+    id: 'highcontrast', name: 'Contraste élevé', scenery: 'none', night: false,
+    skyTop: '#000000', skyBottom: '#000000', shoulder: '#000000',
+    road: '#000000', edge: '#ffffff', line: '#ffffff', lineEdge: '#000000', centerLine: '#ffff00',
+  },
   nuit: {
     id: 'nuit', name: 'Nuit', scenery: 'citynight', night: true,
     skyTop: '#070b1d', skyBottom: '#1c2b52', shoulder: '#10142a',

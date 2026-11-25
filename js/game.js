@@ -875,7 +875,7 @@ export class Game {
       this.stats.misses++;
       this.combo = 0;
       this.popups.push({ text: 'RATÉ −1 ❤', y: ay - 70, life: 0.9, color: '#ff5c5c' });
-      this.shake = 8;
+      if (!this.access.reduceAnims) this.shake = 8; // v1.3.80 #15
       this.audio.miss?.();
       if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
       this.onMiss(this.stats.misses);
@@ -891,7 +891,7 @@ export class Game {
       this.popups.push({ text: '⚡ VITESSE PERDUE !', y: ay - 100, life: 0.9, color: '#ff9f1c' });
     }
     this.popups.push({ text: 'RATÉ +0,5 s', y: ay - 70, life: 0.9, color: '#ff5c5c' });
-    this.shake = 8;
+    if (!this.access.reduceAnims) this.shake = 8; // v1.3.80 #15
     this.audio.miss?.();
     if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
     this.onMiss(this.stats.misses);
@@ -944,6 +944,13 @@ export class Game {
           }
           if (line.hits[axle]) continue;
           if (typeof this.audio.lineBeat === 'function' && t > -0.05 && t < 0.7) this.audio.lineBeat(t, line.dist + ':' + axle);
+          if (this.access.hitMarker) { // v1.3.80 : #27 — flash quand la ligne passe EXACTEMENT sous l'essieu (0 ms)
+            const ad = this.distance - line.dist + this.axleDelta(axle);
+            line._hmAd = line._hmAd || {};
+            const prev = line._hmAd[axle];
+            if (prev !== undefined && ((prev < 0 && ad >= 0) || (prev > 0 && ad <= 0))) line.flash = Math.max(line.flash || 0, 0.18);
+            line._hmAd[axle] = ad;
+          }
         }
       }
     }
@@ -1262,7 +1269,7 @@ export class Game {
       this.bestCombo = Math.max(this.bestCombo, this.combo);
       if (this.speedrun) this.bonusSpeed = Math.min(this.bonusSpeed + 30, this.level.speed * 0.8); // dépassement = PARFAIT
       this.popups.push({ text: `DÉPASSEMENT +${bonus}`, y: this.wheelY - 120, life: 0.9, color: '#54f0ff' });
-      this.shake = Math.max(this.shake, 4);
+      if (!this.access.reduceAnims) this.shake = Math.max(this.shake, 4); // v1.3.80 #15
       this.audio.perfect?.();
       this.onJudge({ result: 'perfect', pts: bonus, combo: this.combo, score: this.score, overtake: true });
     }
@@ -1317,7 +1324,7 @@ export class Game {
     const cw = (MODELS[this.skin.model] || MODELS.berline).w;
     const onFire = this.hasEffect('fire') && this.combo >= 10;
     for (let i = 0; i < (onFire ? 3 : 2); i++) {
-      this.particles.push({
+      if (!this.access.reduceAnims) this.particles.push({ // v1.3.80 #15
         x: cx + (Math.random() - 0.5) * cw * 0.7,
         y: this.wheelY + 20 + Math.random() * 8,
         vx: (Math.random() - 0.5) * (onFire ? 60 : 30),
@@ -1374,7 +1381,7 @@ export class Game {
             }
             cw.result = 'good';
             this.replay.taps.push({ a: axle, cw: 1, t: Math.round(this.time * 1000) }); // v1.3.79 : passage piéton aussi enregistré
-            cw.flash = 0.3;
+            cw.flash = this.access.reduceAnims ? 0 : 0.3; // v1.3.80 #15
             this.audio.good?.();
             this.popups.push({ text: `${axle === 'front' ? 'AV ' : 'AR '}PASSAGE CÉDÉ`, y: this.lineAxleY(axle) - 70, life: 0.8, color: RESULT_STYLE.good.color });
             this.onJudge({ result: 'good', pts: 0, combo: this.combo, score: this.score, axle, type: 'crosswalk' });
@@ -1420,7 +1427,7 @@ export class Game {
       if (this.remaining === 0) this.lastResolveMs = (this.elapsed + this.penaltyMs / 1000) * 1000; // v1.3.78 : dernier tap
     }
     best.result = result;
-    best.flash = 0.3;
+    best.flash = this.access.reduceAnims ? 0 : 0.3; // v1.3.80 #15
     if (this.hasEffect('glow')) best.glow = 0.4;
     let pts = pointsFor(result, this.combo);
     let label = RESULT_STYLE[result].label;
@@ -1448,7 +1455,7 @@ export class Game {
       life: 0.8,
       color: RESULT_STYLE[result].color,
     });
-    if (this.hasEffect('shake')) this.shake = 5;
+    if (this.hasEffect('shake') && !this.access.reduceAnims) this.shake = 5; // v1.3.80 #15
     if (this.hasEffect('confetti') && result === 'perfect') this.spawnConfetti();
     this.audio[result]?.();
     if (result === 'perfect' && typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(15);

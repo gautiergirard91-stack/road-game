@@ -212,3 +212,10 @@ Les deux modes ne différaient que par le chrono/bonus de vitesse : **un seul mo
 - Replay de chaque run terminé (seed + taps signés + instants), meilleur run gardé en local, hash SHA-256 soumis avec score/temps (règle `hash` 64 hex).
 - Mode lecture « ▶ Voir mon replay » (hors classement, entrées ignorées).
 - Rate-limit client anti-flood : 3 s min entre 2 écritures en ligne.
+
+
+## v1.3.80 — accessibilité P0 (rapport #6/#15/#16/#17/#19/#27/#29)
+
+- Gros doigts (zones 60/40 + swipe 25 px), animations réduites, thème contraste élevé, taille de texte réglable, annonces ARIA (sr-live).
+- Marqueur du 0 ms (flash sous la roue) — option **hors classement** (règle `aids`).
+- Infobulle « 0 ms » avec schéma SVG (fenêtre symétrique ±45 ms, beat à t=0).
