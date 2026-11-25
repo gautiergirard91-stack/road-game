@@ -1841,6 +1841,18 @@ async function completeGoogleSignIn(sess) {
         renderShop();
         renderDifficultyPicker();
         toast('☁️ Progression synchronisée avec le cloud');
+        // v1.3.83 : le pseudo revient du cloud — si la modale pseudo était ouverte, on la ferme et on enchaîne l'action en attente
+        if (save.pseudo) {
+          updatePseudoSaveState();
+          const pm = $('#pseudo-modal');
+          if (pm && !pm.classList.contains('hidden')) {
+            pm.classList.add('hidden');
+            pm.classList.remove('active');
+            const fn = pendingAfterPseudo;
+            pendingAfterPseudo = null;
+            if (fn) fn();
+          }
+        }
       }
     } catch (e) {
       console.warn('[auth] chargement cloud après connexion:', e);
@@ -2324,6 +2336,7 @@ if (save.uid && save.googleRefresh) {
       cloudsave.load(accountKey(), getAuthToken()).then((remote) => {
         if (remote && store.mergeRemote(remote)) {
           store.backupKeysForAccount(); // v1.3.57 : touches du compte calées en local aussi
+          updatePseudoSaveState(); // v1.3.83 : pseudo éventuellement récupéré du cloud à la restauration de session
           refreshCoins();
           renderLevels();
           renderShop();

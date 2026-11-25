@@ -237,3 +237,8 @@ Les deux modes ne différaient que par le chrono/bonus de vitesse : **un seul mo
 - Calibration latence tactile (±100 ms, hors classement si active), vibration on/off + patterns, mode gaucher, fenêtres adaptatives 3 niveaux (hors classement si ≠ standard).
 - Duels asynchrones entre amis (⚔️ dans le classement amis → « Duels reçus » dans Défis).
 - **Toutes les propositions #1–#31 du rapport sont implémentées** (voir PR #62, #63–#67).
+
+
+## v1.3.83 — pseudo récupéré du cloud à la reconnexion
+
+- Le pseudo est inclus dans le snapshot cloud (`players/<uid>`) et restauré par `mergeRemote` quand il manque en local ; la modale pseudo se ferme toute seule si le cloud le fournit.
