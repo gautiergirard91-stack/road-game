@@ -415,6 +415,34 @@ export async function getSeasonAll(week, mode = 'all') {
   return all.sort((a, b) => (b.score || 0) - (a.score || 0));
 }
 
+// v1.3.82 : #24 — duels asynchrones entre amis (nœud /challenges/duels, mode 'duel', create-only comme le reste)
+export async function submitDuel(fromPseudo, uid, toPseudo, levelId, score, idToken) {
+  if (!isOnline() || !hasAuth(idToken)) return false;
+  if (Date.now() - lastOnlineWriteAt < MIN_WRITE_GAP_MS) return false; // rate-limit partagé
+  try {
+    const base = FIREBASE_DB_URL.replace(/\/$/, '');
+    const res = await fetch(`${base}/challenges/duels.json${authQuery(idToken)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pseudo: fromPseudo, uid: uid || '', score, levelId, mode: 'duel', target: toPseudo, date: Date.now() }),
+    });
+    if (res.ok) lastOnlineWriteAt = Date.now();
+    return res.ok;
+  } catch { return false; }
+}
+export async function getDuels(pseudo) {
+  if (!isOnline()) return [];
+  try {
+    const base = FIREBASE_DB_URL.replace(/\/$/, '');
+    const auth = FIREBASE_DB_SECRET ? `?auth=${FIREBASE_DB_SECRET}` : '';
+    const res = await fetch(`${base}/challenges/duels.json${auth}`, { cache: 'no-store' });
+    if (!res.ok) return [];
+    const data = await res.json();
+    const all = data && typeof data === 'object' ? Object.values(data) : [];
+    return all.filter((d) => d && d.mode === 'duel' && String(d.target || '').toLowerCase() === String(pseudo || '').toLowerCase());
+  } catch { return []; }
+}
+
 export async function getAll(mode = 'all') {
   const fetchMode = async (m) => {
     const base = FIREBASE_DB_URL.replace(/\/$/, '');

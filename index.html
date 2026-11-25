@@ -81,6 +81,14 @@
       <label class="lb-optin"><input type="checkbox" id="s-opt-hitmarker"> 🎯 <b>Marqueur du 0 ms</b> : la ligne flashe quand elle passe sous la roue — <b>hors classement</b></label>
       <div class="key-row"><span class="key-name">Taille du texte</span><select id="s-opt-textsize" aria-label="Taille du texte"><option value="small">Petit</option><option value="medium">Moyen</option><option value="large">Grand</option></select></div>
       <button class="btn secondary" id="btn-help-timing">🎯 Comprendre le « 0 ms » (schéma)</button>
+      <label class="lb-optin"><input type="checkbox" id="s-opt-vibrate"> 📳 Vibration (double pulsation PARFAIT, longue au raté)</label>
+      <label class="lb-optin"><input type="checkbox" id="s-opt-lefty"> 🤚 Mode gaucher (zones + swipes inversés)</label>
+      <label class="lb-optin"><input type="checkbox" id="s-opt-training"> 🎓 Mode entraînement (vies infinies — <b>hors classement</b>)</label>
+      <div class="key-row"><span class="key-name">Vitesse entraînement</span><select id="s-opt-trainspeed" aria-label="Vitesse entraînement"><option value="0.5">0,5×</option><option value="0.75">0,75×</option><option value="1">1×</option></select></div>
+      <div class="key-row"><span class="key-name">Fenêtres de timing</span><select id="s-opt-windowlevel" aria-label="Fenêtres de timing"><option value="standard">Standard 45/100/160 ms</option><option value="large">Larges 60/130/210 — hors classement</option><option value="xlarge">Très larges 90/200/320 — hors classement</option></select></div>
+      <button class="btn secondary" id="btn-calibrate">🎚️ Calibrer la latence de mon écran</button>
+      <div id="calib-zone" class="calib-zone">Tape ici au rythme des pulsations</div>
+      <div class="card-sub" id="calib-hint"></div>
 
       <div class="picker-label">🔊 Audio</div>
       <button class="btn secondary" id="btn-set-sound">🔊 Son : ON</button>
@@ -166,6 +174,8 @@
   </section>
 
   <section id="screen-challenges" class="screen">
+    <h3 class="picker-label">⚔️ Duels reçus</h3>
+    <div id="duels-list" class="cards"></div> <!-- v1.3.82 #24 -->
     <header class="topbar">
       <button class="btn back" id="btn-challenges-back">←</button>
       <h2>🎯 Défis</h2>

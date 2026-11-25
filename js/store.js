@@ -17,6 +17,12 @@ const defaults = () => ({
   bestTime: {}, // v1.3.19 : meilleurs temps (ms) du mode speedrun, par niveau
   replays: {}, // v1.3.79 : replays locaux du meilleur run par "mode:levelId" — {seed, mode, lines, score, timeMs, hash, taps}
   medals: {}, // v1.3.81 #22 : médailles par "mode:levelId" — 1=🥇 2=🥈 3=🥉 (déduites du rang au classement)
+  training: false, // v1.3.82 #1 : mode entraînement (vies infinies, vitesse réglable) — hors classement
+  trainSpeed: 1, // v1.3.82 #1 : 0.5 | 0.75 | 1
+  vibrate: true, // v1.3.82 #7 : vibration on/off
+  leftHanded: false, // v1.3.82 #8 : mode gaucher (zones + swipes inversés)
+  windowLevel: 'standard', // v1.3.82 #11 : 'standard' | 'large' | 'xlarge' — hors classement si != standard
+  latencyOffsetMs: 0, // v1.3.82 #5 : calibration latence (locale, jamais envoyée) — hors classement si != 0
   speedrun: false,
   verticalZones: false, // v1.3.76 : zones tactiles HAUT/BAS (défaut false = gauche/droite : gauche=AV ⬅, droite=AR ➡)
   sound: true,
@@ -108,6 +114,12 @@ function sanitize(s) {
   s.bestTime = numMap(s.bestTime);
   s.replays = replayMap(s.replays); // v1.3.79
   s.medals = numMap(s.medals); // v1.3.81 #22
+  s.training = bool(s.training); // v1.3.82
+  s.trainSpeed = [0.5, 0.75, 1].includes(Number(s.trainSpeed)) ? Number(s.trainSpeed) : 1;
+  s.vibrate = s.vibrate === undefined ? true : bool(s.vibrate);
+  s.leftHanded = bool(s.leftHanded);
+  s.windowLevel = ['standard', 'large', 'xlarge'].includes(s.windowLevel) ? s.windowLevel : 'standard';
+  s.latencyOffsetMs = Math.max(-100, Math.min(100, num(s.latencyOffsetMs, 0)));
   s.bigTargets = bool(s.bigTargets); // v1.3.80
   s.reduceAnims = bool(s.reduceAnims);
   s.highContrast = bool(s.highContrast);
@@ -321,6 +333,12 @@ export function setReplay(mode, levelId, rep) {
   }
   return save.replays[k];
 }
+export function setTraining(on) { save.training = Boolean(on); persist(); } // v1.3.82 #1
+export function setTrainSpeed(v) { save.trainSpeed = [0.5, 0.75, 1].includes(Number(v)) ? Number(v) : 1; persist(); } // v1.3.82 #1
+export function setVibrate(on) { save.vibrate = on === undefined ? true : Boolean(on); persist(); } // v1.3.82 #7
+export function setLeftHanded(on) { save.leftHanded = Boolean(on); persist(); } // v1.3.82 #8
+export function setWindowLevel(v) { save.windowLevel = ['standard', 'large', 'xlarge'].includes(v) ? v : 'standard'; persist(); } // v1.3.82 #11
+export function setLatencyOffsetMs(ms) { save.latencyOffsetMs = Math.max(-100, Math.min(100, Math.round(Number(ms) || 0))); persist(); } // v1.3.82 #5
 export function getMedal(mode, levelId) { return (save.medals || {})[bestKey(mode, levelId)] || 0; } // v1.3.81 #22
 export function setMedal(mode, levelId, m) { // garde la meilleure (1=or est le minimum)
   if (![1, 2, 3].includes(m)) return;
