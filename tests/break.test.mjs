@@ -2164,4 +2164,14 @@ console.log('BQ. v1.3.92 : bip à l’oreille calé à −45 ms (BEAT_OFFSET_S),
     ok('canSubmitToLeaderboard inchangé : éligible par défaut, hitMarker=true -> exclu', core.canSubmitToLeaderboard({ pseudo: 'a', uid: 'b' }) === true && core.canSubmitToLeaderboard({ pseudo: 'a', uid: 'b', hitMarker: true }) === false);
   }
 }
+console.log('BR. v1.3.93 : musique « forte dès le début » — intro dans musicKick (setMusicCombo(8) + downbeat à +50 ms + kick fort) ; startMusic ne reset plus le séquenceur');
+{
+  const fsBR = await import('node:fs');
+  const audioSrc = fsBR.readFileSync(new URL('../js/audio.js', import.meta.url), 'utf8');
+  const audio = await import('../js/audio.js');
+  ok('musicKick : setMusicLevel(levelId) + setMusicCombo(8) (intro) dans le corps de musicKick, avant ac()', /export function musicKick\(levelId\) \{[\s\S]*?setMusicLevel\(levelId\);[\s\S]*?setMusicCombo\(8\);[\s\S]*?const c = ac\(\);/.test(audioSrc));
+  ok('musicKick : downbeat à currentTime + 0.05 + scheduleStep immédiat + kick d’intro fort (0.55)', audioSrc.includes('const t0 = c.currentTime + 0.05;') && audioSrc.includes('scheduleStep(musicStep, t0);') && audioSrc.includes("oscNote(c, getBus(c).g, t0, 150, 0.16, 'sine', 0.55, 45);"));
+  ok('musicKick : musicNext = t0 + pas du tempo ; startMusic ne remet plus musicStep/musicNext à 0 (plus de double downbeat)', audioSrc.includes('musicNext = t0 + 60 / musicTempo(musicCombo) / 4;') && !/function startMusic\(\) \{[\s\S]*?musicNext = 0;/.test(audioSrc)); // v1.3.93 : startMusic ne reset plus (let musicNext = 0; = déclaration initiale, OK)
+  ok('headless : musicKick(2) applique le thème (Si b mineur, root 246.94) + combo intro 8, sans crash', (audio.musicKick(2), audio.getMusicLevel().root === 246.94 && audio.getMusicState().combo === 8));
+}
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);
