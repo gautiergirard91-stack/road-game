@@ -1,6 +1,6 @@
 # ✅ Assurance qualité
 
-> **Note (v1.3.77)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.83**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
+> **Note (v1.3.77)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.84**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
 
 ## Processus de test
 
@@ -738,3 +738,10 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - `mergeRemote` restaure le pseudo **uniquement s'il est vide en local** (jamais d'écrasement d'un pseudo choisi localement).
 - Si la modale pseudo était ouverte à la connexion et que le cloud fournit le pseudo : modale fermée + action en attente (lancer la partie) exécutée automatiquement. Idem à la restauration de session au démarrage.
 - Tests : break section BG (512 assertions, dont test fonctionnel mergeRemote) ; audit OK ; triple bump v1.3.83/roadtap-v91.
+
+
+## v1.3.84 — pseudo uniquement APRÈS connexion Google + tutoriel lancé une seule fois
+
+- « Jouer » exige désormais **compte Google connecté (uid) + pseudo** : la modale pseudo bloque le bouton Enregistrer tant que pas connecté (texte 🔑 explicite), pré-remplie le pseudo depuis l'email Google, et `btn-pseudo-save` refuse hors connexion.
+- Le **tutoriel ne se lance qu'une fois** (`setTutorialDone` au lancement, plus à la fin) — rejouable à volonté via le bouton 👶 Tutoriel du menu.
+- Tests : break section BH (518 assertions) ; audit OK ; triple bump v1.3.84/roadtap-v92.

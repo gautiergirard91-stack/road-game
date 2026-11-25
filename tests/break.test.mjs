@@ -602,7 +602,7 @@ console.log('R. v1.3.40 : jouer SANS compte (local), Google requis seulement pou
   const mainSrc = fs4.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
 
   // on joue avec seulement un pseudo (plus besoin d'uid)
-  ok('ensurePseudoThen : jouer ne requiert QUE le pseudo', /function ensurePseudoThen\(fn\) \{\s*if \(save\.pseudo\) \{/.test(mainSrc));
+  ok('ensurePseudoThen : v1.3.84 jouer requiert connexion Google (uid) ET pseudo', /function ensurePseudoThen\(fn\) \{\s*\/\/ v1\.3\.84[\s\S]*?if \(save\.uid && save\.pseudo\) \{/.test(mainSrc));
   ok('plus de ensureAccountThen (Google plus obligatoire pour jouer)', !mainSrc.includes('ensureAccountThen'));
   ok('le classement exige toujours un compte lié (garde canSubmitToLeaderboard, v1.3.45)', mainSrc.includes('canSubmitToLeaderboard(save)'));
   ok('main.js : déconnexion (btn-google-out) appelle store.resetProgress()', /on\('btn-google-out'[\s\S]*?store\.resetProgress\(\)/.test(mainSrc));
@@ -1925,6 +1925,20 @@ console.log('BG. v1.3.83 : le pseudo est sauvegardé dans le cloud et récupér�
   })());
   ok('store.snapshot().pseudo reflète le pseudo courant', (() => { store.setPseudo('SnapTest'); const p = store.snapshot().pseudo; store.setPseudo(''); return p === 'SnapTest'; })());
   ok('main.js : à la connexion (completeGoogleSignIn), si le pseudo revient du cloud -> modale fermée + action en attente exécutée ; idem à la restauration de session au boot', mainSrc.includes('v1.3.83 : le pseudo revient du cloud') && mainSrc.includes('pendingAfterPseudo;') && mainSrc.includes("updatePseudoSaveState(); // v1.3.83"));
+}
+
+
+console.log('BH. v1.3.84 : pseudo uniquement APRÈS connexion Google + tutoriel lancé une seule fois');
+{
+  const fsB8 = await import('node:fs');
+  const mainSrc = fsB8.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+
+  ok('ensurePseudoThen exige uid ET pseudo', mainSrc.includes('if (save.uid && save.pseudo) {'));
+  ok('updatePseudoSaveState : Enregistrer désactivé tant que pas connecté+pseudo (forcé) + nouveaux textes 🔑', mainSrc.includes('pseudoForced && !(save.uid &&') && mainSrc.includes("Connecte d'abord ton compte Google"));
+  ok('btn-pseudo-save refuse sans uid (toast 🔑) même hors mode forcé', mainSrc.includes('if (!save.uid) {') && mainSrc.includes("Connecte ton compte Google d'abord"));
+  ok("openPseudoModal pré-remplit depuis l'email Google si connecté sans pseudo", mainSrc.includes("save.googleEmail || '').split('@')[0]"));
+  ok('btn-play : login+pseudo puis tutoriel UNE SEULE FOIS (setTutorialDone au lancement)', mainSrc.includes('store.setTutorialDone(); // v1.3.84') && mainSrc.includes('startTutorial();'));
+  ok('abandon tuto : commentaire MAJ (ne se relance plus)', mainSrc.includes('tutorialDone est posé au LANCEMENT'));
 }
 
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);
