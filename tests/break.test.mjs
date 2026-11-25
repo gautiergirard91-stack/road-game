@@ -1904,4 +1904,27 @@ console.log('BF. v1.3.82 : feel & social — #1 entraînement, #2 buffer/coyote,
   ok("main.js : bouton ⚔️ sur les lignes amis + renderDuels dans l'écran Défis + Relever -> startLevel", mainSrc.includes("lbScope === 'friends' && !me") && mainSrc.includes('leaderboard.submitDuel(') && mainSrc.includes('async function renderDuels()') && mainSrc.includes('renderDuels();'));
 }
 
+
+console.log('BG. v1.3.83 : le pseudo est sauvegardé dans le cloud et récupéré à la reconnexion');
+{
+  const fsB7 = await import('node:fs');
+  const storeSrc = fsB7.readFileSync(new URL('../js/store.js', import.meta.url), 'utf8');
+  const mainSrc = fsB7.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+
+  ok('store.snapshot() inclut pseudo (écrit dans players/<uid>)', storeSrc.includes('pseudo: save.pseudo, // v1.3.83'));
+  ok('store.mergeRemoteBody restaure le pseudo du cloud SI local vide (jamais d\'écrasement)', storeSrc.includes("if (!save.pseudo && typeof remote.pseudo === 'string'"));
+  ok('fonctionnel : pseudo local vide -> mergeRemote({pseudo}) le récupère ; pseudo local présent -> conservé', (() => {
+    store.setPseudo('');
+    const r1 = store.mergeRemote({ pseudo: 'PseudoCloud', wallets: { auto: 42 } });
+    const p1 = store.load().pseudo;
+    store.setPseudo('LocalPseudo');
+    store.mergeRemote({ pseudo: 'AutreCloud' });
+    const p2 = store.load().pseudo;
+    store.setPseudo('');
+    return r1 === true && p1 === 'PseudoCloud' && p2 === 'LocalPseudo';
+  })());
+  ok('store.snapshot().pseudo reflète le pseudo courant', (() => { store.setPseudo('SnapTest'); const p = store.snapshot().pseudo; store.setPseudo(''); return p === 'SnapTest'; })());
+  ok('main.js : à la connexion (completeGoogleSignIn), si le pseudo revient du cloud -> modale fermée + action en attente exécutée ; idem à la restauration de session au boot', mainSrc.includes('v1.3.83 : le pseudo revient du cloud') && mainSrc.includes('pendingAfterPseudo;') && mainSrc.includes("updatePseudoSaveState(); // v1.3.83"));
+}
+
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);

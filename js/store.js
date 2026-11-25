@@ -708,6 +708,7 @@ export function snapshot() {
     streakRewardDay: save.streakRewardDay,
     quests: save.quests,
     challengeDone: save.challengeDone,
+    pseudo: save.pseudo, // v1.3.83 : le pseudo part dans le cloud -> récupéré à la reconnexion
     uid: save.uid,
     googleEmail: save.googleEmail,
     friends: save.friends, // v1.3.36 : liste d'amis synchronisée avec le cloud
@@ -736,6 +737,10 @@ function mergeRemoteBody(remote) {
   if (!save.uid && remote.uid) {
     save.uid = remote.uid;
     save.googleEmail = remote.googleEmail || '';
+  }
+  // v1.3.83 : à la reconnexion, le pseudo revient du cloud s'il manque en local (jamais d'écrasement d'un pseudo local)
+  if (!save.pseudo && typeof remote.pseudo === 'string' && remote.pseudo.trim()) {
+    save.pseudo = str(remote.pseudo).slice(0, 16);
   }
   save.challengeDone = { ...(remote.challengeDone || {}), ...save.challengeDone };
   if (remote.quests && typeof remote.quests === 'object' && remote.quests.weekKey === save.quests.weekKey) {
