@@ -248,3 +248,8 @@ Les deux modes ne différaient que par le chrono/bonus de vitesse : **un seul mo
 
 - Jouer requiert uid + pseudo ; la modale guide : 🔑 Connexion Google d'abord, puis pseudo (pré-rempli depuis l'email / récupéré du cloud v1.3.83).
 - Tutoriel lancé une seule fois automatiquement (bouton 👶 pour le rejouer).
+
+
+## v1.3.85 — jeu anonyme par défaut, compte Google uniquement pour le classement
+
+- Jouer/tutoriel sans compte ni pseudo ; 🏆 Classement → connexion + pseudo → la file hors-ligne (scores/temps faits en anonyme) est envoyée avec uid+pseudo du compte.

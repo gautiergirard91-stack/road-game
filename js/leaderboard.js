@@ -237,7 +237,7 @@ export function queueSize() {
   return readQueue().length;
 }
 // rejoue la file vers le serveur. Retourne le nombre d'entrées envoyées.
-export async function flushQueue(idToken, uid) {
+export async function flushQueue(idToken, uid, pseudo = '') { // v1.3.85 : pseudo = pseudo du compte pour les entrées anonymes
   if (!isOnline() || !hasAuth(idToken)) return 0;
   let arr = readQueue();
   if (!arr.length) return 0;
@@ -250,7 +250,12 @@ export async function flushQueue(idToken, uid) {
     let stop = false;
     try {
       const pl = item.payload;
-      if (uid && pl && typeof pl === 'object' && !pl.uid) pl.uid = uid; // rattache au compte connecté
+      if (uid && pl && typeof pl === 'object') {
+        if (!pl.uid) pl.uid = uid; // rattache au compte connecté
+        const tgt = pl.entry && typeof pl.entry === 'object' ? pl.entry : pl; // speedrun/challenge: payload dans .entry
+        if (pseudo && tgt && !tgt.pseudo) tgt.pseudo = pseudo; // v1.3.85 : entrées faites sans pseudo -> pseudo du compte
+        if (!tgt.uid) tgt.uid = uid;
+      }
       lastLbWriteError = null;
       if (item.kind === 'speedrun') await submitSpeedrun(pl.levelId, pl.entry, idToken);
       else if (item.kind === 'challenge') await submitChallengeScore(pl.dayId, pl.entry, idToken);
