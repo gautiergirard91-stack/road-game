@@ -269,3 +269,8 @@ Les deux modes ne différaient que par le chrono/bonus de vitesse : **un seul mo
 ## v1.3.88 — diagnostic classement + erreurs de demandes d'amis explicites
 
 - Le compteur « chargé(s) » du classement n'est plus écrasé par la lecture speedrun (snapshot `stScores`), et « 0 affiché(s) ici » dit pourquoi (onglet Amis vide / niveau filtré). Les refus d'envoi de demande d'ami affichent le code HTTP (401/403 = règles `friendRequests` pas encore publiées → publier la v1.3.87 des règles dans la console).
+
+
+## v1.3.89 — le pseudo revient à la reconnexion (push cloud sécurisé)
+
+- `pushCloud()` ne pousse plus après un pull en échec (le PUT écrasait `players/<uid>` et perdait le pseudo) : nouveau `cloudsave.loadRaw()` (ok/data/error). Relecture avec 2e essai (1,2 s) à la connexion et au boot pour attendre le jeton App Check ; toast « ✏️ Pseudo « … » récupéré du cloud » quand il revient.
