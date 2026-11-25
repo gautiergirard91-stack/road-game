@@ -2,7 +2,7 @@ import { LEVELS, THEMES, SKINS, EFFECTS, DIFFICULTIES, CURRENCIES, WINDOWS, ACHI
 import { Game, CAR_STYLE_LABEL, renderCarPreview, renderEffectPreview, renderThemePreview, renderPackPreview, renderSoundPreview } from './game.js';
 import * as store from './store.js';
 import { sfx, setEnabled, setMusicEnabled, unlockAudio, applySoundPack, setMusicCombo, musicSting, musicVictory, scheduleLineBeat, clearLineBeats, musicKick, musicLineAnchor } from './audio.js';
-import { coinsForResult, accuracy, avgReaction, biasReaction, maxMissesFor, firstClearBonus, isPerfectClear, perfectClearBonus, dailyChallenge, weeklyQuests, fmtTime, zoneFromPoint, keyToAction, isNewerVersion, starsFor, endlessMilestones, isWeekend, weekendCoinMultiplier, filterFriendsByPseudo, canSubmitToLeaderboard, keyLabel, reactionBonus } from './core.js';
+import { coinsForResult, accuracy, avgReaction, biasReaction, levelSeed, maxMissesFor, firstClearBonus, isPerfectClear, perfectClearBonus, dailyChallenge, weeklyQuests, fmtTime, zoneFromPoint, keyToAction, isNewerVersion, starsFor, endlessMilestones, isWeekend, weekendCoinMultiplier, filterFriendsByPseudo, canSubmitToLeaderboard, keyLabel, reactionBonus } from './core.js';
 import { watchRewarded } from './ads.js';
 import { Tutorial } from './tutorial.js';
 import * as leaderboard from './leaderboard.js';
@@ -1046,7 +1046,30 @@ function renderGarage() {
   }
 }
 
-function startLevel(level) {
+// v1.3.79 : hash du replay (#30) — SHA-256 si dispo, sinon FNV-1a x2 aplati sur 64 hex (contexte non sécurisé)
+async function replayHash(rep) {
+  const canon = JSON.stringify(rep);
+  try {
+    if (globalThis.crypto && crypto.subtle) {
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(canon));
+      return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+    }
+  } catch { /* repli hash maison */ }
+  const fnv = (str, basis) => {
+    let h = basis;
+    for (let i = 0; i < str.length; i++) {
+      h ^= str.charCodeAt(i);
+      h = Math.imul(h, 0x01000193) >>> 0;
+    }
+    return h.toString(16).padStart(8, '0');
+  };
+  let out = fnv(canon, 0x811c9dc5) + fnv(canon.split('').reverse().join(''), 0x811c9dc5);
+  while (out.length < 64) out += fnv(out + canon, 0x01000193);
+  return out.slice(0, 64);
+}
+let lastRun = null; // v1.3.79 : { mode, levelId } du dernier run terminé (bouton « voir le replay »)
+
+function startLevel(level, replayRep = null) {
   currentLevel = level;
   setMusicCombo(0); // v1.3.42 : nouvelle partie -> intensité musicale à 0  unlockAudio(); // v1.3.65 : contexte audio repris ici (geste « Jouer ») -> pas de freeze au 1er tap
   setMusicEnabled(save.music && save.sound); // v1.3.65 : musique ON dès le début de la partie
@@ -1056,6 +1079,7 @@ function startLevel(level) {
   show('screen-game');
   $('#pause-overlay').classList.remove('active');
   hudLevel.textContent = `${level.id}. ${level.name}`;
+  if (replayRep) hudLevel.textContent = '▶ REPLAY · ' + hudLevel.textContent; // v1.3.79 : badge mode lecture
   hudScore.textContent = '0';
   const ht0 = $('#hud-time'); if (ht0) ht0.textContent = '0:00.00';
   clearInterval(hudTimer); // v1.3.77 : chrono live dans le HUD (mode unique)
@@ -1070,6 +1094,7 @@ function startLevel(level) {
     skinId: save.skin,
     mode: save.difficulty, // v1.3.68 : speedrun dans la difficulté choisie (plus de verrou Permis A)
     speedrun: true, // v1.3.77 : mode unique — chrono + pénalités + vitesse bonus TOUJOURS actifs
+    replay: replayRep || undefined, // v1.3.79 : mode lecture d'un replay enregistré (hors classement)
     themeOverride: save.themeOverride || undefined,
     windows: effWindows(),
     access: { colorblind: save.colorblind, horizontalZones: !save.verticalZones },
@@ -1126,7 +1151,7 @@ function startNextCountdown(nextLevel) {
   }, 100);
 }
 
-function onGameEnd(stats, level) {
+async function onGameEnd(stats, level) {
   hideContinue();
   clearInterval(hudTimer); hudTimer = null; // v1.3.77
   // v1.3.42 : thème de fin — victoire = arpège montant, défaite = sting ; combo remis à 0
@@ -1137,6 +1162,15 @@ function onGameEnd(stats, level) {
   // v1.3.44/v1.3.54 : records isolés par difficulté — clé "mode:levelId" avec le mode RÉELLEMENT joué
   const runMode = (game && game.mode) || save.difficulty;
   const linesCount = Math.max(1, Math.min(Math.floor(level.lines) || 1, 10000)); // v1.3.78 : nb de lignes du niveau, borné (anti-triche par niveau côté règles)
+  const isReplay = !!(game && game.replayPlay); // v1.3.79 : un replay ne renvoie RIEN au classement
+  let replayHashHex = null; // v1.3.79 : hash du replay soumis avec les entrées (#30)
+  if (stats.completed && !isReplay && game && game.replay) {
+    const rep = { seed: levelSeed(level.id, runMode), mode: runMode, lines: linesCount, score: stats.score, timeMs: stats.timeMs || 0, taps: (game.replay.taps || []).slice(0, 10000) };
+    replayHashHex = await replayHash(rep);
+    rep.hash = replayHashHex;
+    store.setReplay(runMode, level.id, rep); // v1.3.79 : replay local du meilleur run
+    lastRun = { mode: runMode, levelId: level.id };
+  }
   const firstClear = !!stats.completed && !store.getBest(runMode, level.id);
   const isRecord = store.setBest(runMode, level.id, stats.score);
   const isTimeRecord = stats.completed ? store.setBestTime(runMode, level.id, stats.timeMs || 0) : false; // v1.3.77 : record de temps à chaque niveau terminé
@@ -1170,11 +1204,11 @@ function onGameEnd(stats, level) {
   // (règles RTDB v1.3.37 : auth != null requis ; leaderboard.submitScore refuse sinon et garde en local)
   // v1.3.71 : promesse d'envoi conservée pour ATTENDRE la fin de l'écriture avant de lire le rang
   let submitP = null;
-  if (canSubmitToLeaderboard(save)) { // v1.3.77 : mode unique — le score est TOUJOURS envoyé (v1.3.45 : wideWindows exclus)
+  if (!isReplay && canSubmitToLeaderboard(save)) { // v1.3.77 : mode unique — le score est TOUJOURS envoyé (v1.3.45 : wideWindows exclus) ; v1.3.79 : pas en replay
     // v1.3.19 : en speedrun le score est un temps -> pas de classement global (record local bestTime)
     submitP = leaderboard
       // v1.3.32 : uid + jeton -> règles RTDB vérifient uid == auth.uid (anti-usurpation)
-      .submitScore({ pseudo: save.pseudo, uid: save.uid || '', score: stats.score, level: level.name, levelId: level.id, mode: save.difficulty, date: Date.now(), avgMs: avgReaction(stats) ?? undefined, lines: linesCount, misses: stats.misses || 0, biasMs: biasReaction(stats) ?? undefined }, getAuthToken()) // v1.3.48 : avgMs ; v1.3.78 : lines (anti-triche par niveau) + misses + biasMs (±ms)
+      .submitScore({ pseudo: save.pseudo, uid: save.uid || '', score: stats.score, level: level.name, levelId: level.id, mode: save.difficulty, date: Date.now(), avgMs: avgReaction(stats) ?? undefined, lines: linesCount, misses: stats.misses || 0, biasMs: biasReaction(stats) ?? undefined, hash: replayHashHex ?? undefined }, getAuthToken()) // v1.3.48 : avgMs ; v1.3.78 : lines/misses/biasMs ; v1.3.79 : hash du replay (#30)
       .then(() => {
         // v1.3.70 : si le serveur refuse l'écriture (403…), on le dit tout de suite
         const st2 = leaderboard.getLbStatus();
@@ -1188,10 +1222,10 @@ function onGameEnd(stats, level) {
     else if (!save.uid) toast('🔒 Connecte Google (« ✏️ Mon pseudo ») pour apparaître dans le classement en ligne — résultat gardé en local');
   }
   let submitSrP = null;
-  if (stats.completed && canSubmitToLeaderboard(save)) { // v1.3.77 : le temps aussi, dès que le niveau est terminé
+  if (stats.completed && !isReplay && canSubmitToLeaderboard(save)) { // v1.3.77 : le temps aussi, dès que le niveau est terminé ; v1.3.79 : pas en replay
     // v1.3.31 : classement speedrun dédié (nœud /speedrun/<levelId>, temps en ms, tri croissant)
     submitSrP = leaderboard
-      .submitSpeedrun(level.id, { pseudo: save.pseudo, uid: save.uid || '', timeMs: stats.timeMs || 0, level: level.name, levelId: level.id, mode: runMode, date: Date.now(), lines: linesCount, avgMs: avgReaction(stats) ?? undefined, misses: stats.misses || 0, score: stats.score, biasMs: biasReaction(stats) ?? undefined }, getAuthToken()) // v1.3.54 : mode réel ; v1.3.78 : champs de départage (lines/avgMs/misses/score/biasMs)
+      .submitSpeedrun(level.id, { pseudo: save.pseudo, uid: save.uid || '', timeMs: stats.timeMs || 0, level: level.name, levelId: level.id, mode: runMode, date: Date.now(), lines: linesCount, avgMs: avgReaction(stats) ?? undefined, misses: stats.misses || 0, score: stats.score, biasMs: biasReaction(stats) ?? undefined, hash: replayHashHex ?? undefined }, getAuthToken()) // v1.3.54 : mode réel ; v1.3.78 : champs de départage ; v1.3.79 : hash replay
       .catch(() => {});
   }
   // v1.3.70/77 : place du joueur au classement avec le score ET le temps du run (mode unique)
@@ -1317,6 +1351,8 @@ function onGameEnd(stats, level) {
     ${level.endless
       ? `<div><b>${stats.lines || 0}</b><span>Lignes (record ${Math.max(save.endlessBest || 0, stats.lines || 0)})</span></div>`
       : `<div><b>${stars > 0 ? '⭐'.repeat(stars) : '—'}</b><span>Étoiles du niveau</span></div>`}`;
+  const btnReplay = $('#btn-replay'); // v1.3.79 : bouton « voir le replay » si un replay existe pour ce niveau
+  if (btnReplay) btnReplay.classList.toggle('hidden', !(stats.completed && lastRun && store.getReplay(lastRun.mode, lastRun.levelId)));
   const ci = cur(save.difficulty).icon;
   $('#over-coins').textContent =
     `+${coins} ${ci} gagnées` +
@@ -1877,6 +1913,14 @@ const canPlayNow = () => currentScreen === 'screen-game' && game && game.running
 // Le swipe vers la gauche est détecté dès 40 px de déplacement (pointermove),
 // au relâchement (pointerup) ET à l'annulation (pointercancel) : fiable sur
 // téléphone même si le navigateur interrompt le geste par un pointercancel.
+on('btn-replay', 'click', () => { // v1.3.79 : rejoue le meilleur run enregistré (mode lecture, hors classement)
+  if (!lastRun) return;
+  const rep = store.getReplay(lastRun.mode, lastRun.levelId);
+  if (!rep || !rep.taps || !rep.taps.length) return;
+  const level = LEVELS.find((l) => l.id === lastRun.levelId);
+  if (level) startLevel(level, rep);
+});
+
 function trySwipe(x) {
   if (!pointerStart || swipeFired) return;
   const dx = x - pointerStart.x;
@@ -1935,6 +1979,7 @@ window.addEventListener('pointerdown', (e) => {
   swipeFired = false;
   if (!canPlayNow()) return;
   if (e.target.closest('button, input, select, textarea, a, label')) return; // ne pas taper le jeu quand on touche un contrôle
+  if (game && game.replayPlay) return; // v1.3.79 : replay = lecture seule
   // v1.3.21/v1.3.28 : option zones gauche/droite (gauche = AV, droite = AR) au lieu de haut/bas
   const zone = zoneFromPoint(e.clientX, e.clientY, window.innerWidth, window.innerHeight, !save.verticalZones);
   game.tap(zone);
@@ -1990,6 +2035,7 @@ window.addEventListener('keydown', (e) => {
   const action = keyToAction(e.code, !save.verticalZones, save.keys);
   if (action) {
     e.preventDefault();
+    if (game && game.replayPlay && action !== 'retry') return; // v1.3.79 : replay = lecture seule (retry autorisé pour quitter)
     if (action === 'retry') {
       // v1.3.49/v1.3.53 : touche « recommencer » — en jeu (même en pause) ET sur l'écran de fin
       if ((currentScreen === 'screen-game' || currentScreen === 'screen-over') && currentLevel) {

@@ -7,7 +7,11 @@ const MODES = ['auto', 'permisA', 'pilote'];
 
 // --- diagnostic (affiché dans l'UI pour expliquer pourquoi on ne voit que soi) ---
 let lastLbError = null;       // ex: 'HTTP 401 sur scores/auto' (lecture) | null
-let lastLbWriteError = null;  // ex: 'écriture HTTP 403 sur scores/auto' (envoi) | null — v1.3.28 : conservé même après une lecture
+let lastLbWriteError = null;
+let lastOnlineWriteAt = 0; // v1.3.79 : rate-limit doux côté client (anti-flood #30d) — min 3 s entre 2 écritures en ligne
+let MIN_WRITE_GAP_MS = 3000;
+export function _setLastWriteAt(ms) { lastOnlineWriteAt = ms; } // tests
+export function _setWriteGap(ms) { MIN_WRITE_GAP_MS = ms; } // tests : 0 = pas de rate-limit  // ex: 'écriture HTTP 403 sur scores/auto' (envoi) | null — v1.3.28 : conservé même après une lecture
 let lastLbCount = 0;          // nb d'entrées lues depuis Firebase à la dernière lecture
 let lastLbSource = 'local';   // 'firebase' | 'local'
 // v1.3.58 : dernier ping détaillé { ok, status, reason: 'ok'|'http-XXX'|'network'|'unconfigured', ms, at, error? }
@@ -323,6 +327,7 @@ export async function submitScore(entry, idToken) {
     enqueue('score', entry); // v1.3.66 : rejoué à la connexion
     return submitLocal(entry);
   }
+  if (Date.now() - lastOnlineWriteAt < MIN_WRITE_GAP_MS) { enqueue('score', entry); return submitLocal(entry); } // v1.3.79 : anti-flood — trop tôt, on met en file
   try {
     const base = FIREBASE_DB_URL.replace(/\/$/, '');
     const auth = authQuery(idToken);
@@ -337,6 +342,7 @@ export async function submitScore(entry, idToken) {
       throw new Error(err);
     }
     lastLbWriteError = null; // v1.3.28 : une écriture qui passe efface l'erreur précédente
+    lastOnlineWriteAt = Date.now(); // v1.3.79 : rate-limit — on note l'heure de la dernière écriture réussie
   } catch (e) {
     const msg = String((e && e.message) ? e.message : e);
     if (!lastLbWriteError) lastLbWriteError = msg;
@@ -505,6 +511,7 @@ export async function submitSpeedrun(levelId, entry, idToken) {
     enqueue('speedrun', { levelId, entry: body }); // v1.3.66
     return submitSpeedrunLocal(body);
   }
+  if (Date.now() - lastOnlineWriteAt < MIN_WRITE_GAP_MS) { enqueue('speedrun', { levelId, entry: body }); return submitSpeedrunLocal(body); } // v1.3.79 : anti-flood
   try {
     const base = FIREBASE_DB_URL.replace(/\/$/, '');
     const auth = authQuery(idToken);

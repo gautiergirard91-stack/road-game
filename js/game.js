@@ -734,6 +734,9 @@ export class Game {
     this.mode = opts.mode || 'auto'; // v1.3.68 : le speedrun se joue dans la difficulté choisie (plus de verrou Permis A)
     // v1.3.51 : niveaux déterministes — rand seedé (seed fixe par niveau+mode), reset dans start()
     this.rand = mulberry32(levelSeed(this.level ? this.level.id : 0, this.mode));
+    this.replay = { seed: levelSeed(this.level ? this.level.id : 0, this.mode), mode: this.mode, taps: [] }; // v1.3.79 : enregistrement du run (replay vérifiable #30)
+    this.replayPlay = opts.replay || null; // v1.3.79 : mode lecture — les taps du replay sont rejoués automatiquement
+    this.replayIdx = 0;
     this.chunkN = 0;
     this.effects = opts.effects || [];
     this.windows = opts.windows || WINDOWS;
@@ -778,6 +781,8 @@ export class Game {
     const seed = levelSeed(this.level.id, this.mode);
     this.rand = mulberry32(seed);
     this.chunkN = 0;
+    if (!this.replayPlay) this.replay.taps = []; // v1.3.79 : nouveau run -> nouvel enregistrement de taps
+    this.replayIdx = 0;
     this.lines = buildPattern(this.level, seed, this.mode).map((l) => ({
       type: l.type,
       dist: l.dist,
@@ -879,6 +884,7 @@ export class Game {
     this.stats.misses++;
     this.combo = 0;
     this.penaltyMs += 500; // v1.3.77 : raté = +0,5 s au chrono (mode unique, toujours)
+    this.replay.taps.push({ a: axle, miss: 1, t: Math.round(this.time * 1000) }); // v1.3.79 : raté enregistré dans le replay
     if (this.speedrun) {
       // v1.3.19 : un raté = TOUTE la vitesse accumulée est perdue
       this.bonusSpeed = 0;
@@ -899,6 +905,15 @@ export class Game {
   update(dt) {
     if (!this.running || this.paused || this.tutHold) return;
     this.time += dt;
+    if (this.replayPlay) {
+      // v1.3.79 : mode lecture — rejoue les taps enregistrés à leur instant d'origine
+      const nowMs = this.time * 1000;
+      while (this.replayIdx < this.replayPlay.taps.length && this.replayPlay.taps[this.replayIdx].t <= nowMs) {
+        const tp = this.replayPlay.taps[this.replayIdx++];
+        if (tp.miss) this.registerMiss(null, tp.a);
+        else this.tap(tp.a, true);
+      }
+    }
     if (this.speedrun) this.elapsed += dt; // le chrono ne tourne pas en pause/tuto (return ci-dessus)
     const baseSpeed = this.level.endless
       ? Math.min(this.level.speed + this.distance * 0.02, this.level.speed * 2.4)
@@ -1216,6 +1231,7 @@ export class Game {
   }
 
   swipeLeft() {
+    if (this.replayPlay) return; // v1.3.79 : replay = lecture seule
     if (!this.running || this.paused || this.tutHold) return;
     this.pendingStray = 0;
     if (this.mode !== 'pilote') return;
@@ -1254,6 +1270,7 @@ export class Game {
 
   // v1.3.76 : retour MANUEL dans la voie de droite (swipe → / flèche droite)
   swipeRight() {
+    if (this.replayPlay) return; // v1.3.79 : replay = lecture seule
     if (!this.running || this.paused || this.tutHold) return;
     if (this.mode !== 'pilote') return;
     if (this.laneTarget >= CAR_LANE && this.carXFrac > 0.6) return; // déjà à droite
@@ -1333,7 +1350,8 @@ export class Game {
     }
   }
 
-  tap(zone = 'rear') {
+  tap(zone = 'rear', auto = false) {
+    if (this.replayPlay && !auto) return; // v1.3.79 : en mode replay, les entrées joueur sont ignorées
     if (!this.running || this.paused || this.tutHold) return;
     const axle = this.mode === 'auto' ? 'rear' : zone;
     const speed = this.effSpeed;
@@ -1355,6 +1373,7 @@ export class Game {
               if (this.remaining === 0) this.lastResolveMs = (this.elapsed + this.penaltyMs / 1000) * 1000; // v1.3.78 : dernier tap
             }
             cw.result = 'good';
+            this.replay.taps.push({ a: axle, cw: 1, t: Math.round(this.time * 1000) }); // v1.3.79 : passage piéton aussi enregistré
             cw.flash = 0.3;
             this.audio.good?.();
             this.popups.push({ text: `${axle === 'front' ? 'AV ' : 'AR '}PASSAGE CÉDÉ`, y: this.lineAxleY(axle) - 70, life: 0.8, color: RESULT_STYLE.good.color });
@@ -1419,6 +1438,7 @@ export class Game {
     this.stats.score = this.score;
     this.stats.reactions.push(Math.abs(dtMs));
     this.stats.reactionsSigned.push(dtMs); // v1.3.78 : dtMs signé conservé (biais ±ms)
+    this.replay.taps.push({ a: axle, dt: Math.round(dtMs * 10) / 10, t: Math.round(this.time * 1000) }); // v1.3.79 : tap enregistré pour le replay
     if (result === 'perfect') this.stats.perfects++;
     else if (result === 'good') this.stats.goods++;
     else this.stats.passables++;

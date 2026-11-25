@@ -1,6 +1,6 @@
 # ✅ Assurance qualité
 
-> **Note (v1.3.77)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.78**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
+> **Note (v1.3.77)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.79**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
 
 ## Processus de test
 
@@ -681,3 +681,12 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - **Anti-triche par niveau (#4/#26)** : champ `lines` obligatoire + bornes serveur : `score <= lines*250`, `timeMs >= lines*400`, `avgMs` 0–2000, `biasMs` ±1000, `misses` 0–1000, `hash` 64 hex optionnel (replay). **ACTION REQUISE : déployer `database.rules.json` dans la console Firebase** (les anciennes entrées en file sans `lines` seront abandonnées automatiquement — `flushQueue` ne bloque plus).
 - **Indicateur ±ms (#31)** : `biasReaction` (moyenne signée des dtMs) affiché à l'écran de fin : « 38 ms (−6 ms trop tôt) ».
 - Tests : core (biasReaction), smoke (timeMs au dernier tap), break section BB (461 assertions au total) ; audit §12 OK.
+
+
+## v1.3.79 — replays vérifiables (#30) + rate-limit client
+
+- Chaque run terminé enregistre un **replay** (`{seed, mode, lines, score, timeMs, taps}` — taps signés dtMs + instant) ; le meilleur par niveau est gardé en local (`roadtap_save_v1.replays`).
+- **Hash SHA-256** du replay (repli FNV 64 hex si `crypto.subtle` indispo) envoyé dans les entrées score/speedrun (champ `hash`, validé 64 hex par les règles).
+- Bouton **▶ Voir mon replay** à l'écran de fin : rejoue le run en mode lecture (badge ▶ REPLAY, entrées ignorées, rien n'est envoyé au classement).
+- **Rate-limit doux client** : min 3 s entre 2 écritures en ligne (trop tôt = mis en file hors-ligne).
+- Tests : break section BC (470 assertions), smoke 11ᵉ scénario (replay rejoué, entrée joueur ignorée) ; audit OK.
