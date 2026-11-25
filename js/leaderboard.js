@@ -448,6 +448,69 @@ export async function getDuels(pseudo) {
   } catch { return []; }
 }
 
+// v1.3.86 : système de demandes d'amis (nœud /friendRequests/<toUid>/<fromUid>, statut pending/accepted/refused)
+export async function resolveUidByPseudo(pseudo) { // pseudo -> uid via les entrées PUBLIQUES scores/speedrun (le pseudo doit exister)
+  const p = String(pseudo || '').trim().toLowerCase();
+  if (!p) return null;
+  try {
+    const all = [...(await getAll('all')), ...(await getSpeedrunAll())];
+    const hit = all.find((e) => e && String(e.pseudo || '').toLowerCase() === p && e.uid);
+    return hit ? { uid: hit.uid, pseudo: hit.pseudo } : null;
+  } catch { return null; }
+}
+export async function sendFriendRequest(fromUid, fromPseudo, toUid, toPseudo, idToken) {
+  if (!isOnline() || !hasAuth(idToken) || !fromUid || !toUid) return false;
+  try {
+    const base = FIREBASE_DB_URL.replace(/\/$/, '');
+    const res = await fetch(`${base}/friendRequests/${encodeURIComponent(toUid)}/${encodeURIComponent(fromUid)}.json${authQuery(idToken)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fromPseudo: String(fromPseudo || '').slice(0, 16), fromUid, status: 'pending', date: Date.now() }),
+    });
+    return res.ok;
+  } catch { return false; }
+}
+export async function getIncomingFriendRequests(uid, idToken) { // demandes reçues en attente
+  if (!isOnline() || !hasAuth(idToken) || !uid) return [];
+  try {
+    const base = FIREBASE_DB_URL.replace(/\/$/, '');
+    const res = await fetch(`${base}/friendRequests/${encodeURIComponent(uid)}.json${authQuery(idToken)}`, { cache: 'no-store' });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data && typeof data === 'object' ? Object.values(data).filter((r) => r && r.status === 'pending') : [];
+  } catch { return []; }
+}
+export async function respondFriendRequest(myUid, fromUid, status, idToken) { // accepter / refuser (PATCH statut)
+  if (!isOnline() || !hasAuth(idToken) || !myUid || !fromUid) return false;
+  try {
+    const base = FIREBASE_DB_URL.replace(/\/$/, '');
+    const res = await fetch(`${base}/friendRequests/${encodeURIComponent(myUid)}/${encodeURIComponent(fromUid)}.json${authQuery(idToken)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    });
+    return res.ok;
+  } catch { return false; }
+}
+export async function getOutgoingRequestStatus(toUid, fromUid, idToken) { // l'émetteur relit le statut de sa demande
+  if (!isOnline() || !hasAuth(idToken) || !toUid || !fromUid) return null;
+  try {
+    const base = FIREBASE_DB_URL.replace(/\/$/, '');
+    const res = await fetch(`${base}/friendRequests/${encodeURIComponent(toUid)}/${encodeURIComponent(fromUid)}.json${authQuery(idToken)}`, { cache: 'no-store' });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data && data.status ? data.status : null;
+  } catch { return null; }
+}
+export async function deleteFriendRequest(myUid, fromUid, idToken) { // le destinataire supprime après réponse
+  if (!isOnline() || !hasAuth(idToken) || !myUid || !fromUid) return false;
+  try {
+    const base = FIREBASE_DB_URL.replace(/\/$/, '');
+    const res = await fetch(`${base}/friendRequests/${encodeURIComponent(myUid)}/${encodeURIComponent(fromUid)}.json${authQuery(idToken)}`, { method: 'DELETE' });
+    return res.ok;
+  } catch { return false; }
+}
+
 export async function getAll(mode = 'all') {
   const fetchMode = async (m) => {
     const base = FIREBASE_DB_URL.replace(/\/$/, '');

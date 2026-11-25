@@ -46,6 +46,15 @@
         ]
       }
     },
+    "friendRequests": {
+      "$toUid": {
+        ".read": "auth != null && auth.uid == $toUid",
+        "$fromUid": {
+          ".read": "auth != null && (auth.uid == $toUid || auth.uid == $fromUid)",
+          ".write": "auth != null && ((!data.exists() && newData.exists() && newData.hasChildren(['fromPseudo','fromUid','status','date']) && newData.child('fromUid').val() == auth.uid && newData.child('status').val() == 'pending' && newData.child('fromPseudo').val().length <= 16) || (data.exists() && auth.uid == $toUid && newData.child('status').val() in ['accepted','refused'] && (!newData.child('fromUid').exists() || newData.child('fromUid').val() == data.child('fromUid').val()) && (!newData.child('fromPseudo').exists() || newData.child('fromPseudo').val() == data.child('fromPseudo').val())) || (data.exists() && auth.uid == $toUid && !newData.exists()))"
+        }
+      }
+    },
     "players": {
       "$id": {
         ".read": "auth != null && auth.uid == $id",
