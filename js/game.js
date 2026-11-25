@@ -795,7 +795,7 @@ export class Game {
     this.score = 0;
     this.combo = 0;
     this.bestCombo = 0;
-    this.stats = { perfects: 0, goods: 0, passables: 0, misses: 0, overtakes: 0, reactions: [], score: 0, lines: 0 }; // v1.3.35 : lignes résolues (paliers Survie ∞)
+    this.stats = { perfects: 0, goods: 0, passables: 0, misses: 0, overtakes: 0, reactions: [], reactionsSigned: [], score: 0, lines: 0 } // v1.3.78 : dtMs signés (biais ±ms); // v1.3.35 : lignes résolues (paliers Survie ∞)
     this.popups = [];
     this.particles = [];
     this.confetti = [];
@@ -810,7 +810,8 @@ export class Game {
     this.slowCause = null;
     this.effSpeed = this.level.speed;
     this.bonusSpeed = 0; // v1.3.19 : vitesse accumulée (speedrun)
-    this.penaltyMs = 0; // v1.3.77 : pénalités de temps — raté +0,5 s, continuer +2 s (mode unique)
+    this.penaltyMs = 0;
+    this.lastResolveMs = null; // v1.3.78 : timeMs figé à la résolution de la dernière ligne (dernier tap), pas à la frame du +80 px // v1.3.77 : pénalités de temps — raté +0,5 s, continuer +2 s (mode unique)
     this.elapsed = 0; // v1.3.19 : chrono (s)
     this.carXFrac = CAR_LANE;
     this.prevCarX = CAR_LANE;
@@ -951,6 +952,7 @@ export class Game {
           line.state = 'resolved';
           this.remaining--;
           this.stats.lines++; // v1.3.35
+          if (this.remaining === 0) this.lastResolveMs = (this.elapsed + this.penaltyMs / 1000) * 1000; // v1.3.78 : dernier tap
         }
         return;
       }
@@ -1350,6 +1352,7 @@ export class Game {
             if (cw.state === 'resolved') {
               this.remaining--;
               this.stats.lines++;
+              if (this.remaining === 0) this.lastResolveMs = (this.elapsed + this.penaltyMs / 1000) * 1000; // v1.3.78 : dernier tap
             }
             cw.result = 'good';
             cw.flash = 0.3;
@@ -1395,6 +1398,7 @@ export class Game {
     if (best.state === 'resolved') {
       this.remaining--;
       this.stats.lines++; // v1.3.35
+      if (this.remaining === 0) this.lastResolveMs = (this.elapsed + this.penaltyMs / 1000) * 1000; // v1.3.78 : dernier tap
     }
     best.result = result;
     best.flash = 0.3;
@@ -1414,6 +1418,7 @@ export class Game {
     this.score += pts;
     this.stats.score = this.score;
     this.stats.reactions.push(Math.abs(dtMs));
+    this.stats.reactionsSigned.push(dtMs); // v1.3.78 : dtMs signé conservé (biais ±ms)
     if (result === 'perfect') this.stats.perfects++;
     else if (result === 'good') this.stats.goods++;
     else this.stats.passables++;
@@ -1437,7 +1442,7 @@ export class Game {
     this.stats.completed = completed;
     this.stats.reason = reason;
     this.audio[completed ? 'win' : 'fail']?.();
-    this.stats.timeMs = Math.round((this.elapsed + this.penaltyMs / 1000) * 1000); // v1.3.77 : chrono + pénalités de temps
+    this.stats.timeMs = Math.round(this.lastResolveMs != null ? this.lastResolveMs : (this.elapsed + this.penaltyMs / 1000) * 1000); // v1.3.78 : figé au DERNIER TAP (résolution de la dernière ligne) — mesure équitable 60/120 Hz ; repli = comportement v1.3.77
     this.onEnd({ ...this.stats, score: this.score, bestCombo: this.bestCombo, completed, reason }, this.level);
   }
 

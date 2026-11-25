@@ -197,3 +197,11 @@ Bug : `getSpeedrunAll()` dédoubonnait **par joueur globalement** (meilleur temp
 
 Les deux modes ne différaient que par le chrono/bonus de vitesse : **un seul mode maintenant**. Chaque partie produit un **score 🏁 ET un chrono ⏱** (tous deux envoyés au classement). Pénalités de temps : raté = **+0,5 s** (popup « RATÉ +0,5 s »), continuer = **+2 s** (plus de coût en pièces). Le sélecteur Standard/Speedrun et le verrou speedrun (v1.3.73) sont supprimés. HUD : score + chrono live ; écran de fin : score, temps et double rang (#N score · #N temps).
 
+
+## v1.3.78 — fondations esport (rapport #28/#31/#4/#26)
+
+- `timeMs` mesuré au dernier tap (fin du biais de quantification 60/120 Hz).
+- Départage officiel des égalités : `compareEntries` (timeMs → avgMs → score → misses → date) au classement et à l'écran de fin.
+- Anti-triche par niveau côté règles RTDB (`lines` + bornes `score ≤ lines×250`, `timeMs ≥ lines×400`) — **déployer les règles Firebase**.
+- Indicateur signé ±ms du biais de réaction à l'écran de fin.
+- File hors-ligne : les entrées définitivement refusées (401/403) sont abandonnées au lieu de bloquer la file.

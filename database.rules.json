@@ -4,7 +4,7 @@
       ".read": true,
       "$mode": {
         "$id": {
-          ".write": "!data.exists() && newData.exists() && newData.hasChildren(['pseudo','score','level','mode','date']) && auth != null && newData.child('uid').val() == auth.uid && newData.child('score').val() <= 1000000 && newData.child('pseudo').val().length <= 16 && newData.child('wideWindows').val() != true"
+          ".write": "!data.exists() && newData.exists() && newData.hasChildren(['pseudo','score','level','mode','date','lines']) && auth != null && newData.child('uid').val() == auth.uid && newData.child('score').val() <= 1000000 && newData.child('lines').val() >= 1 && newData.child('lines').val() <= 10000 && newData.child('score').val() <= newData.child('lines').val() * 250 && (!newData.child('avgMs').exists() || (newData.child('avgMs').val() >= 0 && newData.child('avgMs').val() <= 2000)) && (!newData.child('biasMs').exists() || (newData.child('biasMs').val() >= -1000 && newData.child('biasMs').val() <= 1000)) && (!newData.child('misses').exists() || (newData.child('misses').val() >= 0 && newData.child('misses').val() <= 1000)) && (!newData.child('hash').exists() || newData.child('hash').val().matches(/^[0-9a-f]{64}$/)) && newData.child('pseudo').val().length <= 16 && newData.child('wideWindows').val() != true"
         },
         ".indexOn": [
           "score"
@@ -15,7 +15,7 @@
       ".read": true,
       "$level": {
         "$id": {
-          ".write": "!data.exists() && newData.exists() && newData.hasChildren(['pseudo','timeMs','level','date']) && auth != null && newData.child('uid').val() == auth.uid && newData.child('timeMs').val() >= 1000 && newData.child('timeMs').val() <= 3600000 && newData.child('pseudo').val().length <= 16 && newData.child('wideWindows').val() != true"
+          ".write": "!data.exists() && newData.exists() && newData.hasChildren(['pseudo','timeMs','level','date','lines']) && auth != null && newData.child('uid').val() == auth.uid && newData.child('timeMs').val() >= 1000 && newData.child('timeMs').val() <= 3600000 && newData.child('lines').val() >= 1 && newData.child('lines').val() <= 10000 && newData.child('timeMs').val() >= newData.child('lines').val() * 400 && (!newData.child('score').exists() || newData.child('score').val() <= newData.child('lines').val() * 250) && (!newData.child('avgMs').exists() || (newData.child('avgMs').val() >= 0 && newData.child('avgMs').val() <= 2000)) && (!newData.child('misses').exists() || (newData.child('misses').val() >= 0 && newData.child('misses').val() <= 1000)) && (!newData.child('biasMs').exists() || (newData.child('biasMs').val() >= -1000 && newData.child('biasMs').val() <= 1000)) && (!newData.child('hash').exists() || newData.child('hash').val().matches(/^[0-9a-f]{64}$/)) && newData.child('pseudo').val().length <= 16 && newData.child('wideWindows').val() != true"
         },
         ".indexOn": [
           "timeMs"
