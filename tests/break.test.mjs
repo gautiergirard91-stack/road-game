@@ -2034,4 +2034,28 @@ console.log('BL. v1.3.87 : règles RTDB — opérateur "in" interdit (erreur de 
   ok('friendRequests .write : PATCH statut via "== accepted || == refused" (remplace "in [accepted,refused]")', rulesRaw.includes("newData.child('status').val() == 'accepted' || newData.child('status').val() == 'refused'"));
   ok('audit §12 : garde-fou anti-régression " in [" présent dans tools/audit.mjs', auditSrc.includes("includes(' in [')"));
 }
+console.log('BM. v1.3.88 : diag classement — compteur SCORES non écrasé par la lecture speedrun + message explicite (onglet Amis / niveau) ; demandes d\'amis : lastFrError (HTTP xxx) exposé dans le toast');
+{
+  const fsBM = await import('node:fs');
+  const mainSrc = fsBM.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  const lbSrc = fsBM.readFileSync(new URL('../js/leaderboard.js', import.meta.url), 'utf8');
+  ok('renderLeaderboard : snapshot stScores après chaque lecture principale (season/reaction/friends/normal)', (mainSrc.match(/stScores = leaderboard\.getLbStatus\(\);/g) || []).length === 4);
+  ok('renderLeaderboard : le message lb-source utilise stScores (plus écrasé par getSpeedrunAll)', mainSrc.includes('const st = stScores ||'));
+  ok('lb-source : raison explicite quand 0 affiché (onglet 👥 Amis sans ami / niveau « … »)', mainSrc.includes('(onglet 👥 Amis') && mainSrc.includes('niveau « ${LEVEL_NAME_BY_ID[Number(lbLevelFilter)]'));
+  ok('leaderboard : getLastFrError exporté + lastFrError renseigné dans send/respond/deleteFriendRequest', lbSrc.includes('export function getLastFrError()') && (lbSrc.match(/lastFrError = /g) || []).length >= 6);
+  ok('main.js : toast envoi refusé inclut la vraie cause (HTTP 401/403 -> publier les règles friendRequests)', mainSrc.includes('leaderboard.getLastFrError()') && mainSrc.includes('publie les règles friendRequests'));
+  {
+    globalThis.fetch = async (url, opts) => {
+      if (String(url).includes('/friendRequests/')) return { ok: false, status: 401, json: async () => null };
+      return { ok: true, json: async () => null };
+    };
+    lb._setWriteGap(0);
+    const okSend = await lb.sendFriendRequest('uidMe', 'Moi', 'uidBob', 'Bob', 'TOK');
+    ok('sendFriendRequest HTTP 401 -> false + getLastFrError() === "HTTP 401"', okSend === false && lb.getLastFrError() === 'HTTP 401');
+    globalThis.fetch = async () => ({ ok: true, json: async () => null });
+    const okSend2 = await lb.sendFriendRequest('uidMe', 'Moi', 'uidBob', 'Bob', 'TOK');
+    ok('sendFriendRequest OK -> true + getLastFrError() vidé', okSend2 === true && lb.getLastFrError() === '');
+    delete globalThis.fetch;
+  }
+}
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);

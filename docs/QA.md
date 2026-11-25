@@ -1,6 +1,6 @@
 # ✅ Assurance qualité
 
-> **Note (v1.3.77)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.87**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
+> **Note (v1.3.77)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.88**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
 
 ## Processus de test
 
@@ -772,3 +772,9 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - Garde-fou : `tools/audit.mjs` §12 bloque désormais toute règle contenant ` in [` ; test BJ mis à jour + section BL ajoutée.
 - **⚠ re-publier les règles** dans la console Firebase après merge (le nœud `friendRequests` n'est donc PAS encore actif en ligne côté serveur).
 - Tests : 6/6 OK (break 543 assertions) ; audit OK ; triple bump v1.3.87/roadtap-v95.
+
+## v1.3.88 — diag classement + détail des refus de demandes d'amis
+
+- **« 16 chargé(s) — 0 affiché(s) ici »** : le compteur affiché pouvait être celui de la lecture speedrun (`getSpeedrunAll` écrasait le statut après `getAll`) → snapshot `stScores` pris juste après la lecture des scores ; le message explique désormais pourquoi 0 affiché (onglet 👥 Amis sans ami / filtre niveau « … »).
+- **« Envoi impossible (hors ligne ou refus serveur) »** sur une demande d'ami : le toast affiche la vraie cause (`HTTP 401/403` → **publie les règles `friendRequests` dans la console Firebase, v1.3.87+** ; `réseau` → connexion). `getLastFrError()` exposé par leaderboard.js.
+- Tests : section BM (compteur + lastFrError fonctionnel) ; audit OK ; triple bump v1.3.88/roadtap-v96.

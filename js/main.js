@@ -288,7 +288,8 @@ async function addFriendFromInput() { // v1.3.86 : envoie une DEMANDE d'ami — 
     inp.value = '';
     renderFriendRequests();
   } else {
-    toast('❌ Envoi impossible (hors ligne ou refus serveur) — réessaie plus tard');
+    const frErr = leaderboard.getLastFrError(); // v1.3.88 : HTTP xxx / réseau / hors ligne
+    toast(`❌ Envoi impossible (${frErr || 'hors ligne ou refus serveur'})${/^HTTP 40/.test(frErr) ? ' — publie les règles friendRequests dans la console Firebase (v1.3.87+)' : ''} — réessaie plus tard`);
   }
 }
 
@@ -362,15 +363,18 @@ async function renderLeaderboard() {
   const isSeason = lbFilter === 'season'; // v1.3.81 #25 : classement de la semaine (reset lundi)
   let top = [];
   let timeByPlayer = null; // v1.3.68 : map joueur -> meilleur temps speedrun (colonne ⏱)
-  let timeLevelByPlayer = null; // v1.3.74 : map joueur -> { timeMs, levelId } du meilleur temps (niveau affiché en « Tous niveaux »)
+  let timeLevelByPlayer = null;
+  let stScores = null; // v1.3.88 : snapshot du statut de la lecture SCORES (getSpeedrunAll écrasait sinon le compteur affiché) // v1.3.74 : map joueur -> { timeMs, levelId } du meilleur temps (niveau affiché en « Tous niveaux »)
   try {
     if (isSeason) {
       // v1.3.81 #25 : saison hebdo — nœud /seasons/<weekKey>/<mode>, mêmes règles que scores
       const all = await leaderboard.getSeasonAll(weekKey(), 'all');
+      stScores = leaderboard.getLbStatus(); // v1.3.88
       top = leaderboard.dedupeByPlayer(leaderboard.filterLevel(all, lbLevelFilter), 'score');
     } else if (isReact) {
       // v1.3.48 : « ⚡ Réaction » — meilleur temps de réaction moyen de tout le monde (tri croissant avgMs)
       const all = await leaderboard.getAll('all');
+      stScores = leaderboard.getLbStatus(); // v1.3.88
       let arr = all.filter((e) => typeof e.avgMs === 'number' && Number.isFinite(e.avgMs));
       arr = leaderboard.filterLevel(arr, lbLevelFilter);
       if (lbScope === 'friends') arr = filterFriendsByPseudo(arr, save.friends);
@@ -378,10 +382,12 @@ async function renderLeaderboard() {
     } else if (lbScope === 'friends') {
       // v1.3.36 : on récupère TOUT le classement (sans limite) puis on filtre par pseudos d'amis côté client
       const all = await leaderboard.getAll(lbFilter); // v1.3.70 : mode = onglet actif
+      stScores = leaderboard.getLbStatus(); // v1.3.88
       top = leaderboard.dedupeByPlayer(filterFriendsByPseudo(leaderboard.filterLevel(all, lbLevelFilter), save.friends), 'score'); // v1.3.67
     } else {
       // v1.3.68/70 : la difficulté active filtre (même avec un niveau choisi) ; on garde TOUT pour trier après
       const all = await leaderboard.getAll(lbFilter);
+      stScores = leaderboard.getLbStatus(); // v1.3.88 : AVANT getSpeedrunAll (qui écrase le statut)
       top = leaderboard.dedupeByPlayer(leaderboard.filterLevel(all, lbLevelFilter), 'score');
       // v1.3.68 : colonne temps — meilleur temps speedrun de chaque joueur (même difficulté, même filtre niveau)
       try {
@@ -398,12 +404,12 @@ async function renderLeaderboard() {
     top = [];
   }
   // v1.3.27 : diagnostic visible pour expliquer un classement "vide" (règles RTDB, réseau, etc.)
-  const st = leaderboard.getLbStatus ? leaderboard.getLbStatus() : null;
+  const st = stScores || (leaderboard.getLbStatus ? leaderboard.getLbStatus() : null); // v1.3.88 : snapshot pris avant la lecture speedrun
   const srcEl = $('#lb-source');
   if (!leaderboard.isOnline()) {
     srcEl.textContent = 'Classement local — configure Firebase dans js/config.js pour un classement en ligne (voir README)';
   } else if (st && st.source === 'firebase') {
-    srcEl.textContent = `${isSeason ? '🗓️ Saison hebdo' : isSr ? '⏱ Classement speedrun' : isReact ? '⚡ Classement réaction' : 'Classement'} en ligne (Firebase) — ${st.count} ${isSr ? 'temps' : isReact ? 'réactions' : 'score(s)'} chargé(s)${lbLevelFilter !== 'all' || lbScope === 'friends' ? ` — ${top.length} affiché(s) ici` : ''}` + (st.error ? ` — ⚠ ${st.error}` : ''); // v1.3.67/v1.3.81
+    srcEl.textContent = `${isSeason ? '🗓️ Saison hebdo' : isSr ? '⏱ Classement speedrun' : isReact ? '⚡ Classement réaction' : 'Classement'} en ligne (Firebase) — ${st.count} ${isSr ? 'temps' : isReact ? 'réactions' : 'score(s)'} chargé(s)${lbScope === 'friends' ? ` — ${top.length} affiché(s) ici (onglet 👥 Amis${save.friends && save.friends.length ? ` : ${save.friends.length} ami(s)` : ' : aucun ami — ajoute un pseudo ci-dessus'})` : lbLevelFilter !== 'all' ? ` — ${top.length} affiché(s) ici (niveau « ${LEVEL_NAME_BY_ID[Number(lbLevelFilter)] || lbLevelFilter} »)` : ''} // v1.3.88 : raison explicite du « 0 affiché »` + (st.error ? ` — ⚠ ${st.error}` : ''); // v1.3.67/v1.3.81
   } else if (st && st.error) {
     srcEl.textContent = `⚠ ${isSr ? 'Speedrun' : 'Firebase'} injoignable ou refusé : ${st.error} — affichage local`;
   } else {
