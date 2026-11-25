@@ -259,3 +259,8 @@ Les deux modes ne différaient que par le chrono/bonus de vitesse : **un seul mo
 
 - Ajouter un ami = **envoyer une demande** : le pseudo doit exister en ligne (résolu en uid via scores/speedrun publics, sinon « ❌ n'existe pas »), `POST /friendRequests/<to>/<from>` en `pending` ; le destinataire répond ✅/❌ (PATCH `accepted`/`refused`) ; l'émetteur suit le statut de ses demandes 📤 (acceptée → ami des deux côtés). Nœud `friendRequests` dans les règles RTDB (**à re-publier dans la console Firebase** après merge).
 - Correctifs du batch v1.3.78–v1.3.84 : crash au clic sur **Tutoriel** (`TUT_LEVEL.id` au lieu de `level.id` dans `startTutorial`), `unlockAudio()` noyé dans un commentaire `//` dans `startLevel`, doublon de la clé `training:`.
+
+
+## v1.3.87 — correctif règles RTDB (opérateur `in` interdit)
+
+- La règle `friendRequests` de v1.3.86 utilisait `in [...]` → refusée à la publication (line 54). Corrigé en `== 'accepted' || == 'refused'` + contrôle anti-régression dans l'audit §12. **Re-publier les règles après merge.**

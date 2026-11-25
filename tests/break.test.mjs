@@ -1994,7 +1994,8 @@ console.log('BJ. v1.3.86 : demandes d\'amis — pseudo vérifié (existe en lign
   const rules = JSON.parse(fsB10.readFileSync(new URL('../database.rules.json', import.meta.url), 'utf8')).rules;
 
   ok('rules : nœud friendRequests — read destinataire+émetteur, write create pending (fromUid==auth) / PATCH statut accepted|refused (toUid) / delete (toUid)',
-    !!rules.friendRequests && rules.friendRequests['$toUid']['.read'].includes('auth.uid == $toUid') && rules.friendRequests['$toUid']['$fromUid']['.read'].includes('$fromUid') && rules.friendRequests['$toUid']['$fromUid']['.write'].includes("'pending'") && rules.friendRequests['$toUid']['$fromUid']['.write'].includes("['accepted','refused']"));
+    !!rules.friendRequests && rules.friendRequests['$toUid']['.read'].includes('auth.uid == $toUid') && rules.friendRequests['$toUid']['$fromUid']['.read'].includes('$fromUid') && rules.friendRequests['$toUid']['$fromUid']['.write'].includes("'pending'") && rules.friendRequests['$toUid']['$fromUid']['.write'].includes("== 'accepted'") && rules.friendRequests['$toUid']['$fromUid']['.write'].includes("== 'refused'") && !JSON.stringify(rules).includes(' in [')); // v1.3.87 : l'opérateur "in" est INTERDIT par RTDB (erreur de publication line 54)
+  ok('rules : AUCUN opérateur « in [ » dans tout database.rules.json (RTDB l’interdit à la publication)', !JSON.stringify(rules).includes(' in ['));
   ok('leaderboard : resolveUidByPseudo + sendFriendRequest + getIncomingFriendRequests + respondFriendRequest + getOutgoingRequestStatus + deleteFriendRequest', ['resolveUidByPseudo', 'sendFriendRequest', 'getIncomingFriendRequests', 'respondFriendRequest', 'getOutgoingRequestStatus', 'deleteFriendRequest'].every((f) => lbSrc.includes('export async function ' + f)));
   ok('store : friendRequestsOut (defaults + strObjMap + snapshot + mergeRemote union + add/get/remove)', storeSrc.includes('friendRequestsOut: {}') && storeSrc.includes('function strObjMap') && storeSrc.includes('friendRequestsOut: save.friendRequestsOut') && storeSrc.includes('export function addOutgoingFriendRequest') && storeSrc.includes('export function removeOutgoingFriendRequest'));
   ok('main.js : addFriendFromInput async — guards (vide/soi-même/pas connecté/déjà ami/déjà demandé) + resolveUidByPseudo + sendFriendRequest + addOutgoingFriendRequest', mainSrc.includes('async function addFriendFromInput()') && mainSrc.includes('leaderboard.resolveUidByPseudo(v)') && mainSrc.includes('leaderboard.sendFriendRequest(') && mainSrc.includes("n'existe pas — aucun score en ligne"));
@@ -2024,4 +2025,13 @@ console.log('BJ. v1.3.86 : demandes d\'amis — pseudo vérifié (existe en lign
   }
 }
 
+console.log('BL. v1.3.87 : règles RTDB — opérateur "in" interdit (erreur de publication line 54), PATCH friendRequests via == accepted || == refused + garde-fou audit §12');
+{
+  const fsBL = await import('node:fs');
+  const rulesRaw = fsBL.readFileSync(new URL('../database.rules.json', import.meta.url), 'utf8');
+  const auditSrc = fsBL.readFileSync(new URL('../tools/audit.mjs', import.meta.url), 'utf8');
+  ok('database.rules.json : aucun " in [" dans tout le fichier (opérateur interdit par RTDB)', !rulesRaw.includes(' in ['));
+  ok('friendRequests .write : PATCH statut via "== accepted || == refused" (remplace "in [accepted,refused]")', rulesRaw.includes("newData.child('status').val() == 'accepted' || newData.child('status').val() == 'refused'"));
+  ok('audit §12 : garde-fou anti-régression " in [" présent dans tools/audit.mjs', auditSrc.includes("includes(' in [')"));
+}
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);
