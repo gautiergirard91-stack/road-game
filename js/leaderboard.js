@@ -7,7 +7,11 @@ const MODES = ['auto', 'permisA', 'pilote'];
 
 // --- diagnostic (affiché dans l'UI pour expliquer pourquoi on ne voit que soi) ---
 let lastLbError = null;       // ex: 'HTTP 401 sur scores/auto' (lecture) | null
-let lastLbWriteError = null;  // ex: 'écriture HTTP 403 sur scores/auto' (envoi) | null — v1.3.28 : conservé même après une lecture
+let lastLbWriteError = null;
+let lastOnlineWriteAt = 0; // v1.3.79 : rate-limit doux côté client (anti-flood #30d) — min 3 s entre 2 écritures en ligne
+let MIN_WRITE_GAP_MS = 3000;
+export function _setLastWriteAt(ms) { lastOnlineWriteAt = ms; } // tests
+export function _setWriteGap(ms) { MIN_WRITE_GAP_MS = ms; } // tests : 0 = pas de rate-limit  // ex: 'écriture HTTP 403 sur scores/auto' (envoi) | null — v1.3.28 : conservé même après une lecture
 let lastLbCount = 0;          // nb d'entrées lues depuis Firebase à la dernière lecture
 let lastLbSource = 'local';   // 'firebase' | 'local'
 // v1.3.58 : dernier ping détaillé { ok, status, reason: 'ok'|'http-XXX'|'network'|'unconfigured', ms, at, error? }
@@ -120,29 +124,65 @@ export function buildTimeLevelMap(srArr, mode, levelFilter = 'all') {
   return map;
 }
 
-// v1.3.70 : tri des lignes — 'score' (défaut, desc) ou 'time' (joueurs avec un temps d'abord, temps asc)
+// v1.3.78 : comparateur officiel AVEC départage des égalités (rapport #28) :
+//   score      : score desc -> avgMs asc -> timeMs asc -> misses asc -> date asc (premier arrivé gagne)
+//   time/speed : timeMs asc -> avgMs asc -> score desc -> misses asc -> date asc
+//   reaction   : avgMs asc -> score desc -> date asc
+export function compareEntries(a, b, kind = 'score') {
+  const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+  const avgA = num(a && a.avgMs);
+  const avgB = num(b && b.avgMs);
+  const tA = num(a && a.timeMs);
+  const tB = num(b && b.timeMs);
+  const sA = num(a && a.score) ?? 0;
+  const sB = num(b && b.score) ?? 0;
+  const mA = num(a && a.misses) ?? Infinity;
+  const mB = num(b && b.misses) ?? Infinity;
+  const dA = num(a && a.date) ?? Infinity;
+  const dB = num(b && b.date) ?? Infinity;
+  const cmpOpt = (x, y) => { // null (champ absent) toujours APRÈS
+    if (x === null && y === null) return 0;
+    if (x === null) return 1;
+    if (y === null) return -1;
+    return x - y;
+  };
+  if (kind === 'time' || kind === 'speedrun') {
+    let c = cmpOpt(tA, tB);
+    if (c) return c;
+    c = cmpOpt(avgA, avgB);
+    if (c) return c;
+    if (sA !== sB) return sB - sA;
+    if (mA !== mB) return mA - mB;
+    return dA - dB;
+  }
+  if (kind === 'reaction') {
+    let c = cmpOpt(avgA, avgB);
+    if (c) return c;
+    if (sA !== sB) return sB - sA;
+    return dA - dB;
+  }
+  if (sA !== sB) return sB - sA;
+  let c = cmpOpt(avgA, avgB);
+  if (c) return c;
+  c = cmpOpt(tA, tB);
+  if (c) return c;
+  if (mA !== mB) return mA - mB;
+  return dA - dB;
+}
+
+// v1.3.70 : tri des lignes — 'score' (défaut, desc) ou 'time' (joueurs avec un temps d'abord, temps asc) ; v1.3.78 : départage via compareEntries
 export function sortLbRows(arr, sort = 'score', timeByPlayer = null) {
   const rows = [...(arr || [])];
   if (sort === 'time' && timeByPlayer) {
     return rows.sort((a, b) => {
       const ta = timeByPlayer.get(playerKey(a));
       const tb = timeByPlayer.get(playerKey(b));
-      if (typeof ta === 'number' && typeof tb === 'number') return ta - tb;
-      if (typeof ta === 'number') return -1;
-      if (typeof tb === 'number') return 1;
-      return (b.score || 0) - (a.score || 0);
+      const ea = typeof ta === 'number' ? { ...a, timeMs: ta } : a;
+      const eb = typeof tb === 'number' ? { ...b, timeMs: tb } : b;
+      return compareEntries(ea, eb, 'time');
     });
   }
-  if (sort === 'reaction') {
-    // v1.3.73 : tri par temps de réaction moyen (ms) croissant ; sans avgMs -> score décroissant
-    return rows.sort((a, b) => {
-      const ra = typeof a.avgMs === 'number' && Number.isFinite(a.avgMs) ? a.avgMs : Infinity;
-      const rb = typeof b.avgMs === 'number' && Number.isFinite(b.avgMs) ? b.avgMs : Infinity;
-      if (ra !== rb) return ra - rb;
-      return (b.score || 0) - (a.score || 0);
-    });
-  }
-  return rows.sort((a, b) => (b.score || 0) - (a.score || 0));
+  return rows.sort((a, b) => compareEntries(a, b, sort === 'reaction' ? 'reaction' : sort === 'time' ? 'time' : 'score'));
 }
 
 export function dedupeByPlayer(arr, kind = 'score') {
@@ -202,7 +242,12 @@ export async function flushQueue(idToken, uid) {
   let arr = readQueue();
   if (!arr.length) return 0;
   let sent = 0;
-  for (const item of arr) {
+  const kept = [];
+  let idx = 0;
+  while (idx < arr.length) {
+    const item = arr[idx];
+    let drop = false;
+    let stop = false;
     try {
       const pl = item.payload;
       if (uid && pl && typeof pl === 'object' && !pl.uid) pl.uid = uid; // rattache au compte connecté
@@ -210,15 +255,21 @@ export async function flushQueue(idToken, uid) {
       if (item.kind === 'speedrun') await submitSpeedrun(pl.levelId, pl.entry, idToken);
       else if (item.kind === 'challenge') await submitChallengeScore(pl.dayId, pl.entry, idToken);
       else await submitScore(pl, idToken);
-      if (lastLbWriteError) break; // refus serveur (règles/401) -> on garde en local, réessai à la prochaine connexion
-      sent++;
+      if (lastLbWriteError) {
+        // v1.3.78 : refus DÉFINITIF des règles (HTTP 401/403, ex. entrée pré-MAJ sans 'lines') -> entrée abandonnée pour ne pas bloquer la file
+        if (/HTTP 40[13]/.test(lastLbWriteError)) drop = true;
+        else stop = true; // refus temporaire -> on garde, réessai à la prochaine connexion
+      }
     } catch {
-      break; // réseau HS -> on arrête, on réessaiera plus tard
+      stop = true; // réseau HS -> on arrête, on réessaiera plus tard
     }
+    if (drop) { sent++; idx++; continue; }
+    if (stop) { kept.push(...arr.slice(idx)); break; }
+    sent++;
+    idx++;
   }
   if (sent > 0) {
-    arr = arr.slice(sent);
-    try { localStorage.setItem(QUEUE_KEY, JSON.stringify(arr)); } catch { /* ignore */ }
+    try { localStorage.setItem(QUEUE_KEY, JSON.stringify(kept)); } catch { /* ignore */ }
   }
   return sent;
 }
@@ -276,6 +327,7 @@ export async function submitScore(entry, idToken) {
     enqueue('score', entry); // v1.3.66 : rejoué à la connexion
     return submitLocal(entry);
   }
+  if (Date.now() - lastOnlineWriteAt < MIN_WRITE_GAP_MS) { enqueue('score', entry); return submitLocal(entry); } // v1.3.79 : anti-flood — trop tôt, on met en file
   try {
     const base = FIREBASE_DB_URL.replace(/\/$/, '');
     const auth = authQuery(idToken);
@@ -290,6 +342,7 @@ export async function submitScore(entry, idToken) {
       throw new Error(err);
     }
     lastLbWriteError = null; // v1.3.28 : une écriture qui passe efface l'erreur précédente
+    lastOnlineWriteAt = Date.now(); // v1.3.79 : rate-limit — on note l'heure de la dernière écriture réussie
   } catch (e) {
     const msg = String((e && e.message) ? e.message : e);
     if (!lastLbWriteError) lastLbWriteError = msg;
@@ -330,6 +383,66 @@ export async function getTop(mode = 'all', levelFilter = 'all') {
 
 // --- v1.3.36 : classement « amis » — TOUTES les entrées (sans limite TOP), triées, pour
 // filtrage client par pseudo (core.filterFriendsByPseudo). Utilise le même nœud /scores/<mode>.
+// v1.3.81 : #25 — saison hebdomadaire (reset lundi via weekKey) : nœud /seasons/<week>/<mode>, mêmes règles que scores
+export async function submitSeason(week, entry, idToken) {
+  if (!isOnline() || !hasAuth(idToken)) return;
+  if (Date.now() - lastOnlineWriteAt < MIN_WRITE_GAP_MS) return; // rate-limit partagé avec submitScore
+  try {
+    const base = FIREBASE_DB_URL.replace(/\/$/, '');
+    const res = await fetch(`${base}/seasons/${week}/${modeOf(entry)}.json${authQuery(idToken)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...entry, uid: entry.uid || '' }),
+    });
+    if (res.ok) lastOnlineWriteAt = Date.now();
+  } catch { /* saison = best effort, jamais bloquant */ }
+}
+export async function getSeasonAll(week, mode = 'all') {
+  if (!isOnline()) return [];
+  const base = FIREBASE_DB_URL.replace(/\/$/, '');
+  const auth = FIREBASE_DB_SECRET ? `?auth=${FIREBASE_DB_SECRET}` : '';
+  const modes = mode === 'all' ? MODES : [mode];
+  const all = [];
+  for (const m of modes) {
+    try {
+      const res = await fetch(`${base}/seasons/${week}/${m}.json${auth}`, { cache: 'no-store' });
+      if (res.ok) {
+        const data = await res.json();
+        if (data && typeof data === 'object') all.push(...Object.values(data).map(cleanEntry).filter(Boolean));
+      }
+    } catch { /* ignore */ }
+  }
+  return all.sort((a, b) => (b.score || 0) - (a.score || 0));
+}
+
+// v1.3.82 : #24 — duels asynchrones entre amis (nœud /challenges/duels, mode 'duel', create-only comme le reste)
+export async function submitDuel(fromPseudo, uid, toPseudo, levelId, score, idToken) {
+  if (!isOnline() || !hasAuth(idToken)) return false;
+  if (Date.now() - lastOnlineWriteAt < MIN_WRITE_GAP_MS) return false; // rate-limit partagé
+  try {
+    const base = FIREBASE_DB_URL.replace(/\/$/, '');
+    const res = await fetch(`${base}/challenges/duels.json${authQuery(idToken)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pseudo: fromPseudo, uid: uid || '', score, levelId, mode: 'duel', target: toPseudo, date: Date.now() }),
+    });
+    if (res.ok) lastOnlineWriteAt = Date.now();
+    return res.ok;
+  } catch { return false; }
+}
+export async function getDuels(pseudo) {
+  if (!isOnline()) return [];
+  try {
+    const base = FIREBASE_DB_URL.replace(/\/$/, '');
+    const auth = FIREBASE_DB_SECRET ? `?auth=${FIREBASE_DB_SECRET}` : '';
+    const res = await fetch(`${base}/challenges/duels.json${auth}`, { cache: 'no-store' });
+    if (!res.ok) return [];
+    const data = await res.json();
+    const all = data && typeof data === 'object' ? Object.values(data) : [];
+    return all.filter((d) => d && d.mode === 'duel' && String(d.target || '').toLowerCase() === String(pseudo || '').toLowerCase());
+  } catch { return []; }
+}
+
 export async function getAll(mode = 'all') {
   const fetchMode = async (m) => {
     const base = FIREBASE_DB_URL.replace(/\/$/, '');
@@ -450,12 +563,15 @@ export function submitSpeedrunLocal(entry) {
 export async function submitSpeedrun(levelId, entry, idToken) {
   // v1.3.68 : speedrun dispo dans toutes les difficultés -> fallback 'auto' (main.js transmet de toute façon le mode réellement joué)
   const body = { pseudo: entry.pseudo, uid: entry.uid || '', timeMs: entry.timeMs, level: entry.level, levelId, mode: entry.mode || 'auto', date: entry.date };
+  // v1.3.78 : champs de départage/anti-triche transmis si présents (lines, avgMs, misses, score, biasMs) + hash du replay (v1.3.79)
+  for (const k of ['lines', 'avgMs', 'misses', 'score', 'biasMs', 'hash']) if (entry[k] != null) body[k] = entry[k];
   if (!isOnline()) { enqueue('speedrun', { levelId, entry: body }); return submitSpeedrunLocal(body); } // v1.3.66
   if (!hasAuth(idToken)) {
     lastLbWriteError = ANON_WRITE_MSG;
     enqueue('speedrun', { levelId, entry: body }); // v1.3.66
     return submitSpeedrunLocal(body);
   }
+  if (Date.now() - lastOnlineWriteAt < MIN_WRITE_GAP_MS) { enqueue('speedrun', { levelId, entry: body }); return submitSpeedrunLocal(body); } // v1.3.79 : anti-flood
   try {
     const base = FIREBASE_DB_URL.replace(/\/$/, '');
     const auth = authQuery(idToken);

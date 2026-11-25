@@ -1,8 +1,8 @@
-import { LEVELS, THEMES, SKINS, EFFECTS, DIFFICULTIES, CURRENCIES, WINDOWS, ACHIEVEMENTS, THEME_SHOP, ENDLESS_LEVEL, WEEKEND_LEVEL, PACKS, SOUND_PACKS } from './data.js';
+import { LEVELS, THEMES, SKINS, EFFECTS, DIFFICULTIES, CURRENCIES, WINDOWS, ACHIEVEMENTS, THEME_SHOP, ENDLESS_LEVEL, WEEKEND_LEVEL, WEEKLY_LEVEL, PACKS, SOUND_PACKS } from './data.js';
 import { Game, CAR_STYLE_LABEL, renderCarPreview, renderEffectPreview, renderThemePreview, renderPackPreview, renderSoundPreview } from './game.js';
 import * as store from './store.js';
 import { sfx, setEnabled, setMusicEnabled, unlockAudio, applySoundPack, setMusicCombo, musicSting, musicVictory, scheduleLineBeat, clearLineBeats, musicKick, musicLineAnchor } from './audio.js';
-import { coinsForResult, accuracy, avgReaction, maxMissesFor, firstClearBonus, isPerfectClear, perfectClearBonus, dailyChallenge, weeklyQuests, fmtTime, zoneFromPoint, keyToAction, isNewerVersion, starsFor, endlessMilestones, isWeekend, weekendCoinMultiplier, filterFriendsByPseudo, canSubmitToLeaderboard, keyLabel, reactionBonus } from './core.js';
+import { coinsForResult, accuracy, avgReaction, biasReaction, levelSeed, weekKey, tierOf, maxMissesFor, firstClearBonus, isPerfectClear, perfectClearBonus, dailyChallenge, weeklyQuests, fmtTime, zoneFromPoint, keyToAction, isNewerVersion, starsFor, endlessMilestones, isWeekend, weekendCoinMultiplier, filterFriendsByPseudo, canSubmitToLeaderboard, keyLabel, reactionBonus } from './core.js';
 import { watchRewarded } from './ads.js';
 import { Tutorial } from './tutorial.js';
 import * as leaderboard from './leaderboard.js';
@@ -233,7 +233,7 @@ function renderLbFilter() {
   const el = $('#lb-filter');
   if (!el) return;
   el.innerHTML = '';
-  const opts = [...DIFFICULTIES, { id: 'reaction', name: '⚡ Réaction' }]; // v1.3.68 : onglet Speedrun retiré (les temps s'affichent en colonne dans chaque difficulté) — v1.3.50 : plus d'option « Tous »
+  const opts = [...DIFFICULTIES, { id: 'reaction', name: '⚡ Réaction' }, { id: 'season', name: '🗓️ Saison' }]; // v1.3.68 : onglet Speedrun retiré — v1.3.81 #25 : onglet Saison hebdo
   for (const d of opts) {
     const b = document.createElement('button');
     b.className = 'btn small diff-btn' + (lbFilter === d.id ? ' active' : '');
@@ -250,7 +250,7 @@ function renderLbFilter() {
 }
 
 // v1.3.67 : nom du niveau affiché = LEVEL_NAMES[levelId] (les vieilles entrées ont level brut ex. 'L 1')
-const LEVEL_NAME_BY_ID = { ...Object.fromEntries(LEVELS.map((l) => [l.id, l.name])), [ENDLESS_LEVEL.id]: ENDLESS_LEVEL.name, [WEEKEND_LEVEL.id]: WEEKEND_LEVEL.name };
+const LEVEL_NAME_BY_ID = { ...Object.fromEntries(LEVELS.map((l) => [l.id, l.name])), [ENDLESS_LEVEL.id]: ENDLESS_LEVEL.name, [WEEKEND_LEVEL.id]: WEEKEND_LEVEL.name, [WEEKLY_LEVEL.id]: WEEKLY_LEVEL.name }; // v1.3.81 #13
 const levelLabel = (e) => (e && e.levelId != null && LEVEL_NAME_BY_ID[Number(e.levelId)]) || (e && e.level) || '';
 
 async function renderLeaderboard() {
@@ -258,17 +258,22 @@ async function renderLeaderboard() {
   list.innerHTML = '<div class="card-sub">Chargement…</div>';
   const isSr = lbFilter === 'speedrun'; // v1.3.31 : classement speedrun (temps, tri croissant)
   const isReact = lbFilter === 'reaction'; // v1.3.48 : classement par temps de réaction moyen (croissant)
+  const isSeason = lbFilter === 'season'; // v1.3.81 #25 : classement de la semaine (reset lundi)
   let top = [];
   let timeByPlayer = null; // v1.3.68 : map joueur -> meilleur temps speedrun (colonne ⏱)
   let timeLevelByPlayer = null; // v1.3.74 : map joueur -> { timeMs, levelId } du meilleur temps (niveau affiché en « Tous niveaux »)
   try {
-    if (isReact) {
+    if (isSeason) {
+      // v1.3.81 #25 : saison hebdo — nœud /seasons/<weekKey>/<mode>, mêmes règles que scores
+      const all = await leaderboard.getSeasonAll(weekKey(), 'all');
+      top = leaderboard.dedupeByPlayer(leaderboard.filterLevel(all, lbLevelFilter), 'score');
+    } else if (isReact) {
       // v1.3.48 : « ⚡ Réaction » — meilleur temps de réaction moyen de tout le monde (tri croissant avgMs)
       const all = await leaderboard.getAll('all');
       let arr = all.filter((e) => typeof e.avgMs === 'number' && Number.isFinite(e.avgMs));
       arr = leaderboard.filterLevel(arr, lbLevelFilter);
       if (lbScope === 'friends') arr = filterFriendsByPseudo(arr, save.friends);
-      top = leaderboard.dedupeByPlayer(arr, 'reaction').sort((a, b) => a.avgMs - b.avgMs); // v1.3.67
+      top = leaderboard.dedupeByPlayer(arr, 'reaction').sort((a, b) => leaderboard.compareEntries(a, b, 'reaction')); // v1.3.67/v1.3.78 : départage égalités (score, date)
     } else if (lbScope === 'friends') {
       // v1.3.36 : on récupère TOUT le classement (sans limite) puis on filtre par pseudos d'amis côté client
       const all = await leaderboard.getAll(lbFilter); // v1.3.70 : mode = onglet actif
@@ -285,7 +290,8 @@ async function renderLeaderboard() {
       } catch { timeByPlayer = null; timeLevelByPlayer = null; }
     }
     // v1.3.70 : tri Score (défaut) ou Temps — on voit le meilleur score ET le meilleur temps
-    if (!isReact) top = leaderboard.sortLbRows(top, lbSort, timeByPlayer);
+    if (!isReact && !isSeason) top = leaderboard.sortLbRows(top, lbSort, timeByPlayer);
+    else if (isSeason) top = leaderboard.sortLbRows(top, lbSort, null); // v1.3.81 : tri saison (score/temps sans map speedrun)
     top = top.slice(0, 50);
   } catch {
     top = [];
@@ -296,7 +302,7 @@ async function renderLeaderboard() {
   if (!leaderboard.isOnline()) {
     srcEl.textContent = 'Classement local — configure Firebase dans js/config.js pour un classement en ligne (voir README)';
   } else if (st && st.source === 'firebase') {
-    srcEl.textContent = `${isSr ? '⏱ Classement speedrun' : isReact ? '⚡ Classement réaction' : 'Classement'} en ligne (Firebase) — ${st.count} ${isSr ? 'temps' : isReact ? 'réactions' : 'score(s)'} chargé(s)${lbLevelFilter !== 'all' || lbScope === 'friends' ? ` — ${top.length} affiché(s) ici` : ''}` + (st.error ? ` — ⚠ ${st.error}` : ''); // v1.3.67 : compte = lignes affichées quand filtre actif
+    srcEl.textContent = `${isSeason ? '🗓️ Saison hebdo' : isSr ? '⏱ Classement speedrun' : isReact ? '⚡ Classement réaction' : 'Classement'} en ligne (Firebase) — ${st.count} ${isSr ? 'temps' : isReact ? 'réactions' : 'score(s)'} chargé(s)${lbLevelFilter !== 'all' || lbScope === 'friends' ? ` — ${top.length} affiché(s) ici` : ''}` + (st.error ? ` — ⚠ ${st.error}` : ''); // v1.3.67/v1.3.81
   } else if (st && st.error) {
     srcEl.textContent = `⚠ ${isSr ? 'Speedrun' : 'Firebase'} injoignable ou refusé : ${st.error} — affichage local`;
   } else {
@@ -344,6 +350,19 @@ async function renderLeaderboard() {
     const tSuffix = (lbLevelFilter === 'all' && tlvl && tlvl.levelId != null) ? ` · niv. ${tlvl.levelId}` : ''; // v1.3.74 : niveau du temps affiché en « Tous niveaux »
     const timeCell = (!isReact && !isSr) ? `<span class="lb-time">${typeof tms === 'number' ? '⏱ ' + fmtTime(tms / 1000) + tSuffix : '—'}</span>` : '';
     row.innerHTML = `<span class="lb-rank">${i + 1}</span><span class="lb-name${me ? ' me' : ''}">${escapeHtml(e.pseudo || 'Anonyme')}</span><span class="lb-level">${escapeHtml(levelLabel(e))}</span><span class="lb-score">${right}</span>${timeCell}`;
+    if (lbScope === 'friends' && !me) { // v1.3.82 #24 : bouton duel asynchrone contre cet ami
+      const b = document.createElement('button');
+      b.className = 'btn small';
+      b.textContent = '⚔️';
+      b.title = `Défier ${e.pseudo} sur ce niveau`;
+      b.addEventListener('click', () => {
+        const lvId = Number(e.levelId) || (currentLevel && currentLevel.id) || 1;
+        const myBest = store.getBest(save.difficulty, lvId) || 0;
+        leaderboard.submitDuel(save.pseudo, save.uid || '', e.pseudo, lvId, myBest, getAuthToken())
+          .then((ok2) => toast(ok2 ? `⚔️ Défi envoyé à ${e.pseudo} (niveau ${lvId}, à battre : ${myBest} pts) !` : '⚠️ Défi non envoyé (hors ligne ou connexion requise)'));
+      });
+      row.appendChild(b);
+    }
     list.appendChild(row);
   });
 }
@@ -364,7 +383,12 @@ function hideContinue() {
   $('#continue-overlay').classList.remove('active');
 }
 
-const effWindows = () => (save.wideWindows ? { perfect: 70, good: 150, passable: 240 } : WINDOWS);
+const effWindows = () => { // v1.3.82 #11 : fenêtres adaptatives (hors classement si != standard)
+  if (save.wideWindows) return { perfect: 70, good: 150, passable: 240 };
+  if (save.windowLevel === 'large') return { perfect: 60, good: 130, passable: 210 };
+  if (save.windowLevel === 'xlarge') return { perfect: 90, good: 200, passable: 320 };
+  return WINDOWS;
+};
 
 // sauvegarde cloud keyed par uid Google si lié, sinon par pseudo
 // v1.3.32 : cloud UNIQUEMENT keyed par uid Google (règles players: auth.uid == $id).
@@ -409,7 +433,7 @@ function startTutorial() {
     mode: 'auto',
     tutorial: true,
     windows: effWindows(),
-    access: { colorblind: save.colorblind, horizontalZones: !save.verticalZones },
+    access: { colorblind: save.colorblind, horizontalZones: !save.verticalZones, hitMarker: !!save.hitMarker, reduceAnims: !!save.reduceAnims, vibrate: save.vibrate !== false, latencyOffsetMs: save.latencyOffsetMs || 0, ghost: (store.getReplay(save.difficulty, level.id) || {}).taps }, // v1.3.80 #27/#15 + v1.3.82 #3/#5/#7
     effects: save.selectedEffects,
     audio: { tap: sfx.tap, perfect: sfx.perfect, good: sfx.good, passable: sfx.passable, fail: sfx.fail, win: sfx.win, miss: sfx.miss, lineBeat: scheduleLineBeat, musicAnchor: musicLineAnchor }, // v1.3.46 : beat GD calé sur chaque ligne
     onJudge: (e) => {
@@ -585,6 +609,7 @@ function toast(msg) {
   el.classList.add('show');
   clearTimeout(toast._t);
   toast._t = setTimeout(() => el.classList.remove('show'), 2200);
+  const live = $('#sr-live'); if (live) live.textContent = msg; // v1.3.80 #19 : annonce lecteur d'écran
 }
 
 function updateSoundBtn() {
@@ -600,6 +625,7 @@ function updateMusicBtn() {
 }
 
 async function renderChallenges() {
+  renderDuels(); // v1.3.82 #24 : duels reçus affichés dans l'écran Défis
   const dc = dailyChallenge();
   const done = store.isChallengeDone(dc.id);
   const modeName = (DIFFICULTIES.find((d) => d.id === dc.mode) || {}).name || dc.mode;
@@ -663,7 +689,7 @@ function renderLevels() {
   list.innerHTML = '';
   const allDone = LEVELS.every((lv) => store.isCleared(lv.id));
   // v1.3.36 : niveau spécial de l'événement week-end, affiché UNIQUEMENT samedi/dimanche (core.isWeekend)
-  const levelsShown = [ENDLESS_LEVEL, ...(isWeekend() ? [WEEKEND_LEVEL] : []), ...LEVELS];
+  const levelsShown = [ENDLESS_LEVEL, ...(isWeekend() ? [WEEKEND_LEVEL, WEEKLY_LEVEL] : []), ...LEVELS]; // v1.3.81 #13 : niveau hebdo en plus le week-end
   for (const l of levelsShown) {
     // Survie ∞ : débloquée seulement quand les 15 niveaux sont terminés au moins une fois
     const locked = l.endless ? !allDone : l.cost > 0 && !save.unlockedLevels.includes(l.id);
@@ -672,15 +698,16 @@ function renderLevels() {
     const c = cur(l.diff || 'auto');
     const best = store.getBest(save.difficulty, l.id); // v1.3.44 : record isolé par difficulté (mode joué)
     const bt = store.getBestTime(save.difficulty, l.id); // v1.3.19/v1.3.44 : record speedrun, par difficulté
-    const medal = save.trophies[l.id] ? ' 🥇' : '';
+    const md = store.getMedal(save.difficulty, l.id); // v1.3.81 #22
+    const medal = (md ? ' ' + ['🥇', '🥈', '🥉'][md - 1] : '') + (save.trophies[l.id] ? ' 🥇' : '') + (l.boss ? ' 👹' : ''); // #22 médailles + #12 boss
     const starsTxt = save.stars[l.id] ? ' ' + '⭐'.repeat(Math.min(3, save.stars[l.id])) : ''; // v1.3.35
     const card = document.createElement('div');
     card.className = 'card';
     card.innerHTML = `
       <canvas class="card-theme level-preview" aria-label="Aperçu ${l.name}"></canvas>
       <div class="card-body">
-        <div class="card-title">${l.weekend ? '🎉 ' : ''}${l.endless ? '∞' : l.id}. ${l.name}${medal}${starsTxt}</div>
-        <div class="card-sub">${THEMES[l.theme].name} · ${l.weekend ? 'événement week-end : pièces ×2 !' : l.endless ? 'vitesse croissante' : `vitesse ${l.speed} · ${l.lines} lignes`}</div>
+        <div class="card-title">${l.weekend ? '🎉 ' : l.weekly ? '🗓️ ' : ''}${l.endless ? '∞' : l.id}. ${l.name}${medal}${starsTxt}</div>
+        <div class="card-sub">${THEMES[l.theme].name} · ${l.weekend ? 'événement week-end : pièces ×2 !' : l.weekly ? 'niveau hebdo thématique 🗓️' : l.endless ? 'vitesse croissante · paliers 25/50/100 lignes 🏆' : `vitesse ${l.speed} · ${l.lines} lignes · +${firstClearBonus(l)} ${cur(l.diff || 'auto').icon} au 1er clear`}</div>
         <div class="card-best">${best ? `🏆 Record : ${best}` : ''}${bt ? `${best ? ' · ' : ''}⏱ ${fmtTime(bt / 1000)}` : ''}</div>
       </div>
       <button class="btn small">${locked ? (l.endless ? '🔒 15 niveaux à finir' : canBuy ? `🔒 ${l.cost} ${c.icon}` : `🔒 termine le niveau ${l.id - 1} en entier`) : '▶ Jouer'}</button>`;
@@ -1046,8 +1073,58 @@ function renderGarage() {
   }
 }
 
-function startLevel(level) {
+// v1.3.79 : hash du replay (#30) — SHA-256 si dispo, sinon FNV-1a x2 aplati sur 64 hex (contexte non sécurisé)
+async function replayHash(rep) {
+  const canon = JSON.stringify(rep);
+  try {
+    if (globalThis.crypto && crypto.subtle) {
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(canon));
+      return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+    }
+  } catch { /* repli hash maison */ }
+  const fnv = (str, basis) => {
+    let h = basis;
+    for (let i = 0; i < str.length; i++) {
+      h ^= str.charCodeAt(i);
+      h = Math.imul(h, 0x01000193) >>> 0;
+    }
+    return h.toString(16).padStart(8, '0');
+  };
+  let out = fnv(canon, 0x811c9dc5) + fnv(canon.split('').reverse().join(''), 0x811c9dc5);
+  while (out.length < 64) out += fnv(out + canon, 0x01000193);
+  return out.slice(0, 64);
+}
+let lastRun = null; // v1.3.79 : { mode, levelId } du dernier run terminé (bouton « voir le replay »)
+let lastShare = null; // v1.3.81 #18 : { score, timeMs, levelName, modeName, rank } pour le bouton partager
+function updateTier() { // v1.3.81 #23 : tier affiché dans le menu (médailles de niveau)
+  const el = $('#menu-tier');
+  if (!el) return;
+  const t = tierOf(save.medals || {});
+  el.textContent = `${t.icon} Tier ${t.name} — ${t.pts} pts de médailles`;
+}
+updateTier();
+// v1.3.81 #21 : icône PWA saisonnière (favicon/masque selon le mois)
+function applySeasonIcon() {
+  const m = new Date().getMonth();
+  const icon = m === 9 ? 'icons/icon-halloween.svg' : m === 11 ? 'icons/icon-noel.svg' : (m >= 5 && m <= 7) ? 'icons/icon-ete.svg' : 'icons/icon-192.png';
+  document.querySelectorAll('link[rel="icon"], link[rel="apple-touch-icon"]').forEach((l) => { l.href = icon; });
+}
+applySeasonIcon();
+on('btn-share', 'click', async () => { // v1.3.81 #18 : carte de score partageable (Web Share API, repli presse-papiers)
+  if (!lastShare) return;
+  const s = lastShare;
+  const txt = `🏁 ${s.score} pts · ⏱ ${fmtTime((s.timeMs || 0) / 1000)}${s.rank ? ` · #${s.rank} ` : ' '}sur ${s.levelName} (${s.modeName}) — Road Tap Racer https://roadtap.uk`;
+  try {
+    if (navigator.share) await navigator.share({ title: 'Road Tap Racer', text: txt });
+    else { await navigator.clipboard.writeText(txt); toast('📋 Score copié dans le presse-papiers !'); }
+  } catch {
+    try { await navigator.clipboard.writeText(txt); toast('📋 Score copié !'); } catch { toast(txt); }
+  }
+});
+
+function startLevel(level, replayRep = null) {
   currentLevel = level;
+  const lvl = save.training ? { ...level, speed: Math.max(60, Math.round(level.speed * (save.trainSpeed || 1))) } : level; // v1.3.82 #1 : entraînement = vitesse réglable
   setMusicCombo(0); // v1.3.42 : nouvelle partie -> intensité musicale à 0  unlockAudio(); // v1.3.65 : contexte audio repris ici (geste « Jouer ») -> pas de freeze au 1er tap
   setMusicEnabled(save.music && save.sound); // v1.3.65 : musique ON dès le début de la partie
   musicKick(); // v1.3.65 : resynchronise le séquenceur -> la musique démarre immédiatement
@@ -1056,6 +1133,8 @@ function startLevel(level) {
   show('screen-game');
   $('#pause-overlay').classList.remove('active');
   hudLevel.textContent = `${level.id}. ${level.name}`;
+  if (replayRep) hudLevel.textContent = '▶ REPLAY · ' + hudLevel.textContent; // v1.3.79 : badge mode lecture
+  if (save.training) hudLevel.textContent = '🎓 ENTRAÎNEMENT · ' + hudLevel.textContent; // v1.3.82 #1
   hudScore.textContent = '0';
   const ht0 = $('#hud-time'); if (ht0) ht0.textContent = '0:00.00';
   clearInterval(hudTimer); // v1.3.77 : chrono live dans le HUD (mode unique)
@@ -1066,13 +1145,16 @@ function startLevel(level) {
   $('#hud-coins').textContent = `${cur(save.difficulty).icon} ${store.getWallet(save.difficulty)}`;
   logEvent('level_start', { level: level.id, mode: save.difficulty });
   game = new Game($('#game'), {
-    level,
+    level: lvl, // v1.3.82 #1
+    training: !!save.training, // v1.3.82 #1 : vies infinies
     skinId: save.skin,
     mode: save.difficulty, // v1.3.68 : speedrun dans la difficulté choisie (plus de verrou Permis A)
     speedrun: true, // v1.3.77 : mode unique — chrono + pénalités + vitesse bonus TOUJOURS actifs
-    themeOverride: save.themeOverride || undefined,
+    replay: replayRep || undefined, // v1.3.79 : mode lecture d'un replay enregistré (hors classement)
+    training: !!save.training, // v1.3.82 #1
+    themeOverride: save.highContrast ? 'highcontrast' : (save.themeOverride || undefined), // v1.3.80 #16 : contraste élevé prioritaire
     windows: effWindows(),
-    access: { colorblind: save.colorblind, horizontalZones: !save.verticalZones },
+    access: { colorblind: save.colorblind, horizontalZones: !save.verticalZones, hitMarker: !!save.hitMarker, reduceAnims: !!save.reduceAnims, vibrate: save.vibrate !== false, latencyOffsetMs: save.latencyOffsetMs || 0, ghost: (store.getReplay(save.difficulty, level.id) || {}).taps }, // v1.3.80 #27/#15 + v1.3.82 #3/#5/#7
     effects: save.selectedEffects,
     audio: { tap: sfx.tap, perfect: sfx.perfect, good: sfx.good, passable: sfx.passable, fail: sfx.fail, win: sfx.win, miss: sfx.miss, lineBeat: scheduleLineBeat, musicAnchor: musicLineAnchor }, // v1.3.46 : beat GD calé sur chaque ligne
     onJudge: (e) => {
@@ -1126,7 +1208,7 @@ function startNextCountdown(nextLevel) {
   }, 100);
 }
 
-function onGameEnd(stats, level) {
+async function onGameEnd(stats, level) {
   hideContinue();
   clearInterval(hudTimer); hudTimer = null; // v1.3.77
   // v1.3.42 : thème de fin — victoire = arpège montant, défaite = sting ; combo remis à 0
@@ -1136,6 +1218,16 @@ function onGameEnd(stats, level) {
   const sr = Boolean(game && game.speedrun); // v1.3.19 : mode speedrun actif sur cette partie
   // v1.3.44/v1.3.54 : records isolés par difficulté — clé "mode:levelId" avec le mode RÉELLEMENT joué
   const runMode = (game && game.mode) || save.difficulty;
+  const linesCount = Math.max(1, Math.min(Math.floor(level.lines) || 1, 10000)); // v1.3.78 : nb de lignes du niveau, borné (anti-triche par niveau côté règles)
+  const isReplay = !!(game && game.replayPlay); // v1.3.79 : un replay ne renvoie RIEN au classement
+  let replayHashHex = null; // v1.3.79 : hash du replay soumis avec les entrées (#30)
+  if (stats.completed && !isReplay && game && game.replay) {
+    const rep = { seed: levelSeed(level.id, runMode), mode: runMode, lines: linesCount, score: stats.score, timeMs: stats.timeMs || 0, taps: (game.replay.taps || []).slice(0, 10000) };
+    replayHashHex = await replayHash(rep);
+    rep.hash = replayHashHex;
+    store.setReplay(runMode, level.id, rep); // v1.3.79 : replay local du meilleur run
+    lastRun = { mode: runMode, levelId: level.id };
+  }
   const firstClear = !!stats.completed && !store.getBest(runMode, level.id);
   const isRecord = store.setBest(runMode, level.id, stats.score);
   const isTimeRecord = stats.completed ? store.setBestTime(runMode, level.id, stats.timeMs || 0) : false; // v1.3.77 : record de temps à chaque niveau terminé
@@ -1169,11 +1261,11 @@ function onGameEnd(stats, level) {
   // (règles RTDB v1.3.37 : auth != null requis ; leaderboard.submitScore refuse sinon et garde en local)
   // v1.3.71 : promesse d'envoi conservée pour ATTENDRE la fin de l'écriture avant de lire le rang
   let submitP = null;
-  if (canSubmitToLeaderboard(save)) { // v1.3.77 : mode unique — le score est TOUJOURS envoyé (v1.3.45 : wideWindows exclus)
+  if (!isReplay && canSubmitToLeaderboard(save)) { // v1.3.77 : mode unique — le score est TOUJOURS envoyé (v1.3.45 : wideWindows exclus) ; v1.3.79 : pas en replay
     // v1.3.19 : en speedrun le score est un temps -> pas de classement global (record local bestTime)
     submitP = leaderboard
       // v1.3.32 : uid + jeton -> règles RTDB vérifient uid == auth.uid (anti-usurpation)
-      .submitScore({ pseudo: save.pseudo, uid: save.uid || '', score: stats.score, level: level.name, levelId: level.id, mode: save.difficulty, date: Date.now(), avgMs: avgReaction(stats) ?? undefined }, getAuthToken()) // v1.3.48 : avgMs envoyé au classement
+      .submitScore({ pseudo: save.pseudo, uid: save.uid || '', score: stats.score, level: level.name, levelId: level.id, mode: save.difficulty, date: Date.now(), avgMs: avgReaction(stats) ?? undefined, lines: linesCount, misses: stats.misses || 0, biasMs: biasReaction(stats) ?? undefined, hash: replayHashHex ?? undefined }, getAuthToken()) // v1.3.48 : avgMs ; v1.3.78 : lines/misses/biasMs ; v1.3.79 : hash du replay (#30)
       .then(() => {
         // v1.3.70 : si le serveur refuse l'écriture (403…), on le dit tout de suite
         const st2 = leaderboard.getLbStatus();
@@ -1181,16 +1273,21 @@ function onGameEnd(stats, level) {
       })
       .catch(() => {});
   }
+    // v1.3.81 #25 : le score est aussi envoyé à la saison hebdomadaire (reset lundi, weekKey)
+    leaderboard.submitSeason(weekKey(), { pseudo: save.pseudo, uid: save.uid || '', score: stats.score, level: level.name, levelId: level.id, mode: save.difficulty, date: Date.now(), lines: linesCount }, getAuthToken()).catch(() => {});
   // v1.3.68 : si le résultat n'est PAS envoyé au classement en ligne, on dit POURQUOI (sinon « mon score n'apparaît pas »)
   if (!canSubmitToLeaderboard(save)) {
-    if (save.wideWindows) toast('♿ Fenêtres élargies actives : résultat gardé en local, hors classement en ligne');
+    if (save.training) toast('🎓 Mode entraînement : résultat gardé en local, hors classement en ligne');
+    else if (save.windowLevel && save.windowLevel !== 'standard') toast('♿ Fenêtres ' + save.windowLevel + ' actives : hors classement en ligne');
+    else if (save.latencyOffsetMs) toast('🎚️ Calibration latence active : hors classement en ligne');
+    else if (save.wideWindows) toast('♿ Fenêtres élargies actives : résultat gardé en local, hors classement en ligne');
     else if (!save.uid) toast('🔒 Connecte Google (« ✏️ Mon pseudo ») pour apparaître dans le classement en ligne — résultat gardé en local');
   }
   let submitSrP = null;
-  if (stats.completed && canSubmitToLeaderboard(save)) { // v1.3.77 : le temps aussi, dès que le niveau est terminé
+  if (stats.completed && !isReplay && canSubmitToLeaderboard(save)) { // v1.3.77 : le temps aussi, dès que le niveau est terminé ; v1.3.79 : pas en replay
     // v1.3.31 : classement speedrun dédié (nœud /speedrun/<levelId>, temps en ms, tri croissant)
     submitSrP = leaderboard
-      .submitSpeedrun(level.id, { pseudo: save.pseudo, uid: save.uid || '', timeMs: stats.timeMs || 0, level: level.name, levelId: level.id, mode: runMode, date: Date.now() }, getAuthToken()) // v1.3.54 : mode réel (permisA en speedrun)
+      .submitSpeedrun(level.id, { pseudo: save.pseudo, uid: save.uid || '', timeMs: stats.timeMs || 0, level: level.name, levelId: level.id, mode: runMode, date: Date.now(), lines: linesCount, avgMs: avgReaction(stats) ?? undefined, misses: stats.misses || 0, score: stats.score, biasMs: biasReaction(stats) ?? undefined, hash: replayHashHex ?? undefined }, getAuthToken()) // v1.3.54 : mode réel ; v1.3.78 : champs de départage ; v1.3.79 : hash replay
       .catch(() => {});
   }
   // v1.3.70/77 : place du joueur au classement avec le score ET le temps du run (mode unique)
@@ -1207,12 +1304,12 @@ function onGameEnd(stats, level) {
       if (submitSrP) await submitSrP;
       const readRank = async () => {
         const all = await leaderboard.getAll(runMode);
-        const arr = leaderboard.dedupeByPlayer(leaderboard.filterLevel(all, String(level.id)), 'score').sort((a, b) => (b.score || 0) - (a.score || 0));
+        const arr = leaderboard.dedupeByPlayer(leaderboard.filterLevel(all, String(level.id)), 'score').sort((a, b) => leaderboard.compareEntries(a, b, 'score')); // v1.3.78 : départage des égalités (avgMs, timeMs, misses, date)
         return arr.findIndex((e) => leaderboard.playerKey(e) === key);
       };
       const readTimeRank = async () => {
         const srAll = await leaderboard.getSpeedrunAll();
-        const sarr = leaderboard.dedupeByPlayer(leaderboard.filterLevel(srAll, String(level.id)).filter((e) => !e.mode || e.mode === runMode), 'speedrun').sort((a, b) => a.timeMs - b.timeMs);
+        const sarr = leaderboard.dedupeByPlayer(leaderboard.filterLevel(srAll, String(level.id)).filter((e) => !e.mode || e.mode === runMode), 'speedrun').sort((a, b) => leaderboard.compareEntries(a, b, 'time')); // v1.3.78 : départage égalités de temps (avgMs -> score -> misses -> date)
         return sarr.findIndex((e) => leaderboard.playerKey(e) === key);
       };
       let i = -1;
@@ -1229,7 +1326,22 @@ function onGameEnd(stats, level) {
       else if (st2 && st2.writeError) parts.push(`⚠️ envoi refusé par le serveur — hors classement en ligne (${st2.writeError})`);
       else parts.push('🏁 score pas encore visible en ligne (local ?) — ouvre le classement');
       if (stats.completed) parts.push(j >= 0 ? `⏱ ${fmtTime((stats.timeMs || 0) / 1000)} → #${j + 1} au classement speedrun — ${level.name} (${modeName})` : '⏱ temps pas encore visible en ligne…');
-      el.textContent = parts.join(' · ') + (leaderboard.isOnline() ? '' : ' — classement local (envoyé à la reconnexion)');
+      const full = parts.join(' · ') + (leaderboard.isOnline() ? '' : ' — classement local (envoyé à la reconnexion)');
+      if (i >= 0 && i < 3 && !isReplay) store.setMedal(runMode, level.id, i + 1); // v1.3.81 #22 : médaille selon le rang (top 3)
+      lastShare = { score: stats.score, timeMs: stats.timeMs || 0, levelName: level.name, modeName, rank: i >= 0 ? i + 1 : 0 }; // v1.3.81 #18
+      updateTier(); // v1.3.81 #23
+      if (i >= 0) { // v1.3.81 #18 : le rang compte jusqu'à #N (animation courte)
+        const target = i + 1;
+        let curN = Math.max(1, target - 8);
+        el.textContent = full.replace(`#${target}`, `#${curN}`);
+        const iv = setInterval(() => {
+          curN++;
+          if (curN >= target) { clearInterval(iv); el.textContent = full; }
+          else el.textContent = full.replace(`#${target}`, `#${curN}`);
+        }, 70);
+      } else {
+        el.textContent = full;
+      }
     } catch { /* lecture KO -> on laisse vide */ }
   })();
   pushCloud();
@@ -1261,6 +1373,8 @@ function onGameEnd(stats, level) {
     else if (dc.kind === 'combo') ok = stats.bestCombo >= dc.target;
     else if (dc.kind === 'overtakes') ok = (stats.overtakes || 0) >= dc.target;
     else if (dc.kind === 'complete') ok = !!stats.completed;
+    else if (dc.kind === 'nomiss') ok = !!stats.completed && (stats.misses || 0) === 0 && (stats.lines || 0) >= dc.target; // v1.3.81 #14
+    else if (dc.kind === 'maxcombo') ok = (stats.bestCombo || 0) >= dc.target; // v1.3.81 #14
     if (ok) {
       store.markChallengeDone(dc.id);
       store.addCoins(dc.mode, dc.reward);
@@ -1304,17 +1418,20 @@ function onGameEnd(stats, level) {
   const ot = $('#over-time'); // v1.3.77 : mode unique — score + chrono affichés tous les deux
   if (ot) ot.textContent = `⏱ ${fmtTime((stats.timeMs || 0) / 1000)}${isTimeRecord ? ' — 🏆 nouveau record !' : ''}`;
   const avg = avgReaction(stats);
+  const bias = biasReaction(stats); // v1.3.78 : indicateur signé ±ms (trop tôt / trop tard)
   $('#over-stats').innerHTML = `
     <div><b>${stats.perfects}</b><span>Parfaits</span></div>
     <div><b>${stats.goods}</b><span>Bien</span></div>
     <div><b>${stats.passables}</b><span>OK</span></div>
     <div><b>${stats.misses}/${maxMissesFor(save.difficulty)}</b><span>Manquées</span></div>
     <div><b>${stats.overtakes || 0}</b><span>Dépassements</span></div>
-    <div><b>${avg !== null ? avg + ' ms' : '—'}</b><span>Réaction moy.</span></div>
+    <div><b>${avg !== null ? avg + ' ms' : '—'}${bias !== null && avg !== null ? ` <small>(${bias < 0 ? '−' : '+'}${Math.abs(bias)} ms ${bias < 0 ? 'trop tôt' : 'trop tard'})</small>` : ''}</b><span>Réaction moy.</span></div>
     <div><b>${accuracy(stats)} %</b><span>Précision</span></div>
     ${level.endless
       ? `<div><b>${stats.lines || 0}</b><span>Lignes (record ${Math.max(save.endlessBest || 0, stats.lines || 0)})</span></div>`
       : `<div><b>${stars > 0 ? '⭐'.repeat(stars) : '—'}</b><span>Étoiles du niveau</span></div>`}`;
+  const btnReplay = $('#btn-replay'); // v1.3.79 : bouton « voir le replay » si un replay existe pour ce niveau
+  if (btnReplay) btnReplay.classList.toggle('hidden', !(stats.completed && lastRun && store.getReplay(lastRun.mode, lastRun.levelId)));
   const ci = cur(save.difficulty).icon;
   $('#over-coins').textContent =
     `+${coins} ${ci} gagnées` +
@@ -1394,6 +1511,13 @@ const ACCESS_OPTS = [
   { id: 'opt-widewindows', key: 'wideWindows', set: (v) => store.setWideWindows(v), on: 'Fenêtres de timing élargies (accessibilité)', off: 'Fenêtres de timing standard' },
   { id: 'opt-colorblind', key: 'colorblind', set: (v) => store.setColorblind(v), on: 'Symboles ajoutés sur les lignes (mode daltonien)', off: 'Mode standard' },
   { id: 'opt-zones-h', key: 'verticalZones', set: (v) => store.setVerticalZones(v), on: '⬆⬇ Zones haut/bas : haut = roues AV, bas = roues AR', off: '🔀 Zones gauche/droite (défaut) : gauche = roues AV ⬅, droite = roues AR ➡' },
+  { id: 'opt-bigtargets', key: 'bigTargets', set: (v) => store.setBigTargets(v), on: '👆 Gros doigts : zones 60/40 + swipe 25 px', off: 'Zones/swipe standard (50/50, 40 px)' }, // v1.3.80 #6
+  { id: 'opt-reduceanims', key: 'reduceAnims', set: (v) => store.setReduceAnims(v), on: '✨ Animations réduites (pas de shake/particules/flash)', off: 'Animations standard' }, // v1.3.80 #15
+  { id: 'opt-highcontrast', key: 'highContrast', set: (v) => store.setHighContrast(v), on: '◼️ Contraste élevé (fond noir, lignes blanches épaisses)', off: 'Thème du niveau' }, // v1.3.80 #16
+  { id: 'opt-hitmarker', key: 'hitMarker', set: (v) => store.setHitMarker(v), on: '🎯 Marqueur du 0 ms (flash sous la roue) — HORS classement', off: 'Pas de marqueur 0 ms' }, // v1.3.80 #27
+  { id: 'opt-vibrate', key: 'vibrate', set: (v) => store.setVibrate(v), on: '📳 Vibration activée (double pulsation PARFAIT, longue au raté)', off: 'Vibration désactivée' }, // v1.3.82 #7
+  { id: 'opt-lefty', key: 'leftHanded', set: (v) => store.setLeftHanded(v), on: '🤚 Mode gaucher : zones et swipes inversés', off: 'Mode droitier (défaut)' }, // v1.3.82 #8
+  { id: 'opt-training', key: 'training', set: (v) => store.setTraining(v), on: '🎓 Mode entraînement ON (vies infinies, vitesse réglable) — HORS classement', off: 'Mode entraînement OFF' }, // v1.3.82 #1
 ];
 function syncAccessCheckboxes(prefix) {
   for (const o of ACCESS_OPTS) {
@@ -1411,6 +1535,97 @@ function wireAccessCheckboxes(prefix) {
   }
 }
 wireAccessCheckboxes('s-'); // v1.3.47 : menu Paramètres (seul endroit depuis v1.3.56)
+
+// v1.3.80 : applique les préférences UI (#15/#17) au chargement et à chaque changement
+function applyUiPrefs() {
+  const ts = save.textSize === 'large' || save.textSize === 'small' ? save.textSize : 'medium';
+  document.documentElement.dataset.textsize = ts;
+  document.body.classList.toggle('reduce-anims', !!save.reduceAnims);
+  const sel = $('#s-opt-textsize');
+  if (sel) sel.value = ts;
+  const wl = $('#s-opt-windowlevel'); if (wl) wl.value = save.windowLevel || 'standard'; // v1.3.82 #11
+  const tsp = $('#s-opt-trainspeed'); if (tsp) tsp.value = String(save.trainSpeed || 1); // v1.3.82 #1
+}
+applyUiPrefs();
+on('s-opt-textsize', 'change', (e) => {
+  store.setTextSize(e.target.value); // v1.3.80 #17
+  applyUiPrefs();
+  toast(`Taille du texte : ${e.target.value === 'large' ? 'grand' : e.target.value === 'small' ? 'petit' : 'moyen'}`);
+});
+on('s-opt-trainspeed', 'change', (e) => { store.setTrainSpeed(Number(e.target.value) || 1); toast(`Vitesse entraînement : ${e.target.value}×`); applyUiPrefs(); }); // v1.3.82 #1
+on('s-opt-windowlevel', 'change', (e) => { // v1.3.82 #11
+  store.setWindowLevel(e.target.value);
+  applyUiPrefs();
+  toast(e.target.value === 'standard' ? 'Fenêtres standard (éligible au classement)' : `Fenêtres ${e.target.value} — HORS classement en ligne`);
+});
+// v1.3.82 #5 : calibration de la latence tactile — 4 pulsations, le joueur tape au rythme, offset moyen stocké localement
+let calib = null;
+on('btn-calibrate', 'click', () => {
+  calib = { beats: [], taps: [] };
+  let n = 0;
+  const z = $('#calib-zone');
+  const hint = $('#calib-hint');
+  if (hint) hint.textContent = 'Prépare-toi… 4 pulsations à 600 ms.';
+  const iv = setInterval(() => {
+    n++;
+    calib.beats.push(performance.now());
+    sfx.tap();
+    if (z) { z.textContent = `● ${4 - n}`; z.classList.add('pulse'); setTimeout(() => z.classList.remove('pulse'), 120); }
+    if (n >= 4) {
+      clearInterval(iv);
+      if (hint) hint.textContent = 'Tape 4 fois EN RYTHME sur la zone quand elle pulse.';
+    }
+  }, 600);
+});
+on('calib-zone', 'pointerdown', () => {
+  if (!calib || !calib.beats.length || calib.taps.length >= 4) return;
+  calib.taps.push(performance.now());
+  if (calib.taps.length === 4) {
+    const offs = calib.taps.map((t) => t - calib.beats.reduce((p, b) => (Math.abs(b - t) < Math.abs(p - t) ? b : p)));
+    const off = Math.max(-100, Math.min(100, Math.round(offs.reduce((a, b) => a + b, 0) / offs.length)));
+    store.setLatencyOffsetMs(off);
+    toast(`🎚️ Latence mesurée : ${off >= 0 ? '+' : ''}${off} ms (hors classement si ≠ 0)`);
+    calib = null;
+    const hint = $('#calib-hint');
+    if (hint) hint.textContent = 'Calibration terminée.';
+  }
+});
+// v1.3.82 #24 : duels asynchrones — liste des duels reçus dans l'écran Défis
+async function renderDuels() {
+  const el = $('#duels-list');
+  if (!el) return;
+  el.innerHTML = '';
+  try {
+    const duels = await leaderboard.getDuels(save.pseudo);
+    if (!duels.length) {
+      el.innerHTML = '<div class="card-sub">Aucun duel en attente — défie un ami ⚔️ depuis l\'onglet « Amis » du classement.</div>';
+      return;
+    }
+    for (const d of duels) {
+      const row = document.createElement('div');
+      row.className = 'card lb-row';
+      row.innerHTML = `<span class="lb-rank">⚔️</span><div class="card-body"><div class="card-title">${escapeHtml(d.pseudo || '?')} te défie</div><div class="card-sub">${escapeHtml(levelLabel(d)) || 'niveau ?'} · à battre : ${d.score} pts</div></div>`;
+      const b = document.createElement('button');
+      b.className = 'btn small';
+      b.textContent = 'Relever';
+      b.addEventListener('click', () => {
+        const lv = LEVELS.find((l) => l.id === Number(d.levelId)) || WEEKLY_LEVEL;
+        if (lv) startLevel(lv);
+      });
+      row.appendChild(b);
+      el.appendChild(row);
+    }
+  } catch {
+    el.innerHTML = '<div class="card-sub">Duels indisponibles (hors ligne ?)</div>';
+  }
+}
+// v1.3.80 : #29 — infobulle « 0 ms » (schéma)
+function openTimingHelp() { const m = $('#modal-timing'); if (m) m.classList.remove('hidden'); }
+on('btn-help-timing', 'click', openTimingHelp);
+on('btn-help-timing-levels', 'click', openTimingHelp);
+on('btn-hud-help', 'click', openTimingHelp);
+on('btn-timing-close', 'click', () => { const m = $('#modal-timing'); if (m) m.classList.add('hidden'); });
+on('modal-timing', 'click', (e) => { if (e.target && e.target.id === 'modal-timing') e.target.classList.add('hidden'); });
 
 // --- v1.3.47 : menu Paramètres (accessibilité + audio + touches + version + serveur) ---
 const ACTION_NAMES = { front: 'Roues AV', rear: 'Roues AR', swipe: 'Dépasser (swipe)', retry: 'Recommencer le niveau' }; // v1.3.49 : retry
@@ -1626,6 +1841,18 @@ async function completeGoogleSignIn(sess) {
         renderShop();
         renderDifficultyPicker();
         toast('☁️ Progression synchronisée avec le cloud');
+        // v1.3.83 : le pseudo revient du cloud — si la modale pseudo était ouverte, on la ferme et on enchaîne l'action en attente
+        if (save.pseudo) {
+          updatePseudoSaveState();
+          const pm = $('#pseudo-modal');
+          if (pm && !pm.classList.contains('hidden')) {
+            pm.classList.add('hidden');
+            pm.classList.remove('active');
+            const fn = pendingAfterPseudo;
+            pendingAfterPseudo = null;
+            if (fn) fn();
+          }
+        }
       }
     } catch (e) {
       console.warn('[auth] chargement cloud après connexion:', e);
@@ -1875,13 +2102,23 @@ const canPlayNow = () => currentScreen === 'screen-game' && game && game.running
 // Le swipe vers la gauche est détecté dès 40 px de déplacement (pointermove),
 // au relâchement (pointerup) ET à l'annulation (pointercancel) : fiable sur
 // téléphone même si le navigateur interrompt le geste par un pointercancel.
+on('btn-replay', 'click', () => { // v1.3.79 : rejoue le meilleur run enregistré (mode lecture, hors classement)
+  if (!lastRun) return;
+  const rep = store.getReplay(lastRun.mode, lastRun.levelId);
+  if (!rep || !rep.taps || !rep.taps.length) return;
+  const level = LEVELS.find((l) => l.id === lastRun.levelId);
+  if (level) startLevel(level, rep);
+});
+
 function trySwipe(x) {
   if (!pointerStart || swipeFired) return;
-  const dx = x - pointerStart.x;
-  if (dx < -40) {
+  let dx = x - pointerStart.x;
+  if (save.leftHanded) dx = -dx; // v1.3.82 #8 : mode gaucher inverse le swipe
+  const minSwipe = save.bigTargets ? 25 : 40; // v1.3.80 #6 : seuil de swipe réglable
+  if (dx < -minSwipe) {
     swipeFired = true;
     if (canPlayNow()) game.swipeLeft();
-  } else if (dx > 40) {
+  } else if (dx > minSwipe) {
     swipeFired = true; // v1.3.76 : swipe → = retour manuel à droite
     if (canPlayNow()) game.swipeRight();
   }
@@ -1933,8 +2170,11 @@ window.addEventListener('pointerdown', (e) => {
   swipeFired = false;
   if (!canPlayNow()) return;
   if (e.target.closest('button, input, select, textarea, a, label')) return; // ne pas taper le jeu quand on touche un contrôle
+  if (game && game.replayPlay) return; // v1.3.79 : replay = lecture seule
   // v1.3.21/v1.3.28 : option zones gauche/droite (gauche = AV, droite = AR) au lieu de haut/bas
-  const zone = zoneFromPoint(e.clientX, e.clientY, window.innerWidth, window.innerHeight, !save.verticalZones);
+  const px = save.leftHanded ? window.innerWidth - e.clientX : e.clientX; // v1.3.82 #8 : mode gaucher
+  const py = save.leftHanded ? window.innerHeight - e.clientY : e.clientY;
+  const zone = zoneFromPoint(px, py, window.innerWidth, window.innerHeight, !save.verticalZones, save.bigTargets ? 0.6 : 0.5); // v1.3.80 #6 : zones 60/40 si gros doigts
   game.tap(zone);
 });
 
@@ -1985,9 +2225,12 @@ window.addEventListener('keydown', (e) => {
   // v1.3.28 : UNE SEULE action par touche via keyToAction (sinon ArrowLeft = tap AV + swipe
   // quand les zones horizontales sont actives ; le swipe clavier passe sur ArrowDown/KeyS)
   // v1.3.47 : les touches choisies dans Paramètres priment (save.keys)
-  const action = keyToAction(e.code, !save.verticalZones, save.keys);
+  let action = keyToAction(e.code, !save.verticalZones, save.keys);
+  if (save.leftHanded && action === 'swipe') action = 'swipeRight'; // v1.3.82 #8 : mode gaucher inverse les flèches
+  else if (save.leftHanded && action === 'swipeRight') action = 'swipe';
   if (action) {
     e.preventDefault();
+    if (game && game.replayPlay && action !== 'retry') return; // v1.3.79 : replay = lecture seule (retry autorisé pour quitter)
     if (action === 'retry') {
       // v1.3.49/v1.3.53 : touche « recommencer » — en jeu (même en pause) ET sur l'écran de fin
       if ((currentScreen === 'screen-game' || currentScreen === 'screen-over') && currentLevel) {
@@ -2093,6 +2336,7 @@ if (save.uid && save.googleRefresh) {
       cloudsave.load(accountKey(), getAuthToken()).then((remote) => {
         if (remote && store.mergeRemote(remote)) {
           store.backupKeysForAccount(); // v1.3.57 : touches du compte calées en local aussi
+          updatePseudoSaveState(); // v1.3.83 : pseudo éventuellement récupéré du cloud à la restauration de session
           refreshCoins();
           renderLevels();
           renderShop();

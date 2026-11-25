@@ -1132,3 +1132,19 @@ canvas.swatch.garage-preview {
   background: #0d1226; /* même fond que body : couvre le contenu qui défile dessous */
   padding-bottom: 6px;
 }
+
+
+/* --- v1.3.80 : accessibilité (#15/#17/#19/#29) --- */
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+body.reduce-anims *, body.reduce-anims *::before, body.reduce-anims *::after { transition: none !important; animation: none !important; }
+html[data-textsize='small'] body { font-size: 13px; }
+html[data-textsize='large'] body { font-size: 19px; }
+.modal { position: fixed; inset: 0; background: rgba(0,0,0,.65); display: flex; align-items: center; justify-content: center; z-index: 60; padding: 16px; }
+.modal.hidden { display: none; }
+.modal .panel { max-width: 540px; max-height: 88vh; overflow: auto; }
+#modal-timing svg { width: 100%; height: auto; border-radius: 8px; border: 1px solid #444; }
+#btn-hud-help { margin-left: 6px; }
+
+/* --- v1.3.82 : calibration latence --- */
+.calib-zone { margin: 8px 0; padding: 18px; border: 2px dashed #6b7bd6; border-radius: 10px; text-align: center; user-select: none; touch-action: manipulation; background: rgba(107,123,214,.08); }
+.calib-zone.pulse { background: rgba(107,123,214,.45); }

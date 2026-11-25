@@ -1,6 +1,6 @@
 # ✅ Assurance qualité
 
-> **Note (v1.3.77)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.77**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
+> **Note (v1.3.77)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.83**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
 
 ## Processus de test
 
@@ -673,3 +673,68 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - [ ] Test manuel : une seule partie = score + chrono live ; rater une ligne → « RATÉ +0,5 s » et chrono +0,5 s ; 3 ratés → « Continuer — +2 s ⏱ » (gratuit en temps, plus de pièces) ; écran de fin : score + ⏱ temps + 2 rangs ; classement : colonnes 🏁 et ⏱ remplies par la même partie
 - [ ] CI verte + CACHE sw bumpé (roadtap-v85) + VERSION 1.3.77 + version.json 1.3.77
 
+
+## v1.3.78 — fondations esport : mesure au dernier tap, départage des égalités, anti-triche par niveau, ±ms
+
+- **Mesure (#28a)** : `timeMs` figé au moment de la résolution de la dernière ligne (`lastResolveMs`), plus à la frame du +80 px — les égalités exactes au minimum théorique deviennent quasi impossibles ; le repli = ancien comportement.
+- **Départage (#28b/c)** : `compareEntries` (score/time/réaction) avec chaîne officielle : score desc → avgMs asc → timeMs asc → misses asc → date asc (et symétrique pour le temps). Appliqué au classement (tri Score/Temps/Réaction) ET au rang affiché écran de fin. Entrées speedrun enrichies : `lines`, `avgMs`, `misses`, `score`, `biasMs`.
+- **Anti-triche par niveau (#4/#26)** : champ `lines` obligatoire + bornes serveur : `score <= lines*250`, `timeMs >= lines*400`, `avgMs` 0–2000, `biasMs` ±1000, `misses` 0–1000, `hash` 64 hex optionnel (replay). **ACTION REQUISE : déployer `database.rules.json` dans la console Firebase** (les anciennes entrées en file sans `lines` seront abandonnées automatiquement — `flushQueue` ne bloque plus).
+- **Indicateur ±ms (#31)** : `biasReaction` (moyenne signée des dtMs) affiché à l'écran de fin : « 38 ms (−6 ms trop tôt) ».
+- Tests : core (biasReaction), smoke (timeMs au dernier tap), break section BB (461 assertions au total) ; audit §12 OK.
+
+
+## v1.3.79 — replays vérifiables (#30) + rate-limit client
+
+- Chaque run terminé enregistre un **replay** (`{seed, mode, lines, score, timeMs, taps}` — taps signés dtMs + instant) ; le meilleur par niveau est gardé en local (`roadtap_save_v1.replays`).
+- **Hash SHA-256** du replay (repli FNV 64 hex si `crypto.subtle` indispo) envoyé dans les entrées score/speedrun (champ `hash`, validé 64 hex par les règles).
+- Bouton **▶ Voir mon replay** à l'écran de fin : rejoue le run en mode lecture (badge ▶ REPLAY, entrées ignorées, rien n'est envoyé au classement).
+- **Rate-limit doux client** : min 3 s entre 2 écritures en ligne (trop tôt = mis en file hors-ligne).
+- Tests : break section BC (470 assertions), smoke 11ᵉ scénario (replay rejoué, entrée joueur ignorée) ; audit OK.
+
+
+## v1.3.80 — accessibilité P0 (#6/#15/#16/#17/#19/#27/#29)
+
+- **#6 Gros doigts** : zones tactiles 60/40 (ratio `zoneFromPoint`) + seuil de swipe 25 px (option Paramètres).
+- **#15 Animations réduites** : plus de shake/particules/flash en jeu + transitions CSS coupées (`body.reduce-anims`) — photosensibilité.
+- **#16 Contraste élevé** : thème `highcontrast` (fond noir pur, lignes blanches) prioritaire sur le thème du niveau.
+- **#17 Taille du texte** : petit/moyen/grand via `html[data-textsize]` (UI uniquement, pas le canvas).
+- **#19 ARIA** : `#sr-live` (aria-live) alimenté par chaque toast, dialog `aria-modal` pour la modale d'aide.
+- **#27 Marqueur du 0 ms** : flash de la ligne quand elle passe exactement sous l'essieu — **hors classement** (`canSubmitToLeaderboard` refuse, règle `aids != true` ajoutée à scores/speedrun/challenges — **redéployer les règles**).
+- **#29 Infobulle « 0 ms »** : modale avec schéma SVG (boutons ❓ en jeu, niveaux, paramètres) — explique le 0 ms, la fenêtre symétrique ±45 ms, le beat audio, la stat ⚡.
+- Tests : break section BD (483 assertions) ; audit OK ; triple bump v1.3.80/roadtap-v88.
+
+
+## v1.3.81 — compétition visible + niveaux (#22/#23/#25/#18/#14/#13/#20/#21/#10/#9/#12)
+
+- **#22 Médailles** 🥇🥈🥉 déduites du rang au classement (top 3), stockées par `mode:niveau`, affichées sur les cartes de niveaux.
+- **#23 Tiers** Bronze→Légende (`tierOf` sur les médailles), affiché dans le menu (`#menu-tier`).
+- **#25 Saison hebdo** : onglet 🗓️ Saison (nœud `/seasons/<weekKey>/…`, mêmes règles que scores — **redéployer les règles**), envoi auto à la fin de chaque partie.
+- **#18 Écran de fin** : rang animé (compte jusqu'à #N) + bouton 📤 Partager (Web Share API, repli presse-papiers).
+- **#14 Défis du jour** : +2 types (« 0 raté sur N lignes », « combo max xN »).
+- **#13 Niveau hebdo 🗓️** « Orage hebdo » (id 900) affiché samedi/dimanche en plus du Week-end doré.
+- **#20 Thèmes saisonniers cosmétiques** : Halloween 🎃, Noël 🎄, Été 🏖️ dans la boutique.
+- **#21 Icône PWA saisonnière** : favicon swap selon le mois (3 SVG dans le manifest + SW).
+- **#10 Récompenses visibles** sur les cartes (bonus 1er clear, paliers Survie 25/50/100).
+- **#9 Courbe lissée** : `gapMin` plancher 260 px, `pDouble` plafonné à 0,35. **#12 Boss** 👹 niveaux 5/10/15 (densité 0,45 min).
+- Tests : break section BE (496 assertions) ; audit OK ; triple bump v1.3.81/roadtap-v89.
+
+
+## v1.3.82 — feel & social (#1/#2/#3/#5/#7/#8/#11/#24)
+
+- **#1 Mode entraînement** : vies infinies + vitesse 0,5×/0,75×/1×, badge 🎓, **hors classement** (toast explicite).
+- **#2 Buffer d'input (coyote 120 ms)** : un tap jusqu'à 120 ms avant la fenêtre est rejugé à son instant réel — la latence du téléphone pardonne, les fenêtres ne changent pas.
+- **#3 Fantôme du record** : repère translucide sur chaque ligne à la position exacte du meilleur run (replay local).
+- **#5 Calibration latence** : 4 pulsations, 4 taps, offset moyen clampé ±100 ms, appliqué au jugement — **hors classement si ≠ 0**.
+- **#7 Vibration** on/off + patterns (PARFAIT = double pulsation, raté = longue).
+- **#8 Mode gaucher** : zones, swipes et flèches inversés.
+- **#11 Fenêtres adaptatives** : standard / larges (60/130/210) / très larges (90/200/320) — hors classement si ≠ standard.
+- **#24 Duels asynchrones entre amis** : bouton ⚔️ dans l'onglet Amis du classement → défi stocké (`/challenges/duels`, mode `duel`) → l'ami le voit dans Défis > « ⚔️ Duels reçus » avec « Relever ».
+- Tests : break section BF (507 assertions) ; audit OK ; triple bump v1.3.82/roadtap-v90.
+
+
+## v1.3.83 — le pseudo est récupéré du cloud à la reconnexion
+
+- `snapshot()` inclut désormais `pseudo` → écrit dans `players/<uid>` à chaque `pushCloud`.
+- `mergeRemote` restaure le pseudo **uniquement s'il est vide en local** (jamais d'écrasement d'un pseudo choisi localement).
+- Si la modale pseudo était ouverte à la connexion et que le cloud fournit le pseudo : modale fermée + action en attente (lancer la partie) exécutée automatiquement. Idem à la restauration de session au démarrage.
+- Tests : break section BG (512 assertions, dont test fonctionnel mergeRemote) ; audit OK ; triple bump v1.3.83/roadtap-v91.

@@ -15,6 +15,14 @@ const defaults = () => ({
   selectedEffects: [],
   best: {},
   bestTime: {}, // v1.3.19 : meilleurs temps (ms) du mode speedrun, par niveau
+  replays: {}, // v1.3.79 : replays locaux du meilleur run par "mode:levelId" — {seed, mode, lines, score, timeMs, hash, taps}
+  medals: {}, // v1.3.81 #22 : médailles par "mode:levelId" — 1=🥇 2=🥈 3=🥉 (déduites du rang au classement)
+  training: false, // v1.3.82 #1 : mode entraînement (vies infinies, vitesse réglable) — hors classement
+  trainSpeed: 1, // v1.3.82 #1 : 0.5 | 0.75 | 1
+  vibrate: true, // v1.3.82 #7 : vibration on/off
+  leftHanded: false, // v1.3.82 #8 : mode gaucher (zones + swipes inversés)
+  windowLevel: 'standard', // v1.3.82 #11 : 'standard' | 'large' | 'xlarge' — hors classement si != standard
+  latencyOffsetMs: 0, // v1.3.82 #5 : calibration latence (locale, jamais envoyée) — hors classement si != 0
   speedrun: false,
   verticalZones: false, // v1.3.76 : zones tactiles HAUT/BAS (défaut false = gauche/droite : gauche=AV ⬅, droite=AR ➡)
   sound: true,
@@ -43,6 +51,11 @@ const defaults = () => ({
   googleRefresh: '',
   friends: [], // v1.3.36 : pseudos des amis pour le classement « amis » (voir core.filterFriendsByPseudo)
   deletedFriends: [], // v1.3.75 : tombstones — pseudos d'amis SUPPRIMÉS (ne doivent pas revenir via le cloud)
+  bigTargets: false, // v1.3.80 : #6 gros doigts — zones 60/40 + seuil de swipe 25 px
+  reduceAnims: false, // v1.3.80 : #15 animations réduites (photosensibilité) — pas de shake/particules/flash
+  highContrast: false, // v1.3.80 : #16 thème contraste élevé (fond noir, lignes blanches)
+  textSize: 'medium', // v1.3.80 : #17 'small' | 'medium' | 'large'
+  hitMarker: false, // v1.3.80 : #27 flash de la ligne au moment 0 ms — HORS classement (aids)
 });
 
 let save;
@@ -58,6 +71,26 @@ const num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const str = (v, d = '') => (typeof v === 'string' ? v : d);
 const bool = (v, d = false) => (typeof v === 'boolean' ? v : d);
 const arrStr = (v) => (Array.isArray(v) ? v.filter((x) => typeof x === 'string') : []);
+// v1.3.79 : sanitizer des replays — objets valides uniquement, taps plafonnés
+function replayMap(v) {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return {};
+  const out = {};
+  for (const k of Object.keys(v).slice(0, 200)) {
+    const r = v[k];
+    if (r && typeof r === 'object' && Array.isArray(r.taps) && r.taps.length <= 20000 && r.seed !== undefined) {
+      out[k] = {
+        seed: r.seed,
+        mode: str(r.mode, 'auto'),
+        lines: num(r.lines, 0),
+        score: num(r.score, 0),
+        timeMs: num(r.timeMs, 0),
+        hash: str(r.hash, ''),
+        taps: r.taps.slice(0, 10000).filter((t) => t && typeof t === 'object' && typeof t.t === 'number'),
+      };
+    }
+  }
+  return out;
+}
 const arrNum = (v) => (Array.isArray(v) ? v.filter((x) => typeof x === 'number' && Number.isFinite(x)) : []);
 const obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : {});
 const numMap = (v) => {
@@ -79,6 +112,19 @@ function sanitize(s) {
   s.cleared = boolMap(s.cleared);
   s.best = numMap(s.best);
   s.bestTime = numMap(s.bestTime);
+  s.replays = replayMap(s.replays); // v1.3.79
+  s.medals = numMap(s.medals); // v1.3.81 #22
+  s.training = bool(s.training); // v1.3.82
+  s.trainSpeed = [0.5, 0.75, 1].includes(Number(s.trainSpeed)) ? Number(s.trainSpeed) : 1;
+  s.vibrate = s.vibrate === undefined ? true : bool(s.vibrate);
+  s.leftHanded = bool(s.leftHanded);
+  s.windowLevel = ['standard', 'large', 'xlarge'].includes(s.windowLevel) ? s.windowLevel : 'standard';
+  s.latencyOffsetMs = Math.max(-100, Math.min(100, num(s.latencyOffsetMs, 0)));
+  s.bigTargets = bool(s.bigTargets); // v1.3.80
+  s.reduceAnims = bool(s.reduceAnims);
+  s.highContrast = bool(s.highContrast);
+  s.textSize = ['small', 'medium', 'large'].includes(s.textSize) ? s.textSize : 'medium';
+  s.hitMarker = bool(s.hitMarker);
   // v1.3.44 : migration — anciennes clés "levelId" (partagées entre difficultés) copiées dans chaque mode
   for (const field of ['best', 'bestTime']) {
     const m = s[field];
@@ -261,12 +307,46 @@ export function setSpeedrun(on) {
 }
 
 // v1.3.76 : zones de tap verticales haut/bas (défaut = gauche/droite)
+export function setBigTargets(on) { save.bigTargets = Boolean(on); persist(); } // v1.3.80 #6
+export function setReduceAnims(on) { save.reduceAnims = Boolean(on); persist(); } // v1.3.80 #15
+export function setHighContrast(on) { save.highContrast = Boolean(on); persist(); } // v1.3.80 #16
+export function setTextSize(v) { save.textSize = ['small', 'medium', 'large'].includes(v) ? v : 'medium'; persist(); } // v1.3.80 #17
+export function setHitMarker(on) { save.hitMarker = Boolean(on); persist(); } // v1.3.80 #27 (hors classement)
 export function setVerticalZones(on) {
   save.verticalZones = Boolean(on);
   persist();
 }
 
 // v1.3.44 : record de temps (ms), isolé par difficulté — retourne true si nouveau record
+// v1.3.79 : replay local du meilleur run (vérification #30) — clé "mode:levelId"
+export function getReplay(mode, levelId) {
+  return (save.replays || {})[bestKey(mode, levelId)] || null;
+}
+export function setReplay(mode, levelId, rep) {
+  if (!rep || !Array.isArray(rep.taps)) return null;
+  save.replays = save.replays || {};
+  const k = bestKey(mode, levelId);
+  const prev = save.replays[k];
+  if (!prev || (rep.timeMs || Infinity) < (prev.timeMs || Infinity)) {
+    save.replays[k] = rep;
+    persist();
+  }
+  return save.replays[k];
+}
+export function setTraining(on) { save.training = Boolean(on); persist(); } // v1.3.82 #1
+export function setTrainSpeed(v) { save.trainSpeed = [0.5, 0.75, 1].includes(Number(v)) ? Number(v) : 1; persist(); } // v1.3.82 #1
+export function setVibrate(on) { save.vibrate = on === undefined ? true : Boolean(on); persist(); } // v1.3.82 #7
+export function setLeftHanded(on) { save.leftHanded = Boolean(on); persist(); } // v1.3.82 #8
+export function setWindowLevel(v) { save.windowLevel = ['standard', 'large', 'xlarge'].includes(v) ? v : 'standard'; persist(); } // v1.3.82 #11
+export function setLatencyOffsetMs(ms) { save.latencyOffsetMs = Math.max(-100, Math.min(100, Math.round(Number(ms) || 0))); persist(); } // v1.3.82 #5
+export function getMedal(mode, levelId) { return (save.medals || {})[bestKey(mode, levelId)] || 0; } // v1.3.81 #22
+export function setMedal(mode, levelId, m) { // garde la meilleure (1=or est le minimum)
+  if (![1, 2, 3].includes(m)) return;
+  save.medals = save.medals || {};
+  const k = bestKey(mode, levelId);
+  const prev = save.medals[k] || 0;
+  if (prev === 0 || m < prev) { save.medals[k] = m; persist(); }
+}
 export function getBestTime(mode, levelId) {
   return save.bestTime[bestKey(mode, levelId)];
 }
@@ -628,6 +708,7 @@ export function snapshot() {
     streakRewardDay: save.streakRewardDay,
     quests: save.quests,
     challengeDone: save.challengeDone,
+    pseudo: save.pseudo, // v1.3.83 : le pseudo part dans le cloud -> récupéré à la reconnexion
     uid: save.uid,
     googleEmail: save.googleEmail,
     friends: save.friends, // v1.3.36 : liste d'amis synchronisée avec le cloud
@@ -656,6 +737,10 @@ function mergeRemoteBody(remote) {
   if (!save.uid && remote.uid) {
     save.uid = remote.uid;
     save.googleEmail = remote.googleEmail || '';
+  }
+  // v1.3.83 : à la reconnexion, le pseudo revient du cloud s'il manque en local (jamais d'écrasement d'un pseudo local)
+  if (!save.pseudo && typeof remote.pseudo === 'string' && remote.pseudo.trim()) {
+    save.pseudo = str(remote.pseudo).slice(0, 16);
   }
   save.challengeDone = { ...(remote.challengeDone || {}), ...save.challengeDone };
   if (remote.quests && typeof remote.quests === 'object' && remote.quests.weekKey === save.quests.weekKey) {

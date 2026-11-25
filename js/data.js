@@ -39,6 +39,26 @@ export const THEMES = {
     skyTop: '#9fc6e8', skyBottom: '#eef7ff', shoulder: '#f6fbff',
     road: '#8fa3bd', edge: '#ffffff', line: '#ffffff', lineEdge: '#5c7186', centerLine: '#dfe9f5',
   },
+  halloween: { // v1.3.81 #20 : cosmétique saisonnier
+    id: 'halloween', name: '🎃 Halloween', scenery: 'citynight', night: true,
+    skyTop: '#1a0b2e', skyBottom: '#3b1f5e', shoulder: '#0d0618',
+    road: '#160f24', edge: '#ff7518', line: '#ffd9a0', lineEdge: '#3b1f00', centerLine: '#ff7518',
+  },
+  noel: {
+    id: 'noel', name: '🎄 Noël', scenery: 'pines', night: true,
+    skyTop: '#0b2e4f', skyBottom: '#123a5e', shoulder: '#e8f4ff',
+    road: '#2a3550', edge: '#c00', line: '#ffffff', lineEdge: '#500', centerLine: '#0a0',
+  },
+  ete: {
+    id: 'ete', name: '🏖️ Été', scenery: 'buildings', night: false,
+    skyTop: '#4fc3f7', skyBottom: '#fff9c4', shoulder: '#f4d47c',
+    road: '#5a6270', edge: '#fff59d', line: '#ffffff', lineEdge: '#8a7b00', centerLine: '#ff9800',
+  },
+  highcontrast: { // v1.3.80 : #16 — fond noir pur, lignes blanches épaisses (basse vision)
+    id: 'highcontrast', name: 'Contraste élevé', scenery: 'none', night: false,
+    skyTop: '#000000', skyBottom: '#000000', shoulder: '#000000',
+    road: '#000000', edge: '#ffffff', line: '#ffffff', lineEdge: '#000000', centerLine: '#ffff00',
+  },
   nuit: {
     id: 'nuit', name: 'Nuit', scenery: 'citynight', night: true,
     skyTop: '#070b1d', skyBottom: '#1c2b52', shoulder: '#10142a',
@@ -61,17 +81,17 @@ export const LEVELS = [
   { id: 2, name: 'Accélération', theme: 'autoroute', diff: 'auto', speed: 300, lines: 18, gapMin: 420, gapMax: 620, w: { dash: 1 }, pDouble: 0.15, cost: 150 },
   { id: 3, name: 'Double file', theme: 'autoroute', diff: 'auto', speed: 340, lines: 20, gapMin: 400, gapMax: 560, w: { dash: 0.7, band: 0.3 }, pDouble: 0.3, cost: 300 },
   { id: 4, name: 'En ville', theme: 'ville', diff: 'auto', speed: 340, lines: 34, gapMin: 390, gapMax: 560, w: { dash: 0.6, chevron: 0.4 }, pDouble: 0.2, cost: 500, crosswalk: true },
-  { id: 5, name: 'Heures de pointe', theme: 'ville', diff: 'auto', speed: 380, lines: 36, gapMin: 360, gapMax: 520, w: { dash: 0.5, band: 0.25, chevron: 0.25 }, pDouble: 0.3, cost: 800, crosswalk: true },
+  { id: 5, name: 'Heures de pointe', theme: 'ville', diff: 'auto', speed: 380, lines: 36, gapMin: 360, gapMax: 520, w: { dash: 0.5, band: 0.25, chevron: 0.25 }, pDouble: 0.3, cost: 800, crosswalk: true, boss: true }, // v1.3.81 #12
   { id: 6, name: 'Désert', theme: 'desert', diff: 'permisA', speed: 380, lines: 38, gapMin: 350, gapMax: 500, w: { dash: 0.5, band: 0.3, chevron: 0.2 }, pDouble: 0.25, cost: 1200 },
   { id: 7, name: 'Coucher de soleil', theme: 'desert', diff: 'permisA', speed: 420, lines: 40, gapMin: 330, gapMax: 480, w: { dash: 0.4, band: 0.3, chevron: 0.3 }, pDouble: 0.35, cost: 1800 },
   { id: 8, name: 'Nuit', theme: 'nuit', diff: 'permisA', speed: 420, lines: 40, gapMin: 330, gapMax: 470, w: { dash: 0.4, band: 0.3, chevron: 0.3 }, pDouble: 0.3, cost: 2600 },
   { id: 9, name: 'Néon', theme: 'nuit', diff: 'permisA', speed: 470, lines: 44, gapMin: 310, gapMax: 440, w: { dash: 0.35, band: 0.3, chevron: 0.35 }, pDouble: 0.4, cost: 3600 },
-  { id: 10, name: 'Neige', theme: 'neige', diff: 'permisA', speed: 450, lines: 44, gapMin: 320, gapMax: 450, w: { dash: 0.4, band: 0.3, chevron: 0.3 }, pDouble: 0.35, cost: 5000 },
+  { id: 10, name: 'Neige', theme: 'neige', diff: 'permisA', speed: 450, lines: 44, gapMin: 320, gapMax: 450, w: { dash: 0.4, band: 0.3, chevron: 0.3 }, pDouble: 0.35, cost: 5000, boss: true }, // v1.3.81 #12
   { id: 11, name: 'Tempête', theme: 'neige', diff: 'pilote', speed: 510, lines: 48, gapMin: 300, gapMax: 420, w: { dash: 0.35, band: 0.3, chevron: 0.35 }, pDouble: 0.45, cost: 7000 },
   { id: 12, name: 'Hyperdrive', theme: 'nuit', diff: 'pilote', speed: 580, lines: 55, gapMin: 280, gapMax: 380, w: { dash: 0.3, band: 0.35, chevron: 0.35 }, pDouble: 0.5, cost: 8000 },
   { id: 13, name: 'Néon', theme: 'neon', diff: 'pilote', speed: 620, lines: 50, gapMin: 270, gapMax: 360, w: { dash: 0.3, band: 0.35, chevron: 0.35 }, pDouble: 0.5, cost: 9000 },
   { id: 14, name: 'Golden hour', theme: 'sunset', diff: 'pilote', speed: 600, lines: 50, gapMin: 275, gapMax: 370, w: { dash: 0.3, band: 0.3, chevron: 0.4 }, pDouble: 0.45, cost: 11000 },
-  { id: 15, name: 'Enfer', theme: 'nuit', diff: 'pilote', speed: 660, lines: 55, gapMin: 260, gapMax: 350, w: { dash: 0.25, band: 0.35, chevron: 0.4 }, pDouble: 0.5, cost: 13000 },
+  { id: 15, name: 'Enfer', theme: 'nuit', diff: 'pilote', speed: 660, lines: 55, gapMin: 260, gapMax: 350, w: { dash: 0.25, band: 0.35, chevron: 0.4 }, pDouble: 0.5, cost: 13000, boss: true }, // v1.3.81 #12
 ];
 
 export const SKINS = [
@@ -125,6 +145,9 @@ export const EFFECTS = [
 export const THEME_SHOP = [
   { id: 'neon', name: '🌃 Thème Néon', desc: 'Remplace le décor de tous les niveaux par la ville néon.', cost: 7500, currency: 'permisA' },
   { id: 'sunset', name: '🌇 Thème Coucher de soleil', desc: 'Remplace le décor de tous les niveaux.', cost: 7500, currency: 'permisA' },
+  { id: 'halloween', name: '🎃 Thème Halloween', desc: 'Décor sombre et citrouilles — 100 % cosmétique.', cost: 5000, currency: 'permisA' }, // v1.3.81 #20
+  { id: 'noel', name: '🎄 Thème Noël', desc: 'Neige et lumières — 100 % cosmétique.', cost: 5000, currency: 'pilote' }, // v1.3.81 #20
+  { id: 'ete', name: '🏖️ Thème Été', desc: 'Soleil et plage — 100 % cosmétique.', cost: 5000, currency: 'pilote' }, // v1.3.81 #20
 ];
 
 // Packs : plusieurs cosmétiques à prix réduit, payés dans une seule monnaie
@@ -168,6 +191,11 @@ export const ENDLESS_LEVEL = {
 export const WEEKEND_LEVEL = {
   id: 100, name: 'Week-end doré', theme: 'sunset', diff: 'pilote', speed: 560, lines: 40,
   gapMin: 300, gapMax: 430, w: { dash: 0.4, band: 0.3, chevron: 0.3 }, pDouble: 0.4, cost: 0, weekend: true,
+};
+// v1.3.81 : #13 — niveau thématique hebdomadaire (samedi/dimanche, en plus du Week-end doré)
+export const WEEKLY_LEVEL = {
+  id: 900, name: 'Orage hebdo', theme: 'nuit', diff: 'permisA', speed: 470, lines: 32,
+  gapMin: 310, gapMax: 440, w: { dash: 0.5, band: 0.3, chevron: 0.2 }, pDouble: 0.35, cost: 0, weekly: true,
 };
 
 export const ACHIEVEMENTS = [

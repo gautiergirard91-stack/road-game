@@ -197,3 +197,48 @@ Bug : `getSpeedrunAll()` dédoubonnait **par joueur globalement** (meilleur temp
 
 Les deux modes ne différaient que par le chrono/bonus de vitesse : **un seul mode maintenant**. Chaque partie produit un **score 🏁 ET un chrono ⏱** (tous deux envoyés au classement). Pénalités de temps : raté = **+0,5 s** (popup « RATÉ +0,5 s »), continuer = **+2 s** (plus de coût en pièces). Le sélecteur Standard/Speedrun et le verrou speedrun (v1.3.73) sont supprimés. HUD : score + chrono live ; écran de fin : score, temps et double rang (#N score · #N temps).
 
+
+## v1.3.78 — fondations esport (rapport #28/#31/#4/#26)
+
+- `timeMs` mesuré au dernier tap (fin du biais de quantification 60/120 Hz).
+- Départage officiel des égalités : `compareEntries` (timeMs → avgMs → score → misses → date) au classement et à l'écran de fin.
+- Anti-triche par niveau côté règles RTDB (`lines` + bornes `score ≤ lines×250`, `timeMs ≥ lines×400`) — **déployer les règles Firebase**.
+- Indicateur signé ±ms du biais de réaction à l'écran de fin.
+- File hors-ligne : les entrées définitivement refusées (401/403) sont abandonnées au lieu de bloquer la file.
+
+
+## v1.3.79 — replays vérifiables (#30)
+
+- Replay de chaque run terminé (seed + taps signés + instants), meilleur run gardé en local, hash SHA-256 soumis avec score/temps (règle `hash` 64 hex).
+- Mode lecture « ▶ Voir mon replay » (hors classement, entrées ignorées).
+- Rate-limit client anti-flood : 3 s min entre 2 écritures en ligne.
+
+
+## v1.3.80 — accessibilité P0 (rapport #6/#15/#16/#17/#19/#27/#29)
+
+- Gros doigts (zones 60/40 + swipe 25 px), animations réduites, thème contraste élevé, taille de texte réglable, annonces ARIA (sr-live).
+- Marqueur du 0 ms (flash sous la roue) — option **hors classement** (règle `aids`).
+- Infobulle « 0 ms » avec schéma SVG (fenêtre symétrique ±45 ms, beat à t=0).
+
+
+## v1.3.81 — compétition visible + niveaux (rapport #22/#23/#25/#18/#14/#13/#20/#21/#10/#9/#12)
+
+- Médailles 🥇🥈🥉 (rang top 3) par niveau + tiers Bronze→Légende affichés dans le menu.
+- Saison hebdomadaire (onglet 🗓️, nœud `/seasons/<semaine>` — redéployer les règles).
+- Écran de fin : rang animé + partage de la carte de score.
+- Défis du jour : + « 0 raté sur N lignes » et « combo max xN ».
+- Niveau hebdo 🗓️ « Orage hebdo » le week-end ; thèmes saisonniers cosmétiques (Halloween/Noël/Été) ; icône PWA saisonnière.
+- Cartes de niveaux : bonus 1er clear et paliers Survie visibles ; courbe lissée (gapMin ≥ 260, pDouble ≤ 0,35) ; boss 👹 niveaux 5/10/15.
+
+
+## v1.3.82 — feel & social (rapport #1/#2/#3/#5/#7/#8/#11/#24) — FIN DU RAPPORT
+
+- Mode entraînement (vies infinies, vitesse réglable, hors classement), buffer d'input 120 ms, fantôme du record par ligne.
+- Calibration latence tactile (±100 ms, hors classement si active), vibration on/off + patterns, mode gaucher, fenêtres adaptatives 3 niveaux (hors classement si ≠ standard).
+- Duels asynchrones entre amis (⚔️ dans le classement amis → « Duels reçus » dans Défis).
+- **Toutes les propositions #1–#31 du rapport sont implémentées** (voir PR #62, #63–#67).
+
+
+## v1.3.83 — pseudo récupéré du cloud à la reconnexion
+
+- Le pseudo est inclus dans le snapshot cloud (`players/<uid>`) et restauré par `mergeRemote` quand il manque en local ; la modale pseudo se ferme toute seule si le cloud le fournit.

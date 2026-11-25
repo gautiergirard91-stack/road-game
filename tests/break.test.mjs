@@ -27,6 +27,7 @@ const { WINDOWS, LEVELS } = await import('../js/data.js');
 const store = await import('../js/store.js');
 const lb = await import('../js/leaderboard.js');
 const { Game } = await import('../js/game.js');
+lb._setWriteGap(0); // tests : rate-limit client désactivé par défaut (testé à part en section BC)
 
 let passed = 0;
 function ok(name, cond) {
@@ -820,7 +821,7 @@ console.log('W. v1.3.45 : wideWindows hors classement en ligne (garde client + f
   const srTop = await lb.getSpeedrunTop('all');
   ok('getSpeedrunTop exclut aussi wideWindows', srTop.every((e) => e.pseudo !== 'Wide'));
 
-  ok('database.rules.json : les 3 règles .write rejettent wideWindows==true', (rules.match(/wideWindows'\)\.val\(\) != true/g) || []).length === 3);
+  ok('database.rules.json : les 3 règles .write rejettent wideWindows==true', (rules.match(/wideWindows'\)\.val\(\) != true/g) || []).length === 4); // v1.3.81 : + nœud seasons
 
   const pauseHtml = html.slice(html.indexOf('id="pause-overlay"'), html.indexOf('id="continue-overlay"'));
   ok('index.html : #btn-pause-retry présent UNE FOIS et dans pause-overlay', (html.match(/id="btn-pause-retry"/g) || []).length === 1 && pauseHtml.includes('btn-pause-retry'));
@@ -932,7 +933,7 @@ console.log('Z. v1.3.48 : « Meilleur combo » retiré de l\'écran de fin + ré
   delete globalThis.fetch;
 
   // onglet ⚡ Réaction
-  ok('main.js : onglet « reaction » dans le filtre + branche isReact (tri croissant avgMs)', mainSrc.includes("{ id: 'reaction', name: '⚡ Réaction' }") && mainSrc.includes('isReact') && mainSrc.includes('a.avgMs - b.avgMs'));
+  ok('main.js : onglet « reaction » dans le filtre + branche isReact (tri croissant avgMs)', mainSrc.includes("{ id: 'reaction', name: '⚡ Réaction' }") && mainSrc.includes('isReact') && mainSrc.includes("compareEntries(a, b, 'reaction')"));
   ok('main.js : lignes LB affichent ⚡ avgMs quand présent', mainSrc.includes('⚡${e.avgMs}ms'));
 }
 
@@ -1518,7 +1519,7 @@ console.log('AV. v1.3.72 : le service worker ne touche plus aux requêtes cross-
 
   // GET RTDB en no-store
   const n = (lbSrc.match(/cache: 'no-store'/g) || []).length;
-  ok('leaderboard.js : cache: \'no-store\' sur les 7 GET RTDB (ping x2, scores x2, challenges, speedrun x2)', n === 7);
+  ok('leaderboard.js : cache: \'no-store\' sur les 9 GET RTDB (v1.3.81 seasons, v1.3.82 duels) (ping x2, scores x2, challenges, speedrun x2)', n === 9);
   ok('leaderboard.js : les POST (submitScore/submitSpeedrun) restent des POST (non concernés par le cache)', (lbSrc.match(/method: 'POST'/g) || []).length >= 3);
   ok('cloudsave.js : GET players/<uid> en no-store (sauvegarde cloud fraîche)', csSrc.includes("fetch(url(`/players/${key(account)}`, idToken), { cache: 'no-store' })"));
 }
@@ -1538,7 +1539,7 @@ console.log('AW. v1.3.73 : speedrun d\'un niveau verrouillé tant qu\'il n\'a pa
   ];
   const byReac = lb.sortLbRows(rowsR, 'reaction', null);
   ok('sortLbRows reaction : avgMs croissant d\'abord (B 23ms, A 40ms), puis sans avgMs par score desc (C)', byReac.map((r) => r.pseudo).join(',') === 'B,A,C');
-  ok('leaderboard.js : branche sort === \'reaction\' (avgMs asc, repli score desc)', lbSrc.includes("sort === 'reaction'") && lbSrc.includes('Number.isFinite(a.avgMs)'));
+  ok('leaderboard.js : branche sort === \'reaction\' via compareEntries (v1.3.78 : avgMs asc, repli score desc, date)', lbSrc.includes("sort === 'reaction' ? 'reaction'") && lbSrc.includes('export function compareEntries'));
 
   // cycle de tri à 3 + persistance
   ok('main.js : cycle lbSort score→time→reaction→score + lbSortLabel() avec ⚡ Réaction', mainSrc.includes("lbSort === 'score' ? 'time' : lbSort === 'time' ? 'reaction' : 'score'") && mainSrc.includes('function lbSortLabel()') && mainSrc.includes('Trier : ⚡ Réaction'));
@@ -1628,7 +1629,7 @@ console.log('AZ. v1.3.76 : voies manuelles (swipe → / ➡ pour revenir, plus d
   ok('game.js : collision frontale finish(\'oncoming\') si joueur à gauche + voiture de face au même niveau', gameSrc.includes("this.finish('oncoming')") && gameSrc.includes('Math.abs(this.distance - c.p) < 58'));
   ok('game.js : indicateur danger (0..1) + spawn sens inverse avec lead ≥1050 px si joueur à gauche (fenêtre d\'action)', gameSrc.includes('this.danger = 0;') && gameSrc.includes('const lead = playerLeft ? 1050 + this.rand() * 800') && gameSrc.includes('tOncoming, 1.4'));
   ok('game.js : alerte visuelle ⚠ dessinée + jamais 2 voitures d\'affilée < 520 px même file', gameSrc.includes('⚠ VOITURE DE FACE') && gameSrc.includes('c.p < this.distance + 520'));
-  ok('main.js : trySwipe gère GAUCHE (swipeLeft) et DROITE (swipeRight) + branches swipeRight clavier/souris', mainSrc.includes('dx > 40') && mainSrc.includes('game.swipeRight()') && (mainSrc.match(/swipeRight\(\)/g) || []).length >= 3);
+  ok('main.js : trySwipe gère GAUCHE (swipeLeft) et DROITE (swipeRight) + branches swipeRight clavier/souris', mainSrc.includes('dx > minSwipe') && mainSrc.includes('dx < -minSwipe') && mainSrc.includes('game.swipeRight()') && (mainSrc.match(/swipeRight\(\)/g) || []).length >= 3); // v1.3.80 : seuil réglable (bigTargets)
   ok('main.js : raison oncoming affichée à l\'écran de fin', mainSrc.includes("reason === 'oncoming'") && mainSrc.includes('Voiture de face'));
 
   // zones tactiles : défaut gauche/droite, option = haut/bas
@@ -1667,10 +1668,263 @@ console.log('BA. v1.3.77 : MODE UNIQUE (standard+speedrun fusionnés) — chrono
   ok('index.html : plus de btn-mode-* + label « Mode unique » + HUD #hud-time + écran fin #over-time', !html.includes('btn-mode-speedrun') && !html.includes('btn-mode-normal') && html.includes('Mode unique') && html.includes('id="hud-time"') && html.includes('id="over-time"'));
   ok('main.js : plus de save.speedrun / srLocked / btn-mode / continueCost', !mainSrc.includes('save.speedrun') && !mainSrc.includes('srLocked') && !mainSrc.includes('btn-mode') && !mainSrc.includes('continueCost'));
   ok('main.js : startLevel passe speedrun: true (chrono + bonus vitesse actifs) + chrono live dans le HUD (setInterval #hud-time)', mainSrc.includes('speedrun: true,') && mainSrc.includes('hudTimer = setInterval') && mainSrc.includes("$('#hud-time')"));
-  ok('main.js : onGameEnd envoie le score (toujours) ET le temps (si terminé) + markCleared sans !sr', mainSrc.includes('if (canSubmitToLeaderboard(save)) {') && mainSrc.includes('if (stats.completed && canSubmitToLeaderboard(save)) {') && mainSrc.includes('if (stats.completed) store.markCleared(level.id);'));
+  ok('main.js : onGameEnd envoie le score (toujours) ET le temps (si terminé) + markCleared sans !sr', mainSrc.includes('if (!isReplay && canSubmitToLeaderboard(save)) {') && mainSrc.includes('if (stats.completed && !isReplay && canSubmitToLeaderboard(save)) {') && mainSrc.includes('if (stats.completed) store.markCleared(level.id);'));
   ok('main.js : over-rank = rang score + rang temps (readRank + readTimeRank, join « · »), écran fin score + #over-time avec record', mainSrc.includes('readTimeRank') && mainSrc.includes("parts.join(' · ')") && mainSrc.includes("$('#over-time')") && mainSrc.includes('nouveau record'));
   ok('main.js : continuer = +2 s au chrono (penaltyMs += 2000, label « +2 s », plus de store.spend)', mainSrc.includes('game.penaltyMs = (game.penaltyMs || 0) + 2000') && mainSrc.includes('+2 s') && !mainSrc.includes('store.spend(save.difficulty, cost)'));
   ok('game.js : raté = +0,5 s (penaltyMs += 500, popup « RATÉ +0,5 s ») + timeMs final = elapsed + pénalités', gameSrc.includes('this.penaltyMs += 500;') && gameSrc.includes('RATÉ +0,5 s') && gameSrc.includes('(this.elapsed + this.penaltyMs / 1000)'));
+}
+
+
+console.log('BB. v1.3.78 : mesure au dernier tap + départage des égalités + anti-triche par niveau + indicateur ±ms (#28/#31/#4/#26)');
+{
+  const fsB2 = await import('node:fs');
+
+  // --- core.biasReaction (pur, signé) ---
+  assert.equal(core.biasReaction({ reactionsSigned: [10, -30, 20] }), 0);
+  assert.equal(core.biasReaction({ reactionsSigned: [-40, -20] }), -30);
+  assert.equal(core.biasReaction({ reactionsSigned: [] }), null);
+  assert.equal(core.biasReaction({}), null);
+  ok('biasReaction : moyenne signée arrondie (négatif = trop tôt), null si vide', true);
+
+  // --- compareEntries : chaîne de départage officielle (#28) ---
+  ok('compareEntries score : égalité de score -> avgMs croissant gagne',
+    lb.compareEntries({ score: 100, avgMs: 40, date: 5 }, { score: 100, avgMs: 30, date: 9 }, 'score') > 0);
+  ok('compareEntries score : égalité avgMs -> moins de misses gagne',
+    lb.compareEntries({ score: 100, avgMs: 30, misses: 2, date: 9 }, { score: 100, avgMs: 30, misses: 1, date: 5 }, 'score') > 0);
+  ok('compareEntries score : tout égal -> date la plus ancienne gagne (premier arrivé)',
+    lb.compareEntries({ score: 100, avgMs: 30, misses: 1, date: 9 }, { score: 100, avgMs: 30, misses: 1, date: 5 }, 'score') > 0);
+  ok('compareEntries time : égalité de timeMs -> avgMs croissant gagne (départage égalités de temps)',
+    lb.compareEntries({ timeMs: 5000, avgMs: 50 }, { timeMs: 5000, avgMs: 20 }, 'time') > 0);
+  ok('compareEntries time : égalité avgMs -> score desc ; joueur avec temps avant joueur sans temps',
+    lb.compareEntries({ timeMs: 5000, avgMs: 20, score: 900 }, { timeMs: 5000, avgMs: 20, score: 100 }, 'time') < 0 &&
+    lb.compareEntries({ timeMs: 5000 }, { score: 99999 }, 'time') < 0);
+  {
+    const m = new Map([['u:a', 5000], ['u:b', 5000]]);
+    const rows = [{ pseudo: 'A', uid: 'a', score: 10, avgMs: 40 }, { pseudo: 'B', uid: 'b', score: 10, avgMs: 20 }];
+    ok('sortLbRows time avec map : égalité de temps départagée à avgMs (B avant A)', lb.sortLbRows(rows, 'time', m).map((r) => r.pseudo).join(',') === 'B,A');
+  }
+
+  // --- game.js : lastResolveMs figé au dernier tap (3 sites de résolution) + dtMs signés ---
+  const gameSrc = fsB2.readFileSync(new URL('../js/game.js', import.meta.url), 'utf8');
+  ok('game.js : lastResolveMs init + figé aux 3 sites (remaining === 0)', gameSrc.includes('this.lastResolveMs = null;') && (gameSrc.match(/if \(this\.remaining === 0\) this\.lastResolveMs/g) || []).length === 3);
+  ok('game.js : reactionsSigned.push(dtMs) + finish() priorise lastResolveMs', gameSrc.includes('this.stats.reactionsSigned.push(dtMs)') && gameSrc.includes('this.lastResolveMs != null ? this.lastResolveMs'));
+
+  // --- submitSpeedrun transmet les nouveaux champs (départage + anti-triche + hash replay) ---
+  {
+    const posts = [];
+    globalThis.fetch = async (url, opts) => { posts.push({ url: String(url), body: opts && opts.body ? JSON.parse(opts.body) : null }); return { ok: true, json: async () => null }; };
+    await lb.submitSpeedrun(2, { pseudo: 'T', uid: 'u1', timeMs: 12000, level: 'L', date: 1, mode: 'auto', lines: 20, avgMs: 33, misses: 1, score: 800, biasMs: -12, hash: 'a'.repeat(64) }, 'TOK');
+    const post = posts.find((p) => p.body);
+    ok('submitSpeedrun transmet lines/avgMs/misses/score/biasMs/hash dans le POST', !!post && post.body.lines === 20 && post.body.avgMs === 33 && post.body.misses === 1 && post.body.score === 800 && post.body.biasMs === -12 && /^[0-9a-f]{64}$/.test(post.body.hash));
+    delete globalThis.fetch;
+  }
+
+  // --- flushQueue : entrée refusée définitivement (HTTP 401/403, ex. pré-MAJ sans lines) -> abandonnée, file non bloquée ---
+  {
+    globalThis.fetch = async () => ({ ok: false, status: 403, json: async () => null });
+    localStorage.setItem('roadtap_lb_queue_v1', JSON.stringify([{ kind: 'score', payload: { pseudo: 'Old', score: 10, level: 'L', levelId: 1, mode: 'auto', date: 1 }, at: 1 }]));
+    const sent = await lb.flushQueue('TOK403X', 'u9');
+    ok('flushQueue : refus définitif règles (HTTP 403) -> entrée abandonnée, file vidée (anti-blocage)', sent === 1 && lb.queueSize() === 0);
+    delete globalThis.fetch;
+  }
+
+  // --- règles RTDB : anti-triche par niveau + hash optionnel + garde-fous audit ---
+  {
+    const rules = JSON.parse(fsB2.readFileSync(new URL('../database.rules.json', import.meta.url), 'utf8')).rules;
+    const wS = rules.scores['$mode']['$id']['.write'];
+    const wR = rules.speedrun['$level']['$id']['.write'];
+    ok("rules scores : hasChildren exige 'lines' + score <= lines*250 + hash 64 hex optionnel + avgMs/biasMs/misses bornés",
+      wS.includes("'lines'") && wS.includes("newData.child('score').val() <= newData.child('lines').val() * 250") && wS.includes("matches(/^[0-9a-f]{64}$/)") && wS.includes("'biasMs'"));
+    ok("rules speedrun : hasChildren exige 'lines' + timeMs >= lines*400 (borne basse anti-bot) + score <= lines*250 si présent",
+      wR.includes("'lines'") && wR.includes("newData.child('timeMs').val() >= newData.child('lines').val() * 400") && wR.includes("newData.child('score').val() <= newData.child('lines').val() * 250"));
+    ok("rules : !data.exists() + auth.uid conservés (audit §12) sur scores et speedrun", wS.includes('!data.exists()') && wS.includes('auth.uid') && wR.includes('!data.exists()') && wR.includes('auth.uid'));
+  }
+
+  // --- main.js : envois enrichis + départage écran de fin + indicateur ±ms ---
+  const mainSrc2 = fsB2.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  ok('main.js : submitScore/submitSpeedrun envoient lines: linesCount + misses + biasMs (+ avgMs/score côté speedrun)',
+    (mainSrc2.match(/lines: linesCount/g) || []).length >= 2 && (mainSrc2.match(/biasMs: biasReaction\(stats\)/g) || []).length === 2 && mainSrc2.includes('misses: stats.misses || 0'));
+  ok('main.js : over-rank + branche reaction utilisent compareEntries (≥3 appels)', (mainSrc2.match(/compareEntries\(a, b, '(score|time|reaction)'\)/g) || []).length >= 3);
+  ok('main.js : écran de fin affiche le biais signé ±ms (trop tôt / trop tard) #31', mainSrc2.includes("bias < 0 ? '−' : '+'") && mainSrc2.includes('trop tôt') && mainSrc2.includes('trop tard'));
+}
+
+
+console.log('BC. v1.3.79 : replays vérifiables (#30) — enregistrement taps, hash SHA-256 soumis, lecture replay, rate-limit client');
+{
+  const fsB3 = await import('node:fs');
+  const gameSrc = fsB3.readFileSync(new URL('../js/game.js', import.meta.url), 'utf8');
+  const mainSrc = fsB3.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  const storeSrc = fsB3.readFileSync(new URL('../js/store.js', import.meta.url), 'utf8');
+  const lbSrc = fsB3.readFileSync(new URL('../js/leaderboard.js', import.meta.url), 'utf8');
+  const html = fsB3.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+
+  ok('game.js : replay initialisé (seed+mode+taps) + replayPlay + rejoue auto dans update() + tap(zone, auto) protégé',
+    gameSrc.includes('this.replay = { seed: levelSeed(') && gameSrc.includes('this.replayPlay = opts.replay || null;') && gameSrc.includes('while (this.replayIdx < this.replayPlay.taps.length') && gameSrc.includes("if (this.replayPlay && !auto) return;"));
+  ok('game.js : taps enregistrés (tap dt signé, crosswalk, miss) + swipes bloqués en replay',
+    (gameSrc.match(/this\.replay\.taps\.push\(/g) || []).length === 3 && gameSrc.includes("if (this.replayPlay) return; // v1.3.79 : replay = lecture seule"));
+  ok('store.js : replays dans defaults + sanitize replayMap + getReplay/setReplay (garde le meilleur timeMs)',
+    storeSrc.includes('replays: {}') && storeSrc.includes('function replayMap') && storeSrc.includes('export function getReplay') && storeSrc.includes('export function setReplay'));
+  ok('store fonctionnel : setReplay garde le meilleur temps, getReplay relit', (() => {
+    store.setReplay('auto', 1, { seed: 1, taps: [{ a: 'rear', dt: 0, t: 10 }], timeMs: 9000, score: 100 });
+    store.setReplay('auto', 1, { seed: 1, taps: [{ a: 'rear', dt: 1, t: 20 }], timeMs: 12000, score: 50 });
+    const r = store.getReplay('auto', 1);
+    return r && r.timeMs === 9000 && r.taps.length === 1;
+  })());
+  ok('main.js : replayHash (SHA-256 crypto.subtle + repli FNV 64 hex) + hash ajouté aux 2 envois + lastRun + btn-replay',
+    mainSrc.includes('crypto.subtle.digest') && (mainSrc.match(/hash: replayHashHex/g) || []).length === 2 && mainSrc.includes('let lastRun = null;') && mainSrc.includes("on('btn-replay', 'click'") && html.includes('id="btn-replay"'));
+  ok('main.js : startLevel(level, replayRep) + badge ▶ REPLAY + entrée joueur ignorée en replay (pointerdown + clavier)',
+    mainSrc.includes('function startLevel(level, replayRep = null)') && mainSrc.includes('▶ REPLAY ·') && mainSrc.includes('if (game && game.replayPlay) return; // v1.3.79 : replay = lecture seule') && mainSrc.includes("game.replayPlay && action !== 'retry'"));
+  ok('leaderboard.js : rate-limit doux client — MIN_WRITE_GAP_MS 3000 + gap check dans submitScore ET submitSpeedrun + _setLastWriteAt exporté',
+    lbSrc.includes('let MIN_WRITE_GAP_MS = 3000;') && (lbSrc.match(/Date\.now\(\) - lastOnlineWriteAt < MIN_WRITE_GAP_MS/g) || []).length === 4 && lbSrc.includes('export function _setWriteGap')); // v1.3.81 : + submitSeason
+  {
+    // fonctionnel : 2 submitScore rapprochées -> 1 seul POST, la 2e est en file (anti-flood #30d)
+    const posts = [];
+    globalThis.fetch = async (url, opts) => { if (opts && opts.method === 'POST') posts.push({ url: String(url), body: JSON.parse(opts.body) }); return { ok: true, json: async () => null }; };
+    lb._setWriteGap(3000);
+    lb._setLastWriteAt(0);
+    localStorage.removeItem('roadtap_lb_queue_v1');
+    await lb.submitScore({ pseudo: 'T', uid: 'u1', score: 100, level: 'L', levelId: 1, mode: 'auto', date: 1, lines: 10 }, 'TOK');
+    await lb.submitScore({ pseudo: 'T', uid: 'u1', score: 200, level: 'L', levelId: 1, mode: 'auto', date: 2, lines: 10 }, 'TOK');
+    ok('rate-limit fonctionnel : 2 envois < 3 s -> 1 POST + 1 en file', posts.length === 1 && posts[0].body.score === 100 && lb.queueSize() === 1);
+    lb._setWriteGap(0);
+    lb._setLastWriteAt(0);
+    localStorage.removeItem('roadtap_lb_queue_v1');
+    delete globalThis.fetch;
+  }
+  {
+    // fonctionnel : replayHash via source main.js évalué ? non — on teste le contrat via crypto directement (node a crypto.subtle)
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('{"seed":1}'));
+    const hex = [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+    ok('contrat hash : SHA-256 -> 64 hex (règle RTDB matches(/^[0-9a-f]{64}$/))', /^[0-9a-f]{64}$/.test(hex));
+  }
+}
+
+
+console.log('BD. v1.3.80 : accessibilité P0 — #6 gros doigts/swipe, #15 anims réduites, #16 contraste élevé, #17 taille texte, #19 ARIA, #27 marqueur 0 ms (hors LB), #29 infobulle');
+{
+  const fsB4 = await import('node:fs');
+  const mainSrc = fsB4.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  const gameSrc = fsB4.readFileSync(new URL('../js/game.js', import.meta.url), 'utf8');
+  const coreSrc = fsB4.readFileSync(new URL('../js/core.js', import.meta.url), 'utf8');
+  const storeSrc = fsB4.readFileSync(new URL('../js/store.js', import.meta.url), 'utf8');
+  const dataSrc = fsB4.readFileSync(new URL('../js/data.js', import.meta.url), 'utf8');
+  const html = fsB4.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const css = fsB4.readFileSync(new URL('../css/style.css', import.meta.url), 'utf8');
+  const rules = JSON.parse(fsB4.readFileSync(new URL('../database.rules.json', import.meta.url), 'utf8')).rules;
+
+  ok('core.zoneFromPoint : paramètre ratio (défaut 0,5 ; gros doigts 0,6 -> zone AV élargie)', core.zoneFromPoint(10, 500, 100, 1000, true, 0.6) === 'front' && core.zoneFromPoint(59, 500, 100, 1000, true, 0.6) === 'front' && core.zoneFromPoint(61, 500, 100, 1000, true, 0.6) === 'rear' && core.zoneFromPoint(10, 500, 100, 1000, true) === 'front');
+  ok('main.js : ratio 0,6 transmis si bigTargets + seuil swipe 25 px (trySwipe minSwipe)', mainSrc.includes('save.bigTargets ? 0.6 : 0.5') && mainSrc.includes('save.bigTargets ? 25 : 40') && mainSrc.includes('dx < -minSwipe') && mainSrc.includes('dx > minSwipe'));
+  ok('store : bigTargets dans defaults + sanitize + setBigTargets', storeSrc.includes('bigTargets: false') && storeSrc.includes('s.bigTargets = bool(s.bigTargets)') && storeSrc.includes('export function setBigTargets'));
+
+  ok('game.js : reduceAnims coupe shake/particules/flash', (gameSrc.match(/!this\.access\.reduceAnims/g) || []).length >= 5 && gameSrc.includes("this.access.reduceAnims ? 0 : 0.3"));
+  ok('main.js : applyUiPrefs (dataset.textsize + body.reduce-anims) appelé au boot + select #s-opt-textsize câblé', mainSrc.includes('function applyUiPrefs()') && mainSrc.includes('applyUiPrefs();') && mainSrc.includes("on('s-opt-textsize', 'change'"));
+  ok('css : body.reduce-anims coupe transitions/animations + html[data-textsize] règle la taille', css.includes('body.reduce-anims *') && css.includes("html[data-textsize='large'] body"));
+
+  ok('data.js : THEMES.highcontrast (fond #000, ligne #fff) + prioritaire dans startLevel', dataSrc.includes("id: 'highcontrast'") && mainSrc.includes("save.highContrast ? 'highcontrast'"));
+
+  ok('game.js : hitMarker — flash au franchissement dy=0 + access passé dans startLevel (2 sites)', gameSrc.includes('if (this.access.hitMarker)') && gameSrc.includes('(prev < 0 && ad >= 0)') && (mainSrc.match(/hitMarker: !!save\.hitMarker/g) || []).length === 2);
+  ok('core.canSubmitToLeaderboard : hitMarker -> hors classement (comme wideWindows)', core.canSubmitToLeaderboard({ pseudo: 'a', uid: 'u', hitMarker: true }) === false && core.canSubmitToLeaderboard({ pseudo: 'a', uid: 'u' }) === true);
+  ok("rules : clause aids != true ajoutée aux 3 noeuds écrits", rules.scores['$mode']['$id']['.write'].includes('aids') && rules.speedrun['$level']['$id']['.write'].includes('aids') && rules.challenges['$day']['$id']['.write'].includes('aids'));
+
+  ok('main.js : toast() écrit aussi dans #sr-live (aria-live) + index.html : #sr-live + dialog aria-modal', mainSrc.includes("$('#sr-live')") && html.includes('id="sr-live"') && html.includes('aria-live="polite"') && html.includes('role="dialog"'));
+
+  ok('index.html : modal-timing avec SVG explicatif (0 ms, ±45/100/160 symétrique) + 3 boutons + fermeture', html.includes('id="modal-timing"') && html.includes('<svg viewBox="0 0 320 200"') && html.includes('symétrique') && html.includes('id="btn-help-timing"') && html.includes('id="btn-help-timing-levels"') && html.includes('id="btn-hud-help"') && html.includes('id="btn-timing-close"'));
+  ok('main.js : handlers modal (3 ouvertures + close + clic extérieur) + nouvelles options s-opt-* présentes dans le HTML',
+    mainSrc.includes("on('btn-help-timing', 'click'") && mainSrc.includes("on('btn-hud-help', 'click'") && mainSrc.includes("on('btn-timing-close', 'click'") && ['s-opt-bigtargets', 's-opt-reduceanims', 's-opt-highcontrast', 's-opt-hitmarker', 's-opt-textsize'].every((id) => (mainSrc.includes(`'${id}'`) || mainSrc.includes(`'${id.replace('s-', '')}'`)) && html.includes(`id="${id}"`))); // v1.3.80 ACCESS_OPTS (préfixe 's-' ajouté au câblage)
+}
+
+
+console.log('BE. v1.3.81 : compétition visible + niveaux — #22 médailles, #23 tiers, #25 saison hebdo, #18 partage+rang animé, #14 défis, #13 niveau hebdo, #20 thèmes saison, #21 icône saison, #10 récompenses visibles, #9 courbe lissée, #12 boss');
+{
+  const fsB5 = await import('node:fs');
+  const mainSrc = fsB5.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  const coreSrc = fsB5.readFileSync(new URL('../js/core.js', import.meta.url), 'utf8');
+  const dataSrc = fsB5.readFileSync(new URL('../js/data.js', import.meta.url), 'utf8');
+  const storeSrc = fsB5.readFileSync(new URL('../js/store.js', import.meta.url), 'utf8');
+  const lbSrc = fsB5.readFileSync(new URL('../js/leaderboard.js', import.meta.url), 'utf8');
+  const html = fsB5.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const rules = JSON.parse(fsB5.readFileSync(new URL('../database.rules.json', import.meta.url), 'utf8')).rules;
+  const manifest = JSON.parse(fsB5.readFileSync(new URL('../manifest.webmanifest', import.meta.url), 'utf8'));
+  const swSrc = fsB5.readFileSync(new URL('../sw.js', import.meta.url), 'utf8');
+
+  // #22 médailles + #23 tiers
+  ok('store : medals (defaults+sanitize+get/set, meilleure gardée)', storeSrc.includes('medals: {}') && storeSrc.includes('s.medals = numMap(s.medals)') && storeSrc.includes('export function setMedal'));
+  ok('store fonctionnel setMedal : or(1) conservé vs bronze(3)', (() => { store.setMedal('auto', 1, 3); store.setMedal('auto', 1, 1); store.setMedal('auto', 1, 2); return store.getMedal('auto', 1) === 1; })());
+  ok('core.tierOf : Bronze->Légende selon les points de médailles (or=3 pts)', core.tierOf({}).id === 'bronze' && core.tierOf({ 'a:1': 1, 'a:2': 1 }).pts === 6 && (() => { const m = {}; for (let i = 0; i < 34; i++) m['k' + i] = 1; return core.tierOf(m).id === 'legende' && core.tierOf(m).pts === 102; })());
+  ok('main.js : setMedal au rang top3 + updateTier + #menu-tier dans le HTML + médailles sur les cartes de niveaux', mainSrc.includes('store.setMedal(runMode, level.id, i + 1)') && mainSrc.includes('function updateTier()') && html.includes('id="menu-tier"') && mainSrc.includes("['🥇', '🥈', '🥉'][md - 1]"));
+
+  // #25 saison hebdo
+  ok('leaderboard.js : submitSeason + getSeasonAll (nœud /seasons/<week>/<mode>, rate-limit partagé)', lbSrc.includes('export async function submitSeason') && lbSrc.includes('/seasons/${week}/${modeOf(entry)}.json') && lbSrc.includes('export async function getSeasonAll'));
+  ok('rules : nœud seasons (read public + write create-only/uid/lines/aids) + indexOn', rules.seasons && rules.seasons['$week']['$mode']['$id']['.write'].includes('!data.exists()') && rules.seasons['$week']['$mode']['$id']['.write'].includes('lines') && rules.seasons['$week']['$mode']['.indexOn'].includes('score'));
+  ok('main.js : onglet 🗓️ Saison + branche isSeason (getSeasonAll(weekKey())) + envoi submitSeason à la fin de partie', mainSrc.includes("{ id: 'season', name: '🗓️ Saison' }") && mainSrc.includes('getSeasonAll(weekKey()') && mainSrc.includes('leaderboard.submitSeason(weekKey()'));
+
+  // #18 écran de fin : partage + rang animé
+  ok('main.js : btn-share (Web Share + repli presse-papiers) + lastShare + rang animé (#N compte)', mainSrc.includes("on('btn-share', 'click'") && mainSrc.includes('navigator.share') && mainSrc.includes('navigator.clipboard.writeText') && mainSrc.includes('let lastShare = null;') && mainSrc.includes('setInterval') && html.includes('id="btn-share"'));
+
+  // #14 nouveaux défis du jour
+  ok("core : CHALLENGE_KINDS + 'nomiss' + 'maxcombo' + main.js branches de validation", coreSrc.includes("id: 'nomiss'") && coreSrc.includes("id: 'maxcombo'") && mainSrc.includes("dc.kind === 'nomiss'") && mainSrc.includes("dc.kind === 'maxcombo'"));
+
+  // #13 niveau hebdo + #10 récompenses visibles + #12 boss
+  ok('data.js : WEEKLY_LEVEL (id 900, weekly) + niveaux 5/10/15 boss:true + thèmes halloween/noel/ete dans THEMES et THEME_SHOP',
+    dataSrc.includes('export const WEEKLY_LEVEL') && dataSrc.includes('weekly: true') && (dataSrc.match(/boss: true/g) || []).length === 3 && dataSrc.includes("id: 'halloween'") && dataSrc.includes("id: 'noel'") && dataSrc.includes("id: 'ete'") && dataSrc.includes('Thème Halloween'));
+  ok('main.js : WEEKLY_LEVEL affiché le week-end + carte avec bonus 1er clear / paliers Survie + 👹 boss', mainSrc.includes('[WEEKEND_LEVEL, WEEKLY_LEVEL]') && mainSrc.includes('firstClearBonus(l)') && mainSrc.includes('paliers 25/50/100') && mainSrc.includes("l.boss ? ' 👹'"));
+
+  // #9 courbe lissée
+  ok('core.buildPattern : gapMin plancher 260 + pDouble plafonné 0,35 (boss 0,45 min)', coreSrc.includes('Math.max(260, Number.isFinite(level.gapMin)') && coreSrc.includes('Math.min(level.pDouble || 0, 0.35)') && coreSrc.includes('Math.max(level.pDouble || 0, 0.45)'));
+
+  // #21 icône saisonnière
+  ok('main.js : applySeasonIcon (mois -> svg) au boot + 3 fichiers icons/*.svg + manifest + sw ASSETS', mainSrc.includes('function applySeasonIcon()') && mainSrc.includes('applySeasonIcon();') && manifest.icons.some((i) => i.src === 'icons/icon-halloween.svg') && swSrc.includes("'./icons/icon-noel.svg'") && fsB5.existsSync(new URL('../icons/icon-ete.svg', import.meta.url)));
+}
+
+
+console.log('BF. v1.3.82 : feel & social — #1 entraînement, #2 buffer/coyote, #3 fantôme record, #5 calibration latence, #7 vibration, #8 gaucher, #11 fenêtres adaptatives, #24 duels amis');
+{
+  const fsB6 = await import('node:fs');
+  const mainSrc = fsB6.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  const gameSrc = fsB6.readFileSync(new URL('../js/game.js', import.meta.url), 'utf8');
+  const coreSrc = fsB6.readFileSync(new URL('../js/core.js', import.meta.url), 'utf8');
+  const storeSrc = fsB6.readFileSync(new URL('../js/store.js', import.meta.url), 'utf8');
+  const lbSrc = fsB6.readFileSync(new URL('../js/leaderboard.js', import.meta.url), 'utf8');
+  const html = fsB6.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+
+  ok('store : training/trainSpeed/vibrate/leftHanded/windowLevel/latencyOffsetMs (defaults + sanitize + setters)', storeSrc.includes('training: false') && storeSrc.includes('export function setTraining') && storeSrc.includes('export function setWindowLevel') && storeSrc.includes('export function setLatencyOffsetMs'));
+  ok('game.js : training = vies infinies (maxMisses=Infinity) + inputBuffer créé', gameSrc.includes('this.training ? Infinity : maxMissesFor') && gameSrc.includes('makeInputBuffer(120)'));
+  ok('main.js : startLevel ralenti en entraînement + badge 🎓 + toasts hors classement (training/windowLevel/latency) + effWindows 3 niveaux (#11)', mainSrc.includes('Math.max(60, Math.round(level.speed * (save.trainSpeed || 1)))') && mainSrc.includes('🎓 ENTRAÎNEMENT') && mainSrc.includes("save.windowLevel === 'large'") && mainSrc.includes("save.windowLevel === 'xlarge'") && mainSrc.includes('hors classement en ligne'));
+  ok('core.canSubmitToLeaderboard : training / windowLevel!=standard / latencyOffsetMs -> hors classement', core.canSubmitToLeaderboard({ pseudo: 'a', uid: 'u', training: true }) === false && core.canSubmitToLeaderboard({ pseudo: 'a', uid: 'u', windowLevel: 'large' }) === false && core.canSubmitToLeaderboard({ pseudo: 'a', uid: 'u', latencyOffsetMs: 20 }) === false && core.canSubmitToLeaderboard({ pseudo: 'a', uid: 'u' }) === true);
+
+  ok('core.makeInputBuffer : push/consume fenêtre 120 ms, consomme le tap', (() => { const b = core.makeInputBuffer(120); b.push(1000, 'rear'); b.push(1050, 'front'); return b.consume(1100, 'rear') === 1000 && b.consume(1100, 'rear') === null && b.consume(1100, 'front') === 1050 && b.consume(2000, 'front') === null; })());
+  ok('game.js : tap bufferisé rejugé à son instant (fromBuffer, return true) + dtMs - latencyOffsetMs (#5)', gameSrc.includes('this.inputBuffer.consume(this.time * 1000, axle)') && gameSrc.includes('fromBuffer') && gameSrc.includes('return true;') && gameSrc.includes('(this.access.latencyOffsetMs || 0)'));
+
+  ok('game.js : fantôme du record (access.ghost[line._gi]) + vibration patterns (#7)', gameSrc.includes('this.access.ghost[line._gi]') && gameSrc.includes('navigator.vibrate([15, 15, 15])') && gameSrc.includes('vibrate(80)'));
+  ok('main.js : calibration (#5) btn-calibrate + calib-zone + setLatencyOffsetMs + gaucher (#8) pointer/swipe/flèches inversés',
+    mainSrc.includes("on('btn-calibrate', 'click'") && mainSrc.includes("on('calib-zone', 'pointerdown'") && mainSrc.includes('store.setLatencyOffsetMs(off)') && mainSrc.includes('window.innerWidth - e.clientX') && mainSrc.includes('if (save.leftHanded) dx = -dx;') && mainSrc.includes("action === 'swipeRight'"));
+  ok('index.html : nouvelles options (vibrate/lefty/training/trainspeed/windowlevel/calibrate/calib-zone/calib-hint) + #duels-list', ['s-opt-vibrate', 's-opt-lefty', 's-opt-training', 's-opt-trainspeed', 's-opt-windowlevel', 'btn-calibrate', 'calib-zone', 'calib-hint', 'duels-list'].every((id) => html.includes(`id="${id}"`)));
+
+  ok('leaderboard.js : submitDuel + getDuels (nœud /challenges/duels.json, mode duel, rate-limit, no-store)', lbSrc.includes('export async function submitDuel') && lbSrc.includes('/challenges/duels.json') && lbSrc.includes('export async function getDuels') && lbSrc.includes("d.mode === 'duel'"));
+  ok("main.js : bouton ⚔️ sur les lignes amis + renderDuels dans l'écran Défis + Relever -> startLevel", mainSrc.includes("lbScope === 'friends' && !me") && mainSrc.includes('leaderboard.submitDuel(') && mainSrc.includes('async function renderDuels()') && mainSrc.includes('renderDuels();'));
+}
+
+
+console.log('BG. v1.3.83 : le pseudo est sauvegardé dans le cloud et récupéré à la reconnexion');
+{
+  const fsB7 = await import('node:fs');
+  const storeSrc = fsB7.readFileSync(new URL('../js/store.js', import.meta.url), 'utf8');
+  const mainSrc = fsB7.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+
+  ok('store.snapshot() inclut pseudo (écrit dans players/<uid>)', storeSrc.includes('pseudo: save.pseudo, // v1.3.83'));
+  ok('store.mergeRemoteBody restaure le pseudo du cloud SI local vide (jamais d\'écrasement)', storeSrc.includes("if (!save.pseudo && typeof remote.pseudo === 'string'"));
+  ok('fonctionnel : pseudo local vide -> mergeRemote({pseudo}) le récupère ; pseudo local présent -> conservé', (() => {
+    store.setPseudo('');
+    const r1 = store.mergeRemote({ pseudo: 'PseudoCloud', wallets: { auto: 42 } });
+    const p1 = store.load().pseudo;
+    store.setPseudo('LocalPseudo');
+    store.mergeRemote({ pseudo: 'AutreCloud' });
+    const p2 = store.load().pseudo;
+    store.setPseudo('');
+    return r1 === true && p1 === 'PseudoCloud' && p2 === 'LocalPseudo';
+  })());
+  ok('store.snapshot().pseudo reflète le pseudo courant', (() => { store.setPseudo('SnapTest'); const p = store.snapshot().pseudo; store.setPseudo(''); return p === 'SnapTest'; })());
+  ok('main.js : à la connexion (completeGoogleSignIn), si le pseudo revient du cloud -> modale fermée + action en attente exécutée ; idem à la restauration de session au boot', mainSrc.includes('v1.3.83 : le pseudo revient du cloud') && mainSrc.includes('pendingAfterPseudo;') && mainSrc.includes("updatePseudoSaveState(); // v1.3.83"));
 }
 
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);

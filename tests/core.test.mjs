@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { judge, pointsFor, buildPattern, coinsForResult, accuracy, avgReaction, continueCost, maxMissesFor, firstClearBonus, isPerfectClear, perfectClearBonus, axleDelta, mulberry32, dayKey, weekKey, dailyChallenge, weeklyQuests, fmtTime } from '../js/core.js';
+import { judge, pointsFor, buildPattern, coinsForResult, accuracy, avgReaction, biasReaction, continueCost, maxMissesFor, firstClearBonus, isPerfectClear, perfectClearBonus, axleDelta, mulberry32, dayKey, weekKey, dailyChallenge, weeklyQuests, fmtTime } from '../js/core.js';
 import { LEVELS, WINDOWS, MAX_MISSES, CONTINUE_BASE_COST, SKINS, EFFECTS, ACHIEVEMENTS, CURRENCIES, DIFFICULTIES, THEME_SHOP, PACKS, SOUND_PACKS } from '../js/data.js';
 
 assert.equal(judge(0), 'perfect');
@@ -43,6 +43,9 @@ assert.equal(accuracy(stats), 100);
 assert.equal(accuracy({ ...stats, misses: 3 }), Math.round((17 / 20) * 100));
 assert.equal(avgReaction(stats), 53);
 assert.equal(avgReaction({ ...stats, reactions: [] }), null);
+assert.equal(biasReaction({ reactionsSigned: [30, -12] }), 9);
+assert.equal(biasReaction({ reactionsSigned: [-40, -20] }), -30);
+assert.equal(biasReaction({ reactionsSigned: [] }), null);
 
 const r = mulberry32(42);
 assert.ok(r() >= 0 && r() < 1);
