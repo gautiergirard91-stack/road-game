@@ -2058,4 +2058,36 @@ console.log('BM. v1.3.88 : diag classement — compteur SCORES non écrasé par 
     delete globalThis.fetch;
   }
 }
+console.log('BN. v1.3.89 : reconnexion — le pseudo revient du cloud (loadRaw + 2e essai ; pushCloud ne pousse plus après un pull en échec)');
+{
+  const fsBN = await import('node:fs');
+  const mainSrc = fsBN.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  const csSrc = fsBN.readFileSync(new URL('../js/cloudsave.js', import.meta.url), 'utf8');
+  const cs = await import('../js/cloudsave.js');
+  ok('cloudsave.loadRaw exposé ({ok,data,error}) et load conservé', csSrc.includes('export async function loadRaw') && csSrc.includes('export async function load('));
+  ok('pushCloud : pull via loadRaw + "if (!r.ok) return;" — AUCUN PUT après un pull en échec (n\'écrase plus players/<uid>)', mainSrc.includes('cloudsave.loadRaw(') && mainSrc.includes('if (!r.ok) return;'));
+  ok('2e essai de lecture après 1200 ms à la connexion ET au boot (2 sites) si le 1er load échoue (401 App Check)', (mainSrc.match(/await new Promise\(\(r\) => setTimeout\(r, 1200\)\)/g) || []).length >= 3);
+  ok('noteRestoredPseudo(hadPseudo) appelé aux 3 sites de merge + toast « récupéré du cloud » + champ pseudo re-rempli', mainSrc.includes('function noteRestoredPseudo') && (mainSrc.match(/noteRestoredPseudo\(hadPseudo\)/g) || []).length >= 3 && mainSrc.includes('récupéré du cloud') && mainSrc.includes('if (pinp) pinp.value = save.pseudo;'));
+  {
+    globalThis.fetch = async () => ({ ok: false, status: 401, json: async () => null });
+    let r = await cs.loadRaw('Uid_MixedCase_ABC123', 'TOK');
+    ok('loadRaw HTTP 401 -> { ok:false, error:"HTTP 401" } (pull en échec -> pushCloud ne poussera pas)', r.ok === false && r.error === 'HTTP 401');
+    const seen = [];
+    globalThis.fetch = async (u) => { seen.push(String(u)); return { ok: true, json: async () => null }; };
+    r = await cs.loadRaw('Uid_MixedCase_ABC123', 'TOK');
+    ok('loadRaw 200 + nœud vide -> { ok:true, data:null } + URL avec uid TEL QUEL + ?auth=', r.ok === true && r.data === null && seen[0].includes('/players/Uid_MixedCase_ABC123.json') && seen[0].includes('?auth=TOK'));
+    globalThis.fetch = async () => ({ ok: true, json: async () => ({ pseudo: 'Siebeile' }) });
+    r = await cs.loadRaw('uid1', 'TOK');
+    ok('loadRaw 200 + data -> { ok:true, data:{pseudo:"Siebeile"} }', r.ok === true && r.data && r.data.pseudo === 'Siebeile');
+    delete globalThis.fetch;
+  }
+  {
+    // fonctionnel : déconnexion (resetProgress) puis reconnexion (mergeRemote du cloud)
+    store.resetProgress();
+    ok('après resetProgress (déconnexion), le pseudo local est vide', !store.get().pseudo);
+    const changed = store.mergeRemote({ pseudo: 'Siebeile', wallets: { auto: 42 } });
+    ok('mergeRemote({pseudo:"Siebeile"}) -> true et save.pseudo restauré du cloud', changed === true && store.get().pseudo === 'Siebeile');
+    ok('snapshot() conserve le pseudo restauré (le prochain push ne l\'efface pas)', store.snapshot().pseudo === 'Siebeile');
+  }
+}
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);

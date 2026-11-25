@@ -510,8 +510,11 @@ const accountKey = () => save.uid || '';
 async function pushCloud() {
   if (!leaderboard.isOnline() || !accountKey()) return;
   try {
-    const remote = await cloudsave.load(accountKey(), getAuthToken());
-    if (remote) store.mergeRemote(remote);
+    // v1.3.89 : pull d'abord via loadRaw — si le pull ÉCHOUE (401 App Check pas encore prêt / réseau),
+    // on NE pousse PAS : le PUT écraserait tout le nœud players/<uid> (perte du pseudo, des amis, etc.)
+    const r = await cloudsave.loadRaw(accountKey(), getAuthToken());
+    if (!r.ok) return;
+    if (r.data) store.mergeRemote(r.data);
     cloudsave.save(accountKey(), store.snapshot(), getAuthToken());
   } catch {
     /* push best-effort : la prochaine ouverture refera la synchro */
@@ -1932,6 +1935,15 @@ on('btn-leaderboard-back', 'click', () => {
 // max/union par champ. Il n'existe pas de « profil anonyme » côté serveur (players est keyed
 // par uid et auth-only depuis v1.3.32) : la save locale devient simplement la copie de travail
 // du compte, et on renvoie le snapshot fusionné (pushCloud en pull-merge-push).
+function noteRestoredPseudo(hadPseudo) { // v1.3.89 : toast + UI quand le pseudo revient du cloud à la reconnexion
+  if (!hadPseudo && save.pseudo) {
+    toast(`✏️ Pseudo « ${save.pseudo} » récupéré du cloud`);
+    updatePseudoSaveState();
+    const pin = $('#pseudo-input');
+    if (pin) pin.value = save.pseudo;
+  }
+}
+
 async function completeGoogleSignIn(sess) {
   setAuthToken(sess.idToken);
   store.setGoogleAccount(sess.uid, sess.email, sess.refreshToken);
@@ -1948,8 +1960,14 @@ async function completeGoogleSignIn(sess) {
   updateGoogleStatus();
   if (leaderboard.isOnline() && save.uid) {
     try {
-      const remote = await cloudsave.load(save.uid, getAuthToken());
+      const hadPseudo = !!save.pseudo; // v1.3.89 : détecter la restauration du pseudo
+      let remote = await cloudsave.load(save.uid, getAuthToken());
+      if (!remote) { // v1.3.89 : 2e essai — juste après le popup, le jeton App Check peut manquer (401)
+        await new Promise((r) => setTimeout(r, 1200));
+        remote = await cloudsave.load(save.uid, getAuthToken());
+      }
       if (remote && store.mergeRemote(remote)) {
+        noteRestoredPseudo(hadPseudo); // v1.3.89
         refreshCoins();
         renderLevels();
         renderShop();
@@ -1958,6 +1976,7 @@ async function completeGoogleSignIn(sess) {
         // v1.3.83 : le pseudo revient du cloud — si la modale pseudo était ouverte, on la ferme et on enchaîne l'action en attente
         if (save.pseudo) {
           updatePseudoSaveState();
+          if (pinp) pinp.value = save.pseudo; // v1.3.89 : le champ reflète le pseudo restauré
           const pm = $('#pseudo-modal');
           if (pm && !pm.classList.contains('hidden')) {
             pm.classList.add('hidden');
@@ -2461,8 +2480,11 @@ if (save.uid && save.googleRefresh) {
       store.setGoogleAccount(sess.uid, sess.email || save.googleEmail, sess.refreshToken);
     }
     if (leaderboard.isOnline() && accountKey()) {
-      cloudsave.load(accountKey(), getAuthToken()).then((remote) => {
+      const hadPseudo = !!save.pseudo; // v1.3.89
+      cloudsave.load(accountKey(), getAuthToken()).then(async (remote) => {
+        if (!remote) { await new Promise((r) => setTimeout(r, 1200)); remote = await cloudsave.load(accountKey(), getAuthToken()); } // v1.3.89 : 2e essai si 401 (App Check pas prêt au boot)
         if (remote && store.mergeRemote(remote)) {
+          noteRestoredPseudo(hadPseudo); // v1.3.89
           store.backupKeysForAccount(); // v1.3.57 : touches du compte calées en local aussi
           updatePseudoSaveState(); // v1.3.83 : pseudo éventuellement récupéré du cloud à la restauration de session
           refreshCoins();
@@ -2474,8 +2496,11 @@ if (save.uid && save.googleRefresh) {
     }
   });
 } else if (leaderboard.isOnline() && accountKey()) {
-  cloudsave.load(accountKey(), getAuthToken()).then((remote) => {
+  const hadPseudo = !!save.pseudo; // v1.3.89
+  cloudsave.load(accountKey(), getAuthToken()).then(async (remote) => {
+    if (!remote) { await new Promise((r) => setTimeout(r, 1200)); remote = await cloudsave.load(accountKey(), getAuthToken()); } // v1.3.89 : 2e essai si 401
     if (remote && store.mergeRemote(remote)) {
+      noteRestoredPseudo(hadPseudo); // v1.3.89
       store.backupKeysForAccount(); // v1.3.57 : touches du compte calées en local aussi
       refreshCoins();
       renderLevels();

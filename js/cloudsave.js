@@ -26,6 +26,19 @@ export async function load(account, idToken) {
   }
 }
 
+// v1.3.89 : variante qui distingue « nœud vide » (ok, data=null) d'une ERREUR (401 App Check / réseau).
+// pushCloud ne doit JAMAIS pousser après un pull en échec : le PUT écraserait tout players/<uid> (pseudo, amis…).
+export async function loadRaw(account, idToken) {
+  if (!isOnline() || !account) return { ok: false, data: null, error: 'offline' };
+  try {
+    const res = await fetch(url(`/players/${key(account)}`, idToken), { cache: 'no-store' });
+    if (!res.ok) return { ok: false, data: null, error: 'HTTP ' + res.status };
+    return { ok: true, data: await res.json() };
+  } catch {
+    return { ok: false, data: null, error: 'network' };
+  }
+}
+
 export async function save(account, snapshot, idToken) {
   if (!isOnline() || !account) return false;
   try {

@@ -1,6 +1,6 @@
 # ✅ Assurance qualité
 
-> **Note (v1.3.77)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.88**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
+> **Note (v1.3.77)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.89**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
 
 ## Processus de test
 
@@ -778,3 +778,10 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - **« 16 chargé(s) — 0 affiché(s) ici »** : le compteur affiché pouvait être celui de la lecture speedrun (`getSpeedrunAll` écrasait le statut après `getAll`) → snapshot `stScores` pris juste après la lecture des scores ; le message explique désormais pourquoi 0 affiché (onglet 👥 Amis sans ami / filtre niveau « … »).
 - **« Envoi impossible (hors ligne ou refus serveur) »** sur une demande d'ami : le toast affiche la vraie cause (`HTTP 401/403` → **publie les règles `friendRequests` dans la console Firebase, v1.3.87+** ; `réseau` → connexion). `getLastFrError()` exposé par leaderboard.js.
 - Tests : section BM (compteur + lastFrError fonctionnel) ; audit OK ; triple bump v1.3.88/roadtap-v96.
+
+## v1.3.89 — reconnexion : le pseudo revient du cloud (et le push ne l'écrase plus)
+
+- **Cause racine** : `pushCloud()` faisait pull-merge-push, mais si le PULL échouait (401 App Check pas encore prêt juste après le popup, ou réseau), le PUT partait quand même et **écrasait tout `players/<uid>`** — dont le pseudo → à la reconnexion suivante, plus rien à restaurer (« le pseudo ne remonte pas »).
+- Nouveau `cloudsave.loadRaw()` ({ok, data, error}) qui distingue « nœud vide » d'une erreur ; `pushCloud()` **ne pousse plus après un pull en échec**.
+- `completeGoogleSignIn` + restauration au boot : **2e essai de lecture après 1,2 s** si la 1re échoue ; si le pseudo revient du cloud → toast « ✏️ Pseudo « … » récupéré du cloud », champ pré-rempli, modale fermée (v1.3.83) via `noteRestoredPseudo()`.
+- Tests : section BN (loadRaw fonctionnel 401 / 200-null / 200-data ; mergeRemote restaure le pseudo après resetProgress ; snapshot le conserve) ; audit OK ; triple bump v1.3.89/roadtap-v97.
