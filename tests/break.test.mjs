@@ -1301,8 +1301,8 @@ console.log('AO. v1.3.65 : liste du joueur — tuto raccourci (9 étapes, ❤ r�
   ok('main.js : filtres LB persistés (roadtap_lb_filters_v1) + restaurés à l’ouverture', mainSrc.includes("const LB_FILTERS_KEY = 'roadtap_lb_filters_v1'") && mainSrc.includes('loadLbFilters();') && mainSrc.includes('if (!lbFiltersLoaded)') && (mainSrc.match(/saveLbFilters\(\)/g) || []).length >= 4);
 
   // musique au lancement
-  ok('audio.js : musicKick() exporté (reprend le contexte + resync séquenceur)', audioSrc.includes('export function musicKick()'));
-  ok('main.js : startLevel -> unlockAudio + setMusicEnabled + musicKick (musique dès le début)', /function startLevel[\s\S]{0,700}unlockAudio\(\);[\s\S]{0,300}setMusicEnabled\(save\.music && save\.sound\);[\s\S]{0,80}musicKick\(\);/.test(mainSrc));
+  ok('audio.js : musicKick() exporté (reprend le contexte + resync séquenceur)', audioSrc.includes('export function musicKick(levelId)')); // v1.3.92 : signature avec levelId (thème du niveau)
+  ok('main.js : startLevel -> unlockAudio + setMusicEnabled + musicKick (musique dès le début)', /function startLevel[\s\S]{0,700}unlockAudio\(\);[\s\S]{0,300}setMusicEnabled\(save\.music && save\.sound\);[\s\S]{0,80}musicKick\([^)]*\);/.test(mainSrc));
 
   // anti-freeze : plus de shadowBlur dans le rendu des lignes en jeu (pulse/glow/néon remplacés par alpha)
   const renderZone = gameSrc.slice(gameSrc.indexOf('drawLines'), gameSrc.indexOf('drawLineShape(type'));
@@ -2125,8 +2125,8 @@ console.log('BP. v1.3.91 : fix crash calibration (calib null) ; bip 0 ms : timin
   ok('calibration : guard "if (!calib)" dans l’intervalle + calibTimer nettoyé à la fin (plus de TypeError calib.beats)', mainSrc.includes('if (!calib) { clearInterval(iv); calibTimer = null; return; }') && mainSrc.includes('calibTimer = iv;') && mainSrc.includes('if (calibTimer) { clearInterval(calibTimer); calibTimer = null; }'));
   ok('bip 0 ms : fenêtre élargie (tSec < 0.7 sans borne basse) + latence de sortie compensée (outputLatency) + plus de reprogrammation après le 0 + volume 0.22 -> 0.13', audioSrc.includes('if (!(tSec < 0.7)) return;') && audioSrc.includes('c.outputLatency') && audioSrc.includes('if (prev.at <= 0.02) return;') && audioSrc.includes('exponentialRampToValueAtTime(0.13, t0 + 0.004)'));
   ok('game.js : lineBeat appelé dès t < 0.7 (plus de t > -0.05 -> le bip part même à haute vitesse/bas fps) et géré par access.lineBeat', gameSrc.includes('this.access.lineBeat && typeof this.audio.lineBeat') && gameSrc.includes('t < 0.7) this.audio.lineBeat(t,') && !gameSrc.includes('t > -0.05 && t < 0.7'));
-  ok('bip 0 ms optionnel : save.lineBeatSound (défaut false) + setLineBeatSound + sanitize + case à cocher s-opt-linebeat + ACCESS_OPTS opt-linebeat + access.lineBeat aux 2 sites', storeSrc.includes('lineBeatSound: false,') && storeSrc.includes('s.lineBeatSound = bool(s.lineBeatSound);') && storeSrc.includes('export function setLineBeatSound') && html.includes('id="s-opt-linebeat"') && mainSrc.includes("id: 'opt-linebeat', key: 'lineBeatSound'") && (mainSrc.match(/lineBeat: !!save\.lineBeatSound/g) || []).length === 2);
-  ok('aide sonore = hors classement comme le marqueur visuel : canSubmitToLeaderboard exclut lineBeatSound', coreSrc.includes('!s.lineBeatSound'));
+  ok('bip = feature intégrante toujours ON (v1.3.92) : plus de lineBeatSound/setLineBeatSound/s-opt-linebeat/opt-linebeat ; access.lineBeat: true aux 2 sites', !storeSrc.includes('lineBeatSound') && !storeSrc.includes('setLineBeatSound') && !html.includes('s-opt-linebeat') && !mainSrc.includes('opt-linebeat') && (mainSrc.match(/lineBeat: true,/g) || []).length === 2);
+  ok('v1.3.92 : le bip à l’oreille n’est jamais exclu du classement (feature) ; hitMarker si', !coreSrc.includes('lineBeatSound') && coreSrc.includes('!s.hitMarker'));
   ok('musique : musicKick fait stopMusic + resume explicite + musicNext = currentTime + 0.06 -> démarrage propre au début de chaque niveau', audioSrc.includes('if (c.state === \'suspended\') c.resume();') && (audioSrc.match(/stopMusic\(\);/g) || []).length >= 2 && audioSrc.includes('musicNext = c.currentTime + 0.06;'));
   ok('tutoriel : unlockAudio + setMusicEnabled + musicKick au lancement (la musique démarre aussi dans le 👶)', mainSrc.includes('unlockAudio(); // v1.3.91') && mainSrc.includes('setMusicEnabled(save.music && save.sound); // v1.3.91'));
   {
@@ -2139,7 +2139,29 @@ console.log('BP. v1.3.91 : fix crash calibration (calib null) ; bip 0 ms : timin
     audio.clearLineBeats();
     audio.setMusicEnabled(false);
     ok('headless : musicKick/scheduleLineBeat/clearLineBeats sans crash (pas de WebAudio en Node)', true);
-    ok('canSubmitToLeaderboard : lineBeatSound=true -> hors LB ; false -> éligible (avec pseudo+uid)', core.canSubmitToLeaderboard({ pseudo: 'a', uid: 'b', lineBeatSound: true }) === false && core.canSubmitToLeaderboard({ pseudo: 'a', uid: 'b', lineBeatSound: false }) === true);
+    ok('canSubmitToLeaderboard : éligible par défaut (bip toujours ON ne change rien) ; hitMarker=true -> exclu', core.canSubmitToLeaderboard({ pseudo: 'a', uid: 'b' }) === true && core.canSubmitToLeaderboard({ pseudo: 'a', uid: 'b', hitMarker: true }) === false);
+  }
+}
+console.log('BQ. v1.3.92 : bip à l’oreille calé à −45 ms (BEAT_OFFSET_S), TOUJOURS ON (feature intégrante, aucune option) + musique PAR NIVEAU (LEVEL_THEMES)');
+{
+  const fsBQ = await import('node:fs');
+  const audioSrc = fsBQ.readFileSync(new URL('../js/audio.js', import.meta.url), 'utf8');
+  const storeSrc = fsBQ.readFileSync(new URL('../js/store.js', import.meta.url), 'utf8');
+  const coreSrc = fsBQ.readFileSync(new URL('../js/core.js', import.meta.url), 'utf8');
+  const mainSrc = fsBQ.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  const html = fsBQ.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const audio = await import('../js/audio.js');
+  ok('bip = feature intégrante : plus aucune option (plus de lineBeatSound dans store/core, plus de s-opt-linebeat/opt-linebeat), access.lineBeat: true aux 2 sites', !storeSrc.includes('lineBeatSound') && !coreSrc.includes('lineBeatSound') && !html.includes('s-opt-linebeat') && !mainSrc.includes('opt-linebeat') && (mainSrc.match(/lineBeat: true,/g) || []).length === 2);
+  ok('beat calé à −45 ms : BEAT_OFFSET_S = -0.045 appliqué (tSec + BEAT_OFFSET_S - lat, latence de sortie compensée)', audioSrc.includes('const BEAT_OFFSET_S = -0.045;') && audioSrc.includes('tSec + BEAT_OFFSET_S - lat'));
+  ok('musique par niveau : LEVEL_THEMES (8 profils root/mode/prog/base) + setMusicLevel + themeChords()[bar] dans scheduleStep + tempo = curTheme.base + combo', audioSrc.includes('const LEVEL_THEMES = [') && (audioSrc.match(/root:/g) || []).length >= 8 && audioSrc.includes('export function setMusicLevel') && audioSrc.includes('themeChords()[bar]') && audioSrc.includes('(curTheme.base || 96)'));
+  ok('musicKick(levelId) applique le thème ; startLevel -> musicKick(level.id), tutoriel -> musicKick(TUT_LEVEL.id)', audioSrc.includes('export function musicKick(levelId)') && mainSrc.includes('musicKick(level.id);') && mainSrc.includes('musicKick(TUT_LEVEL.id);'));
+  ok('textes UI : aide 0 ms dit « tic à −45 ms » (plus d’option dans les réglages)', html.includes('tic » audio joue à −45 ms') && !html.includes('s-opt-linebeat'));
+  {
+    audio.setMusicLevel(1);
+    ok('setMusicLevel(1) -> La mineur, tempo base 96', audio.getMusicLevel().root === 220 && audio.getMusicLevel().mode === 'minor' && audio.musicTempo(0) === 96);
+    audio.setMusicLevel(3);
+    ok('setMusicLevel(3) -> Sol MAJEUR base 112, le combo fait monter le tempo (112 -> 176)', audio.getMusicLevel().mode === 'major' && audio.musicTempo(0) === 112 && audio.musicTempo(16) === 176);
+    ok('canSubmitToLeaderboard inchangé : éligible par défaut, hitMarker=true -> exclu', core.canSubmitToLeaderboard({ pseudo: 'a', uid: 'b' }) === true && core.canSubmitToLeaderboard({ pseudo: 'a', uid: 'b', hitMarker: true }) === false);
   }
 }
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);

@@ -539,14 +539,14 @@ function startTutorial() {
   logEvent('tutorial_start', {});
   unlockAudio(); // v1.3.91 : reprise du contexte audio au geste « 👶 »
   setMusicEnabled(save.music && save.sound); // v1.3.91 : la musique démarre aussi dans le tutoriel
-  musicKick();
+  musicKick(TUT_LEVEL.id); // v1.3.92 : thème du tutoriel
   game = new Game($('#game'), {
     level: TUT_LEVEL,
     skinId: save.skin,
     mode: 'auto',
     tutorial: true,
     windows: effWindows(),
-    access: { colorblind: save.colorblind, horizontalZones: !save.verticalZones, hitMarker: !!save.hitMarker, lineBeat: !!save.lineBeatSound, reduceAnims: !!save.reduceAnims, vibrate: save.vibrate !== false, latencyOffsetMs: save.latencyOffsetMs || 0, ghost: (store.getReplay(save.difficulty, TUT_LEVEL.id) || {}).taps }, // v1.3.80 #27/#15 + v1.3.82 #3/#5/#7 + v1.3.86 fix + v1.3.91 lineBeat
+    access: { colorblind: save.colorblind, horizontalZones: !save.verticalZones, hitMarker: !!save.hitMarker, lineBeat: true, reduceAnims: !!save.reduceAnims, vibrate: save.vibrate !== false, latencyOffsetMs: save.latencyOffsetMs || 0, ghost: (store.getReplay(save.difficulty, TUT_LEVEL.id) || {}).taps }, // v1.3.80 #27/#15 + v1.3.82 #3/#5/#7 + v1.3.86 fix + v1.3.91 lineBeat
     effects: save.selectedEffects,
     audio: { tap: sfx.tap, perfect: sfx.perfect, good: sfx.good, passable: sfx.passable, fail: sfx.fail, win: sfx.win, miss: sfx.miss, lineBeat: scheduleLineBeat, musicAnchor: musicLineAnchor }, // v1.3.46 : beat GD calé sur chaque ligne
     onJudge: (e) => {
@@ -1242,7 +1242,7 @@ function startLevel(level, replayRep = null) {
   unlockAudio(); // v1.3.86 fix : l'appel était noyé dans le commentaire ci-dessus (jamais exécuté) — restauré sur sa propre ligne
   // v1.3.65 : contexte audio repris ici (geste « Jouer ») -> pas de freeze au 1er tap
   setMusicEnabled(save.music && save.sound); // v1.3.65 : musique ON dès le début de la partie
-  musicKick(); // v1.3.65 : resynchronise le séquenceur -> la musique démarre immédiatement
+  musicKick(level.id); // v1.3.65 + v1.3.92 : resync + thème musical du niveau -> la musique démarre immédiatement
 
   clearLineBeats(); // v1.3.46 : on annule les beats de ligne de la partie précédente
   show('screen-game');
@@ -1268,7 +1268,7 @@ function startLevel(level, replayRep = null) {
     replay: replayRep || undefined, // v1.3.79 : mode lecture d'un replay enregistré (hors classement)
     themeOverride: save.highContrast ? 'highcontrast' : (save.themeOverride || undefined), // v1.3.80 #16 : contraste élevé prioritaire
     windows: effWindows(),
-    access: { colorblind: save.colorblind, horizontalZones: !save.verticalZones, hitMarker: !!save.hitMarker, lineBeat: !!save.lineBeatSound, reduceAnims: !!save.reduceAnims, vibrate: save.vibrate !== false, latencyOffsetMs: save.latencyOffsetMs || 0, ghost: (store.getReplay(save.difficulty, level.id) || {}).taps }, // v1.3.80 #27/#15 + v1.3.82 #3/#5/#7 + v1.3.91 lineBeat
+    access: { colorblind: save.colorblind, horizontalZones: !save.verticalZones, hitMarker: !!save.hitMarker, lineBeat: true, reduceAnims: !!save.reduceAnims, vibrate: save.vibrate !== false, latencyOffsetMs: save.latencyOffsetMs || 0, ghost: (store.getReplay(save.difficulty, level.id) || {}).taps }, // v1.3.80 #27/#15 + v1.3.82 #3/#5/#7 + v1.3.91 lineBeat
     effects: save.selectedEffects,
     audio: { tap: sfx.tap, perfect: sfx.perfect, good: sfx.good, passable: sfx.passable, fail: sfx.fail, win: sfx.win, miss: sfx.miss, lineBeat: scheduleLineBeat, musicAnchor: musicLineAnchor }, // v1.3.46 : beat GD calé sur chaque ligne
     onJudge: (e) => {
@@ -1604,7 +1604,6 @@ const ACCESS_OPTS = [
   { id: 'opt-reduceanims', key: 'reduceAnims', set: (v) => store.setReduceAnims(v), on: '✨ Animations réduites (pas de shake/particules/flash)', off: 'Animations standard' }, // v1.3.80 #15
   { id: 'opt-highcontrast', key: 'highContrast', set: (v) => store.setHighContrast(v), on: '◼️ Contraste élevé (fond noir, lignes blanches épaisses)', off: 'Thème du niveau' }, // v1.3.80 #16
   { id: 'opt-hitmarker', key: 'hitMarker', set: (v) => store.setHitMarker(v), on: '🎯 Marqueur du 0 ms (flash sous la roue) — HORS classement', off: 'Pas de marqueur 0 ms' }, // v1.3.80 #27
-  { id: 'opt-linebeat', key: 'lineBeatSound', set: (v) => store.setLineBeatSound(v), on: '🔔 Bip sonore au 0 ms (tic sous la roue) — HORS classement', off: 'Pas de bip 0 ms (défaut)' }, // v1.3.91
   { id: 'opt-vibrate', key: 'vibrate', set: (v) => store.setVibrate(v), on: '📳 Vibration activée (double pulsation PARFAIT, longue au raté)', off: 'Vibration désactivée' }, // v1.3.82 #7
   { id: 'opt-lefty', key: 'leftHanded', set: (v) => store.setLeftHanded(v), on: '🤚 Mode gaucher : zones et swipes inversés', off: 'Mode droitier (défaut)' }, // v1.3.82 #8
   { id: 'opt-training', key: 'training', set: (v) => store.setTraining(v), on: '🎓 Mode entraînement ON (vies infinies, vitesse réglable) — HORS classement', off: 'Mode entraînement OFF' }, // v1.3.82 #1

@@ -67,7 +67,7 @@ export function comboIntensity(combo) {
   return Math.min(1, c / 16);
 }
 export function musicTempo(combo) {
-  return Math.round(96 + comboIntensity(combo) * 64); // 96..160 BPM
+  return Math.round((curTheme.base || 96) + comboIntensity(combo) * 64); // v1.3.92 : base du niveau + combo (jusqu'à +64 BPM)
 }
 export function tapFreq(combo) {
   const c = Number.isFinite(combo) ? Math.max(0, combo) : 0;
@@ -84,13 +84,33 @@ export function getMusicState() {
   return { combo: musicCombo, intensity: comboIntensity(musicCombo), tempo: musicTempo(musicCombo), on: musicOn };
 }
 
-// Progression 4 mesures en La mineur : [fondamentale, tierce mineure, quinte] par accord
-const CHORDS = [
-  [220.0, 261.63, 329.63], // Am
-  [174.61, 220.0, 261.63], // F
-  [261.63, 329.63, 392.0], // C
-  [196.0, 246.94, 293.66], // G
+// v1.3.92 : thème musical PAR NIVEAU — chaque niveau a sa tonalité, son mode, sa progression
+// (tons relatifs) et son tempo de base. Le séquenceur reste ancré sur chaque ligne (pas + kick, v1.3.76),
+// donc le beat musical tombe SUR les lignes du niveau.
+const LEVEL_THEMES = [
+  { root: 220.0, mode: 'minor', prog: [0, -4, 2, -2], base: 96 },   // La mineur
+  { root: 246.94, mode: 'minor', prog: [0, -2, -4, 2], base: 104 },  // Si b mineur
+  { root: 196.0, mode: 'major', prog: [0, 4, 7, 9], base: 112 },     // Sol majeur
+  { root: 261.63, mode: 'minor', prog: [0, 2, -4, -2], base: 120 },  // Do mineur
+  { root: 174.61, mode: 'major', prog: [0, 2, 7, 4], base: 100 },    // Fa majeur
+  { root: 293.66, mode: 'minor', prog: [0, -4, -2, 2], base: 128 },   // Re mineur
+  { root: 164.81, mode: 'minor', prog: [0, 5, 2, -4], base: 92 },    // Mi b mineur
+  { root: 233.08, mode: 'major', prog: [0, 4, 9, 7], base: 116 },    // Si b majeur
 ];
+let curTheme = LEVEL_THEMES[0];
+export function setMusicLevel(levelId) { // thème du niveau joué (appelé par musicKick au lancement)
+  const i = (Math.abs(Math.trunc(Number(levelId) || 1)) - 1) % LEVEL_THEMES.length;
+  curTheme = LEVEL_THEMES[i] || LEVEL_THEMES[0];
+  return curTheme;
+}
+export function getMusicLevel() { return curTheme; }
+function themeChords() { // 4 mesures -> 4 accords [fond, tierce, quinte] en Hz depuis root/mode/prog
+  return curTheme.prog.map((st) => {
+    const r = curTheme.root * Math.pow(2, st / 12);
+    const third = curTheme.mode === 'major' ? 4 : 3;
+    return [r, r * Math.pow(2, third / 12), r * Math.pow(2, 7 / 12)];
+  });
+}
 
 function getBus(c) {
   if (!musicBus) {
@@ -154,7 +174,7 @@ function scheduleStep(step, t0) {
   bus.f.frequency.setTargetAtTime(500 + inten * 4200, t0, 0.05);
   const layers = musicLayers(musicCombo);
   const bar = Math.floor(step / 16) % 4;
-  const chord = CHORDS[bar];
+  const chord = themeChords()[bar]; // v1.3.92 : accords du thème du niveau
   const s = step % 16;
   const root = chord[0] / 2;
   if (layers.kick && (s % 4 === 0 || (s === 14 && inten > 0.75))) oscNote(c, bus.g, t0, 150, 0.14, 'sine', 0.5, 45);
@@ -222,9 +242,10 @@ function startMusic() {
 
 // v1.3.65 : à appeler au LANCEMENT d'une partie (clic « Jouer » = geste utilisateur) — reprend le
 // contexte audio (autoplay) et resynchronise le séquenceur pour que la musique démarre tout de suite.
-export function musicKick() {
+export function musicKick(levelId) {
   const c = ac(); // crée/reprend le contexte (autorisé car appelé depuis un geste)
   if (!c) return;
+  if (levelId != null) setMusicLevel(levelId); // v1.3.92 : thème musical DU niveau
   if (c.state === 'suspended') c.resume(); // v1.3.91 : reprise explicite — sinon le 1er niveau démarre muet/en retard
   stopMusic(); // v1.3.91 : restart propre à chaque niveau -> la musique démarre EXACTEMENT au début du niveau
   musicStep = 0;
@@ -267,6 +288,9 @@ export function musicSting() {
 // qu'une ligne atteigne un essieu : un « tic » est joué EXACTEMENT à ce moment -> un joueur
 // confirmé peut jouer rien qu'à l'oreille. Si la vitesse change, le tic est re-calé (stop + re-programmé).
 const beatSched = new Map(); // key -> { osc, at }
+// v1.3.92 : le bip joue à −45 ms (AVANT la ligne, pas à 0). Comme l'humain réagit en retard au son,
+// un bip à −45 ms permet de taper au plus près du 0 ms (fenêtre PARFAIT ±45 ms). Latence de sortie compensée.
+const BEAT_OFFSET_S = -0.045;
 export function scheduleLineBeat(tSec, key) {
   if (!enabled || !hasAudio()) return;
   if (!(tSec < 0.7)) return; // v1.3.91 : plus de borne basse — le bip part même si une frame saute le 0 (haute vitesse / bas fps)
@@ -282,7 +306,7 @@ export function scheduleLineBeat(tSec, key) {
     try { prev.osc.stop(); } catch { /* déjà arrêté */ }
     beatSched.delete(key);
   }
-  const t0 = c.currentTime + Math.max(0, tSec - lat);
+  const t0 = c.currentTime + Math.max(0, tSec + BEAT_OFFSET_S - lat); // v1.3.92 : calé à −45 ms
   const o = c.createOscillator();
   const g = c.createGain();
   o.type = 'square';

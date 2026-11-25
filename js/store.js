@@ -57,7 +57,6 @@ const defaults = () => ({
   highContrast: false, // v1.3.80 : #16 thème contraste élevé (fond noir, lignes blanches)
   textSize: 'medium', // v1.3.80 : #17 'small' | 'medium' | 'large'
   hitMarker: false, // v1.3.80 : #27 flash de la ligne au moment 0 ms — HORS classement (aids)
-  lineBeatSound: false, // v1.3.91 : bip sonore au 0 ms — optionnel (off par défaut), HORS classement (aide)
 });
 
 let save;
@@ -138,7 +137,6 @@ function sanitize(s) {
   s.highContrast = bool(s.highContrast);
   s.textSize = ['small', 'medium', 'large'].includes(s.textSize) ? s.textSize : 'medium';
   s.hitMarker = bool(s.hitMarker);
-  s.lineBeatSound = bool(s.lineBeatSound); // v1.3.91
   // v1.3.44 : migration — anciennes clés "levelId" (partagées entre difficultés) copiées dans chaque mode
   for (const field of ['best', 'bestTime']) {
     const m = s[field];
@@ -326,7 +324,6 @@ export function setReduceAnims(on) { save.reduceAnims = Boolean(on); persist(); 
 export function setHighContrast(on) { save.highContrast = Boolean(on); persist(); } // v1.3.80 #16
 export function setTextSize(v) { save.textSize = ['small', 'medium', 'large'].includes(v) ? v : 'medium'; persist(); } // v1.3.80 #17
 export function setHitMarker(on) { save.hitMarker = Boolean(on); persist(); } // v1.3.80 #27 (hors classement)
-export function setLineBeatSound(on) { save.lineBeatSound = Boolean(on); persist(); } // v1.3.91 (bip 0 ms optionnel, hors classement)
 export function setVerticalZones(on) {
   save.verticalZones = Boolean(on);
   persist();
