@@ -2164,4 +2164,37 @@ console.log('BQ. v1.3.92 : bip à l’oreille calé à −45 ms (BEAT_OFFSET_S),
     ok('canSubmitToLeaderboard inchangé : éligible par défaut, hitMarker=true -> exclu', core.canSubmitToLeaderboard({ pseudo: 'a', uid: 'b' }) === true && core.canSubmitToLeaderboard({ pseudo: 'a', uid: 'b', hitMarker: true }) === false);
   }
 }
+console.log('BS. v1.3.94 : latence tactile compensée — event.timeStamp -> noteInputLatency -> game.tap(inputLatencyMs) -> dtMs corrigé (le PARFAIT retombe sur la ligne sur mobile)');
+{
+  const fsBS = await import('node:fs');
+  const mainSrc = fsBS.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  const gameSrc = fsBS.readFileSync(new URL('../js/game.js', import.meta.url), 'utf8');
+  ok('main.js : noteInputLatency(e) (perf.now - e.timeStamp, moyenne glissante, clamp [0,120]) passée aux 3 game.tap (zones pointer, souris bindée, clavier)', mainSrc.includes('function noteInputLatency(e)') && (mainSrc.match(/game\.tap\([^)]*noteInputLatency\(e\)\)/g) || []).length === 3);
+  ok('game.js : tap(..., inputLatencyMs=0) + il clampé [0,120] + buffer au temps corrigé + dtMs = dy/speed - latencyOffset - il', gameSrc.includes('inputLatencyMs = 0)') && gameSrc.includes('Math.min(120, Math.max(0, inputLatencyMs || 0))') && gameSrc.includes('this.inputBuffer.push(this.time * 1000 - il, axle)') && gameSrc.includes('- (this.access.latencyOffsetMs || 0) - il;'));
+  {
+    const g = makeGame(LEVELS[0], 'auto');
+    g.start();
+    g.update(1 / 60);
+    const speed = g.effSpeed;
+    const line = { type: 'dash', dist: g.distance + speed * 0.5, axle: 'rear', hits: { front: null, rear: null }, state: 'pending', result: null, flash: 0, glow: 0 };
+    g.lines = [line];
+    g.distance = line.dist - g.axleDelta('rear') + (speed * 80) / 1000; // tap « vu » à +80 ms (latence tactile)
+    g.tap('rear', false, false, 0);
+    ok('sans compensation : dt ≈ +80 ms -> good (le bug mobile : tap sur la ligne = « Très bien »)', line.hits.rear === 'good');
+    line.hits.rear = null; line.state = 'pending'; line.result = null;
+    g.distance = line.dist - g.axleDelta('rear') + (speed * 80) / 1000;
+    g.tap('rear', false, false, 80);
+    ok('avec compensation 80 ms : dt ≈ 0 -> perfect (le PARFAIT retombe sur la ligne)', line.hits.rear === 'perfect');
+  }
+}
+console.log('BR. v1.3.93 : musique « forte dès le début » — intro dans musicKick (setMusicCombo(8) + downbeat à +50 ms + kick fort) ; startMusic ne reset plus le séquenceur');
+{
+  const fsBR = await import('node:fs');
+  const audioSrc = fsBR.readFileSync(new URL('../js/audio.js', import.meta.url), 'utf8');
+  const audio = await import('../js/audio.js');
+  ok('musicKick : setMusicLevel(levelId) + setMusicCombo(8) (intro) dans le corps de musicKick, avant ac()', /export function musicKick\(levelId\) \{[\s\S]*?setMusicLevel\(levelId\);[\s\S]*?setMusicCombo\(8\);[\s\S]*?const c = ac\(\);/.test(audioSrc));
+  ok('musicKick : downbeat à currentTime + 0.05 + scheduleStep immédiat + kick d’intro fort (0.55)', audioSrc.includes('const t0 = c.currentTime + 0.05;') && audioSrc.includes('scheduleStep(musicStep, t0);') && audioSrc.includes("oscNote(c, getBus(c).g, t0, 150, 0.16, 'sine', 0.55, 45);"));
+  ok('musicKick : musicNext = t0 + pas du tempo ; startMusic ne remet plus musicStep/musicNext à 0 (plus de double downbeat)', audioSrc.includes('musicNext = t0 + 60 / musicTempo(musicCombo) / 4;') && !/function startMusic\(\) \{[\s\S]*?musicNext = 0;/.test(audioSrc)); // v1.3.93 : startMusic ne reset plus (let musicNext = 0; = déclaration initiale, OK)
+  ok('headless : musicKick(2) applique le thème (Si b mineur, root 246.94) + combo intro 8, sans crash', (audio.musicKick(2), audio.getMusicLevel().root === 246.94 && audio.getMusicState().combo === 8));
+}
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);

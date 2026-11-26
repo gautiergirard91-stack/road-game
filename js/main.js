@@ -2303,6 +2303,17 @@ function downloadReplay(r) { // v1.3.90 : export .json téléchargeable sur le P
   toast('💾 Replay téléchargé (.json)');
 }
 
+// v1.3.94 : latence pipeline d'entrée (tactile ~30-100 ms sur téléphone) mesurée via event.timeStamp :
+// performance.now() - e.timeStamp = délai entre la création de l'event et l'arrivée dans le handler.
+// Moyenne glissante (lisse les pics de GC), clampée [0,120] ms -> passée à game.tap pour corriger le dtMs.
+let inputLatAvg = 0;
+function noteInputLatency(e) {
+  const ts = e && typeof e.timeStamp === 'number' ? e.timeStamp : performance.now();
+  const lat = performance.now() - ts; // même origine de temps que performance.now() (navigateurs modernes)
+  if (lat >= 0 && lat <= 200) inputLatAvg = inputLatAvg ? inputLatAvg * 0.7 + lat * 0.3 : lat; // timeStamp epoch (vieux Safari) -> ignoré
+  return Math.min(120, Math.max(0, inputLatAvg));
+}
+
 function trySwipe(x) {
   if (!pointerStart || swipeFired) return;
   let dx = x - pointerStart.x;
@@ -2345,7 +2356,7 @@ window.addEventListener('pointerdown', (e) => {
       if (action === 'swipe') game.swipeLeft();
       else if (action === 'swipeRight') game.swipeRight(); // v1.3.76 : retour manuel à droite
       else if (action === 'retry') { if (currentLevel) startLevel(currentLevel); }
-      else game.tap(action);
+      else game.tap(action, false, false, noteInputLatency(e)); // v1.3.94 : latence d'entrée mesurée
     }
   }
 }, true); // capture : avant le handler global de zones
@@ -2368,7 +2379,7 @@ window.addEventListener('pointerdown', (e) => {
   const px = save.leftHanded ? window.innerWidth - e.clientX : e.clientX; // v1.3.82 #8 : mode gaucher
   const py = save.leftHanded ? window.innerHeight - e.clientY : e.clientY;
   const zone = zoneFromPoint(px, py, window.innerWidth, window.innerHeight, !save.verticalZones, save.bigTargets ? 0.6 : 0.5); // v1.3.80 #6 : zones 60/40 si gros doigts
-  game.tap(zone);
+  game.tap(zone, false, false, noteInputLatency(e)); // v1.3.94 : latence tactile compensée dans le jugement
 });
 
 window.addEventListener('pointermove', (e) => {
@@ -2432,7 +2443,7 @@ window.addEventListener('keydown', (e) => {
     } else if (canPlay) {
       if (action === 'swipe') game.swipeLeft();
       else if (action === 'swipeRight') game.swipeRight(); // v1.3.76 : retour manuel à droite
-      else game.tap(action);
+      else game.tap(action, false, false, noteInputLatency(e)); // v1.3.94 : latence d'entrée mesurée
     }
   }
   if (e.code === 'KeyP' && currentScreen === 'screen-game') togglePause();

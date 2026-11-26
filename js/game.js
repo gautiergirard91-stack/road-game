@@ -1360,11 +1360,12 @@ export class Game {
     }
   }
 
-  tap(zone = 'rear', auto = false, fromBuffer = false) {
+  tap(zone = 'rear', auto = false, fromBuffer = false, inputLatencyMs = 0) { // v1.3.94 : latence pipeline d'entrée (event.timeStamp)
     if (this.replayPlay && !auto) return; // v1.3.79 : en mode replay, les entrées joueur sont ignorées
     if (!this.running || this.paused || this.tutHold) return;
     const axle = this.mode === 'auto' ? 'rear' : zone;
-    if (!auto && !fromBuffer && this.inputBuffer) this.inputBuffer.push(this.time * 1000, axle); // v1.3.82 #2 : on garde le tap (fenêtre 120 ms)
+    const il = auto ? 0 : Math.min(120, Math.max(0, inputLatencyMs || 0)); // v1.3.94 : clamp [0,120] ms
+    if (!auto && !fromBuffer && this.inputBuffer) this.inputBuffer.push(this.time * 1000 - il, axle); // v1.3.82 #2 + v1.3.94 : temps corrigé de la latence d'entrée
     const speed = this.effSpeed;
     // v1.3.27 : voiture à l'arrêt (piéton) -> effSpeed = 0 -> tout tap est un "clic dans le vide"
     // (sinon dtMs = 0/0 = NaN et le jugement crashait)
@@ -1424,7 +1425,7 @@ export class Game {
     }
     const ay = this.lineAxleY(axle);
     const dy = this.distance - best.dist + this.axleDelta(axle);
-    const dtMs = (dy / speed) * 1000 - (this.access.latencyOffsetMs || 0); // v1.3.82 #5 : calibration latence (locale, hors classement si ≠ 0)
+    const dtMs = (dy / speed) * 1000 - (this.access.latencyOffsetMs || 0) - il; // v1.3.82 #5 + v1.3.94 : - latence d'entrée mesurée -> sur mobile, taper SUR la ligne = 0 ms (PARFAIT), plus « Très bien » en retard
     const result = judge(dtMs, this.windows);
     if (!result) {
       // garde-fou : aucun jugement valide -> clic dans le vide
