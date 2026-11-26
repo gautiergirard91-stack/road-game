@@ -1,6 +1,6 @@
 # ✅ Assurance qualité
 
-> **Note (v1.3.77)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.91**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
+> **Note (v1.3.77)** : les checklists ci-dessous sont un *historique* — l'état courant du jeu est **v1.3.94**. Chaque version ajoute sa checklist en bas du fichier ; ne pas modifier les anciennes.
 
 ## Processus de test
 
@@ -800,3 +800,10 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - **Métronome dérangeant** : le bip sonore devient **optionnel** — case « 🔔 Bip sonore au 0 ms » dans Accessibilité, **off par défaut**, et **hors classement** (comme le marqueur visuel 0 ms : `canSubmitToLeaderboard` exclut `lineBeatSound`). Le marqueur visuel (flash) reste l'aide par défaut disponible.
 - **Musique au début du niveau** : `musicKick()` fait maintenant `stopMusic()` + `resume()` explicite + `musicNext = currentTime + 0.06` → redémarrage propre à **chaque** niveau, la musique démarre immédiatement (plus de démarrage muet/en retard au 1er niveau) ; idem dans le tutoriel (`unlockAudio` + `setMusicEnabled` + `musicKick`).
 - Tests : section BP (guards, timing, option, LB, headless no-crash, canSubmitToLeaderboard fonctionnel) ; audit OK ; triple bump v1.3.91/roadtap-v99.
+
+## v1.3.94 — latence tactile compensée : sur téléphone, taper SUR la ligne = PARFAIT (0 ms)
+
+- **Bug mobile** : l'event `pointerdown` arrive dans le JS avec 30–100 ms de retard (pipeline tactile) ; `game.distance` avait déjà avancé → le dtMs lu était en retard → tap sur la ligne = « Très bien » au lieu de PARFAIT.
+- **Fix** : la latence de chaque event est mesurée (`performance.now() - e.timeStamp`, même base de temps), lissée (moyenne glissante 70/30) et clampée [0,120] ms (`noteInputLatency` dans main.js), passée aux 3 appels `game.tap(...)` (zones pointer, clic souris bindé, clavier) ; `game.tap(zone, auto, fromBuffer, inputLatencyMs)` la déduit du `dtMs` (avec la calibration manuelle `latencyOffsetMs` qui reste) et le buffer d'input stocke le temps corrigé.
+- Conséquence : le bip à −45 ms + cette compensation → taper sur le bip ≈ 0 ms réel. Les stats ⚡ (avgMs/biasMs) envoyées au classement sont aussi corrigées (plus juste cross-device).
+- Tests : section BS (fonctionnel : dt +80 ms -> good sans compensation, -> perfect avec 80 ms) ; audit OK ; triple bump v1.3.94/roadtap-v100.

@@ -2164,4 +2164,27 @@ console.log('BQ. v1.3.92 : bip à l’oreille calé à −45 ms (BEAT_OFFSET_S),
     ok('canSubmitToLeaderboard inchangé : éligible par défaut, hitMarker=true -> exclu', core.canSubmitToLeaderboard({ pseudo: 'a', uid: 'b' }) === true && core.canSubmitToLeaderboard({ pseudo: 'a', uid: 'b', hitMarker: true }) === false);
   }
 }
+console.log('BS. v1.3.94 : latence tactile compensée — event.timeStamp -> noteInputLatency -> game.tap(inputLatencyMs) -> dtMs corrigé (le PARFAIT retombe sur la ligne sur mobile)');
+{
+  const fsBS = await import('node:fs');
+  const mainSrc = fsBS.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  const gameSrc = fsBS.readFileSync(new URL('../js/game.js', import.meta.url), 'utf8');
+  ok('main.js : noteInputLatency(e) (perf.now - e.timeStamp, moyenne glissante, clamp [0,120]) passée aux 3 game.tap (zones pointer, souris bindée, clavier)', mainSrc.includes('function noteInputLatency(e)') && (mainSrc.match(/game\.tap\([^)]*noteInputLatency\(e\)\)/g) || []).length === 3);
+  ok('game.js : tap(..., inputLatencyMs=0) + il clampé [0,120] + buffer au temps corrigé + dtMs = dy/speed - latencyOffset - il', gameSrc.includes('inputLatencyMs = 0)') && gameSrc.includes('Math.min(120, Math.max(0, inputLatencyMs || 0))') && gameSrc.includes('this.inputBuffer.push(this.time * 1000 - il, axle)') && gameSrc.includes('- (this.access.latencyOffsetMs || 0) - il;'));
+  {
+    const g = makeGame(LEVELS[0], 'auto');
+    g.start();
+    g.update(1 / 60);
+    const speed = g.effSpeed;
+    const line = { type: 'dash', dist: g.distance + speed * 0.5, axle: 'rear', hits: { front: null, rear: null }, state: 'pending', result: null, flash: 0, glow: 0 };
+    g.lines = [line];
+    g.distance = line.dist - g.axleDelta('rear') + (speed * 80) / 1000; // tap « vu » à +80 ms (latence tactile)
+    g.tap('rear', false, false, 0);
+    ok('sans compensation : dt ≈ +80 ms -> good (le bug mobile : tap sur la ligne = « Très bien »)', line.hits.rear === 'good');
+    line.hits.rear = null; line.state = 'pending'; line.result = null;
+    g.distance = line.dist - g.axleDelta('rear') + (speed * 80) / 1000;
+    g.tap('rear', false, false, 80);
+    ok('avec compensation 80 ms : dt ≈ 0 -> perfect (le PARFAIT retombe sur la ligne)', line.hits.rear === 'perfect');
+  }
+}
 console.log(`\nOK - ${passed} assertions adversariales passent (rien ne plante)`);
