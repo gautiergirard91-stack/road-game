@@ -793,17 +793,18 @@ Ouvrir une issue GitHub avec : comportement attendu / observé, appareil + navig
 - **Menu 🎞 Replays** (bouton accueil) : les **10 dernières parties** (clé `roadtap_replays_v1`, plus récente en tête) avec ▶ voir (mode lecture), 💾 télécharger en `.json` (`roadtap-replay-<date>-nivX-<score>pts.json` via Blob), ✕ supprimer.
 - Tests : section BO (suppression countdown, guards, cap 10 fonctionnel, ids HTML) ; audit OK ; triple bump v1.3.90/roadtap-v98.
 
-## v1.3.91 — fix crash calibration + audio : bip 0 ms corrigé/optionnel + musique au démarrage du niveau
+## v1.3.91/v1.3.92/v1.3.93 — fix crash calibration + audio : bip à l'oreille TOUJOURS ON calé à −45 ms + musique PAR NIVEAU avec intro forte + démarrage au niveau
 
 - **Fix crash Paramètres** (capture : `TypeError: can't access property "beats", calib is null`) : si le joueur tape ses 4 taps avant la fin des 4 pulsations, `calib` passait à null pendant que l'intervalle du métronome tournait encore → guard `if (!calib)` + `calibTimer` module-level nettoyé à la fin.
 - **Bip 0 ms** : (a) la latence de sortie audio (`AudioContext.outputLatency`, 20–150 ms sur mobile) est maintenant **compensée** → le bip sonne au vrai moment visuel 0 ms ; (b) fenêtre élargie (`t < 0.7` sans borne basse, côté game.js aussi) → le bip part **même si une frame saute le 0** (haute vitesse/bas fps) ; (c) anti double-bip (`prev.at <= 0.02`) ; (d) plus doux (0.22 → 0.13, plus court).
-- **Métronome dérangeant** : le bip sonore devient **optionnel** — case « 🔔 Bip sonore au 0 ms » dans Accessibilité, **off par défaut**, et **hors classement** (comme le marqueur visuel 0 ms : `canSubmitToLeaderboard` exclut `lineBeatSound`). Le marqueur visuel (flash) reste l'aide par défaut disponible.
+- **Bip à l'oreille = feature intégrante, TOUJOURS ON (aucune option)** : calé à **−45 ms** (`BEAT_OFFSET_S = -0.045`, latence de sortie `outputLatency` compensée, déclenchement garanti même si une frame saute le 0, anti double-bip, plus doux). Comme l'humain réagit en retard au son, taper sur le bip vise le **0 ms** (fenêtre PARFAIT ±45 ms). Plus de `lineBeatSound`/case à cocher ; jamais exclu du classement. Aide « 0 ms » maj (tic à −45 ms).
+- **Musique par niveau + intro forte** : 8 thèmes (`LEVEL_THEMES` : tonalité/mode/progression/tempo de base 92–128 BPM) via `musicKick(level.id)`, ancrés sur les lignes (pas + kick, v1.3.76). v1.3.93 : au lancement, `setMusicCombo(8)` + **downbeat à +50 ms** + kick fort (sinon combo 0 = silence) ; `startMusic()` ne reset plus le séquenceur.
 - **Musique au début du niveau** : `musicKick()` fait maintenant `stopMusic()` + `resume()` explicite + `musicNext = currentTime + 0.06` → redémarrage propre à **chaque** niveau, la musique démarre immédiatement (plus de démarrage muet/en retard au 1er niveau) ; idem dans le tutoriel (`unlockAudio` + `setMusicEnabled` + `musicKick`).
 - Tests : section BP (guards, timing, option, LB, headless no-crash, canSubmitToLeaderboard fonctionnel) ; audit OK ; triple bump v1.3.91/roadtap-v99.
 
 ## v1.3.94 — latence tactile compensée : sur téléphone, taper SUR la ligne = PARFAIT (0 ms)
 
-- **Bug mobile** : l'event `pointerdown` arrive dans le JS avec 30–100 ms de retard (pipeline tactile) ; `game.distance` avait déjà avancé → le dtMs lu était en retard → tap sur la ligne = « Très bien » au lieu de PARFAIT.
-- **Fix** : la latence de chaque event est mesurée (`performance.now() - e.timeStamp`, même base de temps), lissée (moyenne glissante 70/30) et clampée [0,120] ms (`noteInputLatency` dans main.js), passée aux 3 appels `game.tap(...)` (zones pointer, clic souris bindé, clavier) ; `game.tap(zone, auto, fromBuffer, inputLatencyMs)` la déduit du `dtMs` (avec la calibration manuelle `latencyOffsetMs` qui reste) et le buffer d'input stocke le temps corrigé.
-- Conséquence : le bip à −45 ms + cette compensation → taper sur le bip ≈ 0 ms réel. Les stats ⚡ (avgMs/biasMs) envoyées au classement sont aussi corrigées (plus juste cross-device).
-- Tests : section BS (fonctionnel : dt +80 ms -> good sans compensation, -> perfect avec 80 ms) ; audit OK ; triple bump v1.3.94/roadtap-v100.
+- Bug mobile : l'event `pointerdown` arrive 30–100 ms en retard dans le JS (pipeline tactile) → `game.distance` avait avancé → dtMs lu en retard → tap sur la ligne = « Très bien ».
+- Fix : latence mesurée par event (`performance.now() - e.timeStamp`), lissée (moy. glissante 70/30), clampée [0,120] ms (`noteInputLatency`, main.js) → passée aux 3 `game.tap(...)` (zones pointer, souris bindée, clavier) ; `game.tap(zone, auto, fromBuffer, inputLatencyMs)` la déduit du `dtMs` (la calibration manuelle `latencyOffsetMs` reste) et le buffer coyote stocke le temps corrigé. Stats ⚡ envoyées au classement corrigées aussi.
+- Avec le bip à −45 ms (v1.3.92) : taper sur le bip ≈ 0 ms réel.
+- Tests : BS (fonctionnel : dt +80 ms -> good sans compensation, -> perfect avec 80 ms) + BR récupéré ; audit OK ; triple bump v1.3.94/roadtap-v100.

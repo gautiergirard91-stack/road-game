@@ -283,9 +283,9 @@ Les deux modes ne différaient que par le chrono/bonus de vitesse : **un seul mo
 
 ## v1.3.91 — audio : bip 0 ms fiable et optionnel, musique au démarrage ; fix crash calibration
 
-- Crash calibration (`calib.beats`, calib=null) corrigé. Bip 0 ms : latence de sortie audio compensée (`outputLatency`), déclenchement garanti même si une frame saute le 0, plus doux, et **désactivé par défaut** (case « 🔔 Bip sonore au 0 ms », hors classement comme le flash visuel). `musicKick()` resynchronise proprement à chaque niveau (resume explicite + restart) → la musique démarre dès le début du niveau, tutoriel compris.
+- Crash calibration (`calib.beats`, calib=null) corrigé. **Bip à l'oreille TOUJOURS ON, calé à −45 ms** (`BEAT_OFFSET_S`, `outputLatency` compensé, déclenchement garanti même si une frame saute le 0) : taper sur le bip vise le 0 ms (PARFAIT ±45 ms) — aucune option (feature intégrante). **Musique par niveau** (8 thèmes via `musicKick(level.id)`, ancrés sur les lignes) avec **intro forte dès le début** (combo 8 + downbeat à +50 ms + kick, v1.3.93) ; `musicKick()` restart propre à chaque niveau → la musique démarre immédiatement, tutoriel compris.
 
 
 ## v1.3.94 — le PARFAIT retombe sur la ligne sur mobile (latence tactile compensée)
 
-- La latence pipeline de chaque input est mesurée via `event.timeStamp` (`performance.now() - e.timeStamp`), lissée et clampée, puis déduite du `dtMs` jugé : sur téléphone, taper visuellement sur la ligne = 0 ms = PARFAIT (avant : « Très bien » en retard). S'applique au tactile, souris et clavier ; le buffer d'input (coyote) et les stats ⚡ envoyées au classement sont corrigés aussi.
+- Latence pipeline de chaque input mesurée via `event.timeStamp` (`performance.now() - e.timeStamp`), lissée, clampée [0,120] ms, puis déduite du `dtMs` jugé : taper visuellement sur la ligne = 0 ms = PARFAIT (avant : « Très bien » en retard). Tactile + souris + clavier ; buffer coyote et stats ⚡ corrigés aussi.

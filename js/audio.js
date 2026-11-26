@@ -235,22 +235,28 @@ export function setMusicEnabled(on) {
 
 function startMusic() {
   if (musicTimer || !hasAudio()) return; // headless -> pas de timer (pas de fuite de timer)
-  musicStep = 0;
-  musicNext = 0;
+  // v1.3.93 : ne PAS reset musicStep/musicNext ici — musicKick les a déjà calés (sinon double downbeat)
   musicTimer = setInterval(schedule, 25);
 }
 
 // v1.3.65 : à appeler au LANCEMENT d'une partie (clic « Jouer » = geste utilisateur) — reprend le
 // contexte audio (autoplay) et resynchronise le séquenceur pour que la musique démarre tout de suite.
 export function musicKick(levelId) {
+  if (levelId != null) setMusicLevel(levelId); // v1.3.92 : thème musical DU niveau (state pure, même headless)
+  setMusicCombo(8); // v1.3.93 : INTRO — groove complet dès le 1er pas (combo 0 = silence sinon), le 1er juge remettra le vrai combo
   const c = ac(); // crée/reprend le contexte (autorisé car appelé depuis un geste)
   if (!c) return;
-  if (levelId != null) setMusicLevel(levelId); // v1.3.92 : thème musical DU niveau
   if (c.state === 'suspended') c.resume(); // v1.3.91 : reprise explicite — sinon le 1er niveau démarre muet/en retard
-  stopMusic(); // v1.3.91 : restart propre à chaque niveau -> la musique démarre EXACTEMENT au début du niveau
+  stopMusic(); // v1.3.91 : restart propre à chaque niveau
   musicStep = 0;
-  musicNext = c.currentTime + 0.06;
-  if (musicOn && enabled) startMusic();
+  const t0 = c.currentTime + 0.05; // v1.3.93 : downbeat dans 50 ms (pas après un tick de 25 ms + 60 ms)
+  musicNext = t0 + 60 / musicTempo(musicCombo) / 4;
+  if (musicOn && enabled) {
+    scheduleStep(musicStep, t0); // v1.3.93 : 1er pas (downbeat) joué IMMÉDIATEMENT
+    oscNote(c, getBus(c).g, t0, 150, 0.16, 'sine', 0.55, 45); // v1.3.93 : kick d'intro bien présent
+    musicStep = 1;
+    startMusic();
+  }
 }
 
 function stopMusic() {
